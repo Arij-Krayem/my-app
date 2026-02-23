@@ -1,19 +1,32 @@
-import jwt from "jsonwebtoken";
+import jwt, { type SignOptions } from "jsonwebtoken";
 import crypto from "crypto";
 import type { NextRequest } from "next/server";
 
-const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET!;
-const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET!;
-const ACCESS_EXPIRES_IN = process.env.ACCESS_TOKEN_EXPIRES_IN ?? "15m";
-const REFRESH_EXPIRES_IN = process.env.REFRESH_TOKEN_EXPIRES_IN ?? "7d";
+function mustGetEnv(name: string) {
+  const v = process.env[name];
+  if (!v) throw new Error(`Missing env var: ${name}`);
+  return v;
+}
+
+const ACCESS_SECRET = mustGetEnv("JWT_ACCESS_SECRET");
+const REFRESH_SECRET = mustGetEnv("JWT_REFRESH_SECRET");
+
+type ExpiresIn = SignOptions["expiresIn"];
+
+const ACCESS_EXPIRES_IN: ExpiresIn =
+  (process.env.ACCESS_TOKEN_EXPIRES_IN ?? "15m") as ExpiresIn;
+
+const REFRESH_EXPIRES_IN: ExpiresIn =
+  (process.env.REFRESH_TOKEN_EXPIRES_IN ?? "7d") as ExpiresIn;
 
 export type AccessPayload = { userId: string; role: "MARKETER" | "AGENCY_ADMIN" };
+export type RefreshPayload = { userId: string };
 
 export function signAccessToken(payload: AccessPayload) {
   return jwt.sign(payload, ACCESS_SECRET, { expiresIn: ACCESS_EXPIRES_IN });
 }
 
-export function signRefreshToken(payload: { userId: string }) {
+export function signRefreshToken(payload: RefreshPayload) {
   return jwt.sign(payload, REFRESH_SECRET, { expiresIn: REFRESH_EXPIRES_IN });
 }
 
@@ -21,8 +34,8 @@ export function verifyAccessToken(token: string): AccessPayload {
   return jwt.verify(token, ACCESS_SECRET) as AccessPayload;
 }
 
-export function verifyRefreshToken(token: string): { userId: string } {
-  return jwt.verify(token, REFRESH_SECRET) as { userId: string };
+export function verifyRefreshToken(token: string): RefreshPayload {
+  return jwt.verify(token, REFRESH_SECRET) as RefreshPayload;
 }
 
 // Store only hash of refresh tokens in DB
