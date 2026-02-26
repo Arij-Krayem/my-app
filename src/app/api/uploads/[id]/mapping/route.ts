@@ -1,24 +1,45 @@
 import { prisma } from "@/lib/prisma";
-import { getAuth } from "@/lib/auth";
+import { requireAuth } from "@/lib/auth-guard";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 const Body = z.object({
-  mappings: z.array(
-    z.object({
-      sourceColumn: z.string().min(1),
-      targetKey: z.string().min(1),
-      transformRule: z.any().optional(),
-    })
-  ).min(1),
+  mappings: z
+    .array(
+      z.object({
+        sourceColumn: z.string().min(1),
+        targetKey: z.string().min(1),
+        transformRule: z.any().optional(),
+      })
+    )
+    .min(1),
 });
 
 export async function POST(req: NextRequest, ctx: { params: { id: string } }) {
-  const auth = getAuth(req);
-  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // ✅ Auth (catch thrown 401 errors cleanly)
+  let auth: { userId: string; role?: string };
+
+  try {
+    auth = requireAuth(req) as any;
+  } catch (e: any) {
+    return NextResponse.json(
+      { error: e?.message ?? "Unauthorized" },
+      { status: e?.status ?? 401 }
+    );
+  }
 
   const uploadId = ctx.params.id;
-  const data = Body.parse(await req.json());
+
+  // ✅ Validate body
+  let data: z.infer<typeof Body>;
+  try {
+    data = Body.parse(await req.json());
+  } catch (e: any) {
+    return NextResponse.json(
+      { error: "Invalid body", details: e?.errors ?? undefined },
+      { status: 400 }
+    );
+  }
 
   const upload = await prisma.upload.findUnique({
     where: { id: uploadId },
@@ -31,13 +52,21 @@ export async function POST(req: NextRequest, ctx: { params: { id: string } }) {
   });
   if (!member) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  // Upsert mappings
+  // ✅ Upsert mappings + mark upload as MAPPED
   await prisma.$transaction([
     ...data.mappings.map((m) =>
       prisma.columnMapping.upsert({
         where: { uploadId_sourceColumn: { uploadId, sourceColumn: m.sourceColumn } },
-        create: { uploadId, sourceColumn: m.sourceColumn, targetKey: m.targetKey, transformRule: m.transformRule },
-        update: { targetKey: m.targetKey, transformRule: m.transformRule },
+        create: {
+          uploadId,
+          sourceColumn: m.sourceColumn,
+          targetKey: m.targetKey,
+          transformRule: m.transformRule,
+        },
+        update: {
+          targetKey: m.targetKey,
+          transformRule: m.transformRule,
+        },
       })
     ),
     prisma.upload.update({ where: { id: uploadId }, data: { status: "MAPPED" } }),
