@@ -277,4 +277,24 @@ model RefreshToken {
 
   @@index([userId])
 }
+model Lead {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  phone     String?
+  status    LeadStatus @default(NEW)
+  source    String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  LOST
+}

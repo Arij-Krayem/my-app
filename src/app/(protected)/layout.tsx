@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import AppShell from "@/components/AppShell";
 
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -14,7 +15,6 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
     }
   }, [user, loading, router]);
 
-  // Show nothing while session is bootstrapping
   if (loading) {
     return (
       <div style={{
@@ -22,17 +22,18 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        fontFamily: "sans-serif",
+        background: "#0d0f12",
+        fontFamily: "'Plus Jakarta Sans', sans-serif",
         color: "#6b7280",
         fontSize: 14,
+        gap: 10,
       }}>
         Loading…
       </div>
     );
   }
 
-  // Don't flash children while redirecting
   if (!user) return null;
 
-  return <>{children}</>;
+  return <AppShell>{children}</AppShell>;
 }
