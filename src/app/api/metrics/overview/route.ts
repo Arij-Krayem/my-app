@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getAuth } from "@/lib/auth";
+import { getBearer, verifyAccessToken } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -10,8 +10,10 @@ const Query = z.object({
 });
 
 export async function GET(req: NextRequest) {
-  const auth = getAuth(req);
-  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const token = getBearer(req);
+  if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  
+  const auth = verifyAccessToken(token);
 
   const url = new URL(req.url);
   const q = Query.parse({

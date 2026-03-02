@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getAuth } from "@/lib/auth";
+import { getBearer, verifyAccessToken } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -24,8 +24,10 @@ async function assertBrandAccess(userId: string, brandId: string) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = getAuth(req);
-  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const token = getBearer(req);
+  if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  
+  const auth = verifyAccessToken(token);
 
   const data = Body.parse(await req.json());
 
