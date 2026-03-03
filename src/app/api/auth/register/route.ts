@@ -1,16 +1,16 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 
 const Body = z.object({
-  email: z.string().email(),
+  email:    z.string().email(),
   password: z.string().min(6),
-  name: z.string().optional(),
-  role: z.enum(["MARKETER", "AGENCY_ADMIN"]).optional(),
+  name:     z.string().optional(),
+  role:     z.literal("MARKETER").optional(),
 });
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const data = Body.parse(await req.json());
 
@@ -23,19 +23,22 @@ export async function POST(req: Request) {
 
     const user = await prisma.user.create({
       data: {
-        email: data.email,
-        name: data.name,
-        role: data.role ?? "MARKETER",
+        email:        data.email,
+        name:         data.name,
+        role:         "MARKETER",
         passwordHash,
       },
       select: { id: true, email: true, role: true, name: true, createdAt: true },
     });
 
     return NextResponse.json({ user }, { status: 201 });
-  } catch (err: any) {
-    // show useful error in Postman instead of HTML
+
+  } catch (err: unknown) {
+    if (err instanceof z.ZodError) {
+      return NextResponse.json({ error: "Validation failed", fields: err.issues }, { status: 400 });
+    }
     return NextResponse.json(
-      { error: err?.message ?? "Internal Server Error" },
+      { error: err instanceof Error ? err.message : "Internal Server Error" },
       { status: 500 }
     );
   }
