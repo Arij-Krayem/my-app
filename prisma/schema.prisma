@@ -111,6 +111,7 @@ model Upload {
   platform  Platform
   fileName  String
   status    UploadStatus @default(PENDING)
+  rawCsv    String?
   createdAt DateTime     @default(now())
 
   brand    Brand             @relation(fields: [brandId], references: [id], onDelete: Cascade)
