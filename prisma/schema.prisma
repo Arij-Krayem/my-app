@@ -1,0 +1,300 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+
+
+enum Role {
+  MARKETER
+  AGENCY_ADMIN
+}
+
+enum UploadStatus {
+  PENDING
+  MAPPED
+  IMPORTED
+  FAILED
+}
+
+enum NotificationStatus {
+  OPEN
+  ACK
+  RESOLVED
+}
+
+enum NotificationType {
+  ANOMALY
+  DRIFT
+  THRESHOLD
+}
+
+enum Platform {
+  GOOGLE
+  META
+  CSV
+}
+
+enum EntityType {
+  CAMPAIGN
+  ADSET
+  AD
+  ACCOUNT
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  passwordHash String
+  role         Role     @default(MARKETER)
+  createdAt    DateTime @default(now())
+  refreshTokens RefreshToken[]
+
+  brandMembers  BrandMember[]
+  notifications NotificationRecipient[]
+  uploads       Upload[]
+
+  @@index([role])
+}
+
+model Brand {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  members  BrandMember[]
+  uploads  Upload[]
+  accuracy Accuracy?
+  facts    PerformanceFact[]
+
+  metricDefinitions MetricDefinition[]
+
+  anomalies     Anomaly[]
+  alerts        Alert[]
+  rules         AlertRule[]
+  notifications Notification[]
+
+  @@index([name])
+}
+
+model BrandMember {
+  id      String @id @default(cuid())
+  userId  String
+  brandId String
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, brandId])
+  @@index([brandId])
+}
+
+model Accuracy {
+  id          String   @id @default(cuid())
+  brandId     String   @unique
+  sensitivity Float    @default(0.7)
+  threshold   Float    @default(0.8)
+  updatedAt   DateTime @updatedAt
+
+  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+}
+
+model Upload {
+  id        String       @id @default(cuid())
+  brandId   String
+  userId    String
+  platform  Platform
+  fileName  String
+  status    UploadStatus @default(PENDING)
+  createdAt DateTime     @default(now())
+
+  brand    Brand             @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  columns  UploadColumn[]
+  mappings ColumnMapping[]
+  facts    PerformanceFact[]
+
+  @@index([brandId, createdAt])
+  @@index([status])
+}
+
+model UploadColumn {
+  id           String  @id @default(cuid())
+  uploadId     String
+  name         String
+  inferredType String?
+  sample       Json?
+
+  upload Upload @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+
+  @@index([uploadId])
+}
+
+model ColumnMapping {
+  id            String @id @default(cuid())
+  uploadId      String
+  sourceColumn  String
+  targetKey     String // e.g. "spend", "clicks", "campaign_id"
+  transformRule Json? // optional: parse currency, replace commas, etc.
+
+  upload Upload @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+
+  @@unique([uploadId, sourceColumn])
+  @@index([uploadId])
+}
+
+model MetricDefinition {
+  id          String   @id @default(cuid())
+  brandId     String
+  key         String // spend, clicks, roas...
+  label       String
+  dataType    String // "number" | "string" | "date"
+  unit        String? // "currency" | "percent" | "count"
+  isDimension Boolean  @default(false)
+  formula     Json?
+  createdAt   DateTime @default(now())
+
+  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@unique([brandId, key])
+  @@index([brandId])
+}
+
+// ✅ Dynamic table: store ANY metrics/dimensions without altering schema
+model PerformanceFact {
+  id         String     @id @default(cuid())
+  brandId    String
+  uploadId   String?
+  platform   Platform
+  date       DateTime
+  entityType EntityType
+  entityId   String
+
+  dimensions Json @default("{}") // e.g. { "campaign_name": "...", "country": "TN" }
+  metrics    Json @default("{}") // e.g. { "spend": 12.3, "clicks": 44 }
+
+  createdAt DateTime @default(now())
+
+  brand  Brand   @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  upload Upload? @relation(fields: [uploadId], references: [id], onDelete: SetNull)
+
+  @@index([brandId, date])
+  @@index([brandId, entityType, entityId, date])
+}
+
+model Anomaly {
+  id           String     @id @default(cuid())
+  brandId      String
+  entityType   EntityType
+  entityId     String
+  metricKey    String
+  anomalyScore Float
+  severity     String
+  reason       String
+  dateStart    DateTime
+  dateEnd      DateTime
+  createdAt    DateTime   @default(now())
+
+  brand  Brand   @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  alerts Alert[]
+
+  @@index([brandId, createdAt])
+  @@index([brandId, entityType, entityId])
+}
+
+model AlertRule {
+  id        String   @id @default(cuid())
+  brandId   String
+  metricKey String
+  operator  String // ">" "<" ">=" "<=" "=="
+  threshold Float
+  severity  String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  brand  Brand   @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  alerts Alert[]
+
+  @@index([brandId, isActive])
+}
+
+model Alert {
+  id        String             @id @default(cuid())
+  brandId   String
+  ruleId    String?
+  anomalyId String?
+  status    NotificationStatus @default(OPEN)
+  message   String
+  createdAt DateTime           @default(now())
+
+  brand   Brand      @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  rule    AlertRule? @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+  anomaly Anomaly?   @relation(fields: [anomalyId], references: [id], onDelete: SetNull)
+
+  @@index([brandId, createdAt])
+  @@index([status])
+}
+
+model Notification {
+  id        String             @id @default(cuid())
+  brandId   String
+  type      NotificationType
+  message   String
+  status    NotificationStatus @default(OPEN)
+  createdAt DateTime           @default(now())
+
+  brand      Brand                   @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  recipients NotificationRecipient[]
+
+  @@index([brandId, createdAt])
+  @@index([status])
+}
+
+model NotificationRecipient {
+  id             String @id @default(cuid())
+  notificationId String
+  userId         String
+
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([notificationId, userId])
+  @@index([userId])
+}
+model RefreshToken {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  revoked   Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+model Lead {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  phone     String?
+  status    LeadStatus @default(NEW)
+  source    String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  LOST
+}
