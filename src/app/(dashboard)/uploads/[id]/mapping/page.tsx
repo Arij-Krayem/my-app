@@ -195,7 +195,7 @@ export default function ColumnMappingPage() {
           onClick={autoMap}
           className="btn-primary"
         >
-          🤖 Auto-Map Columns
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style="display:inline-block;verticalAlign:middle;marginRight:6px"><path d="M15 4V2m0 14v-2M8 9H2m14 0h-2M4.22 4.22l1.42 1.42M17.36 17.36l1.42 1.42M4.22 17.36l1.42-1.42M17.36 6.64l1.42-1.42"/><circle cx="12" cy="9" r="3"/></svg> Auto-Map Columns
         </button>
       </div>
 

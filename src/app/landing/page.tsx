@@ -1,22 +1,12 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
 
 export default function LandingPage() {
-  const [theme, setTheme] = useState("dark");
 
   useEffect(() => {
-    const t = localStorage.getItem("theme") || "dark";
-    setTheme(t);
-    document.documentElement.setAttribute("data-theme", t);
+    document.documentElement.removeAttribute("data-theme");
   }, []);
-
-  const toggleTheme = () => {
-    const next = theme === "dark" ? "light" : "dark";
-    setTheme(next);
-    localStorage.setItem("theme", next);
-    document.documentElement.setAttribute("data-theme", next);
-  };
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--t1)", fontFamily: "'Outfit', sans-serif", overflowX: "hidden" }}>
@@ -26,7 +16,7 @@ export default function LandingPage() {
         position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
         height: "68px", display: "flex", alignItems: "center", justifyContent: "space-between",
         padding: "0 48px",
-        background: "rgba(13,17,23,0.85)", backdropFilter: "blur(12px)",
+        background: "rgba(255,255,255,0.92)", backdropFilter: "blur(12px)",
         borderBottom: "1px solid var(--border)",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -43,14 +33,6 @@ export default function LandingPage() {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <button onClick={toggleTheme} style={{
-            width: "36px", height: "36px", borderRadius: "10px",
-            background: "var(--card)", border: "1px solid var(--border)",
-            cursor: "pointer", fontSize: "16px", display: "flex",
-            alignItems: "center", justifyContent: "center",
-          }}>
-            {theme === "dark" ? "☀️" : "🌙"}
-          </button>
           <Link href="/login" style={{
             padding: "9px 20px", borderRadius: "10px",
             border: "1px solid var(--border)", color: "var(--t1)",
@@ -200,17 +182,17 @@ export default function LandingPage() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "24px" }}>
             {[
               {
-                icon: "📊", color: "#5865f2", bg: "rgba(88,101,242,0.12)",
+                icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>), color: "#5865f2", bg: "rgba(88,101,242,0.12)",
                 title: "KPI Monitoring",
                 desc: "Track ROAS, CTR, CPC, and CAC in real-time across all your Google & Meta campaigns. Visualized with Recharts for maximum clarity.",
               },
               {
-                icon: "🐍", color: "#3fb950", bg: "rgba(63,185,80,0.12)",
+                icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>), color: "#3fb950", bg: "rgba(63,185,80,0.12)",
                 title: "Python Anomaly Detection",
                 desc: "Our Python-powered engine analyzes your CSV data to identify performance drifts and automatically flag budget-bleeding campaigns before they escalate.",
               },
               {
-                icon: "⚡", color: "#d29922", bg: "rgba(210,153,34,0.12)",
+                icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>), color: "#d29922", bg: "rgba(210,153,34,0.12)",
                 title: "Instant Alerts",
                 desc: "Set custom guardrails for any KPI. Get notified the moment a campaign drifts out of bounds with severity-ranked alerts.",
               },
@@ -346,15 +328,6 @@ export default function LandingPage() {
           © 2026 VisioAd. All rights reserved.
         </div>
       </footer>
-
-      <style>{`
-        @keyframes fadeUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
-        @media (max-width: 768px) {
-          nav { padding: 0 20px !important; }
-          section { padding-left: 20px !important; padding-right: 20px !important; }
-          .features-grid { grid-template-columns: 1fr !important; }
-        }
-      `}</style>
     </div>
   );
 }

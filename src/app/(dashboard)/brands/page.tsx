@@ -76,7 +76,7 @@ export default function BrandsPage() {
       {/* Search + Filter */}
       <div style={{ display: "flex", gap: "12px", marginBottom: "16px", alignItems: "center" }}>
         <div style={{ position: "relative", flex: 1, maxWidth: "320px" }}>
-          <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--t3)", fontSize: "14px" }}>🔍</span>
+          <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", display:"flex", alignItems:"center", justifyContent:"center", color:"var(--t3)" }}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search brands..." style={{ width: "100%", padding: "9px 12px 9px 36px", background: "var(--card)", border: "1px solid var(--border)", borderRadius: "10px", color: "var(--t1)", fontSize: "14px", fontFamily: "inherit", outline: "none", transition: "border-color 0.2s" }}
             onFocus={e => { e.target.style.borderColor = "#5865f2"; }}
             onBlur={e => { e.target.style.borderColor = "var(--border)"; }} />
@@ -101,7 +101,7 @@ export default function BrandsPage() {
 
         {visible.length === 0 ? (
           <div style={{ textAlign: "center", padding: "60px" }}>
-            <div style={{ fontSize: "40px", marginBottom: "12px" }}>🔍</div>
+            <div style={{ color:"var(--t3)", display:"flex", justifyContent:"center", marginBottom:"12px" }}><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
             <p style={{ color: "var(--t2)", fontSize: "14px" }}>No brands match your search.</p>
           </div>
         ) : (
@@ -167,7 +167,6 @@ export default function BrandsPage() {
           </div>
         </div>
       )}
-      <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}`}</style>
     </div>
   );
 }

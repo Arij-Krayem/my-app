@@ -91,7 +91,7 @@ export default function AlertsPage() {
       {/* Alert cards */}
       {visible.length === 0 ? (
         <div style={{ textAlign: "center", padding: "80px 20px", background: "var(--card)", border: "1px solid var(--border)", borderRadius: "16px" }}>
-          <div style={{ fontSize: "48px", marginBottom: "12px" }}>✅</div>
+          <div style={{ color:"var(--success)", display:"flex", justifyContent:"center", marginBottom:"12px" }}><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
           <p style={{ fontSize: "16px", fontWeight: "600", color: "var(--t1)", marginBottom: "4px" }}>All clear!</p>
           <p style={{ fontSize: "14px", color: "var(--t2)" }}>No alerts in this category.</p>
         </div>
@@ -160,7 +160,6 @@ export default function AlertsPage() {
           })}
         </div>
       )}
-      <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}`}</style>
     </div>
   );
 }

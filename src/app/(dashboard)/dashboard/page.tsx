@@ -9,10 +9,10 @@ const MOCK_ALERTS = [
 ];
 
 const KPI_CARDS = [
-  { label: "Total Spend", value: "$24,582", change: "+12.4%", up: true,  icon: "💰", grad: "linear-gradient(135deg,#10b981,#34d399)", glow: "rgba(16,185,129,0.2)"  },
-  { label: "ROAS",        value: "4.2x",    change: "+8.1%",  up: true,  icon: "📈", grad: "linear-gradient(135deg,#5865f2,#818cf8)", glow: "rgba(88,101,242,0.2)"  },
-  { label: "CTR",         value: "3.8%",    change: "-2.3%",  up: false, icon: "🎯", grad: "linear-gradient(135deg,#8b5cf6,#a78bfa)", glow: "rgba(139,92,246,0.2)"  },
-  { label: "CPC",         value: "$1.24",   change: "-5.2%",  up: false, icon: "🖱️", grad: "linear-gradient(135deg,#f59e0b,#fbbf24)", glow: "rgba(245,158,11,0.2)"  },
+  { label: "Total Spend", value: "$24,582", change: "+12.4%", up: true,  icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>), grad: "linear-gradient(135deg,#10b981,#34d399)", glow: "rgba(16,185,129,0.2)"  },
+  { label: "ROAS",        value: "4.2x",    change: "+8.1%",  up: true,  icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>), grad: "linear-gradient(135deg,#5865f2,#818cf8)", glow: "rgba(88,101,242,0.2)"  },
+  { label: "CTR",         value: "3.8%",    change: "-2.3%",  up: false, icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>), grad: "linear-gradient(135deg,#8b5cf6,#a78bfa)", glow: "rgba(139,92,246,0.2)"  },
+  { label: "CPC",         value: "$1.24",   change: "-5.2%",  up: false, icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>), grad: "linear-gradient(135deg,#f59e0b,#fbbf24)", glow: "rgba(245,158,11,0.2)"  },
 ];
 
 export default function DashboardPage() {
@@ -43,7 +43,7 @@ export default function DashboardPage() {
       <div style={{ marginBottom: "28px", display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: "12px" }}>
         <div>
           <h1 style={{ fontSize: "26px", fontWeight: "700", color: "var(--t1)", marginBottom: "4px" }}>
-            {greeting()}{user?.name ? `, ${user.name.split(" ")[0]}` : ""} 👋
+            {greeting()}{user?.name ? `, ${user.name.split(" ")[0]}` : ""}
           </h1>
           <p style={{ fontSize: "14px", color: "var(--t2)" }}>Here's your campaign performance overview for today.</p>
         </div>
@@ -135,7 +135,7 @@ export default function DashboardPage() {
             </div>
             {uploads.length === 0 ? (
               <div style={{ textAlign: "center", padding: "20px" }}>
-                <div style={{ fontSize: "32px", marginBottom: "8px" }}>📂</div>
+                <div style={{ color: "var(--t3)", marginBottom: "8px", display:"flex", justifyContent:"center" }}><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
                 <p style={{ fontSize: "13px", color: "var(--t2)", marginBottom: "10px" }}>No uploads yet</p>
                 <Link href="/uploads/new" style={{ fontSize: "12px", fontWeight: "600", color: "#5865f2", textDecoration: "none", padding: "7px 14px", borderRadius: "8px", border: "1px solid rgba(88,101,242,0.3)", background: "rgba(88,101,242,0.08)" }}>Upload first dataset →</Link>
               </div>
@@ -160,7 +160,6 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
-      <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}`}</style>
     </div>
   );
 }

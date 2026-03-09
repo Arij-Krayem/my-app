@@ -1,277 +1,222 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function SettingsPage() {
-  const [user, setUser] = useState<any>(null);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [theme, setTheme] = useState("dark");
   const router = useRouter();
+  const [user, setUser]               = useState<any>(null);
+  const [name, setName]               = useState("");
+  const [email, setEmail]             = useState("");
+  const [currentPw, setCurrentPw]     = useState("");
+  const [newPw, setNewPw]             = useState("");
+  const [confirmPw, setConfirmPw]     = useState("");
+  const [loading, setLoading]         = useState(false);
+  const [profileMsg, setProfileMsg]   = useState("");
+  const [passwordMsg, setPasswordMsg] = useState("");
+  const [showLogout, setShowLogout]   = useState(false);
 
   useEffect(() => {
-    const userData = sessionStorage.getItem("user");
-    if (userData) {
-      const parsedUser = JSON.parse(userData);
-      setUser(parsedUser);
-      setName(parsedUser.name);
-      setEmail(parsedUser.email);
-    }
-
-    const savedTheme = localStorage.getItem("theme") || "dark";
-    setTheme(savedTheme);
+    document.documentElement.removeAttribute("data-theme");
+    const raw = sessionStorage.getItem("user");
+    if (raw) { const u = JSON.parse(raw); setUser(u); setName(u.name || ""); setEmail(u.email || ""); }
   }, []);
 
-  const handleProfileUpdate = async (e: React.FormEvent) => {
+  const saveProfile = async (e: React.FormEvent) => {
+    e.preventDefault(); setLoading(true);
+    try {
+      const updated = { ...user, name, email };
+      sessionStorage.setItem("user", JSON.stringify(updated));
+      setUser(updated);
+      setProfileMsg("success");
+      setTimeout(() => setProfileMsg(""), 3000);
+    } finally { setLoading(false); }
+  };
+
+  const savePassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (newPw !== confirmPw) { setPasswordMsg("error:Passwords do not match"); return; }
+    if (newPw.length < 6)    { setPasswordMsg("error:Must be at least 6 characters"); return; }
     setLoading(true);
-
     try {
-      // Mock API call
-      const updatedUser = { ...user, name, email };
-      sessionStorage.setItem("user", JSON.stringify(updatedUser));
-      setUser(updatedUser);
-      alert("Profile updated successfully!");
-    } catch (error) {
-      alert("Failed to update profile");
-    } finally {
-      setLoading(false);
-    }
+      setPasswordMsg("success");
+      setCurrentPw(""); setNewPw(""); setConfirmPw("");
+      setTimeout(() => setPasswordMsg(""), 3000);
+    } finally { setLoading(false); }
   };
 
-  const handlePasswordChange = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (newPassword !== confirmPassword) {
-      alert("New passwords do not match");
-      return;
-    }
-
-    if (newPassword.length < 6) {
-      alert("Password must be at least 6 characters long");
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      // Mock API call
-      alert("Password changed successfully!");
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-    } catch (error) {
-      alert("Failed to change password");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleThemeToggle = () => {
-    const newTheme = theme === "dark" ? "light" : "dark";
-    setTheme(newTheme);
-    localStorage.setItem("theme", newTheme);
-    document.documentElement.setAttribute("data-theme", newTheme);
-  };
-
-  const handleSignOut = async () => {
-    try {
-      await fetch("/api/auth/logout", {
-        method: "POST",
-        credentials: "include",
-      });
-    } catch (error) {
-      console.error("Logout error:", error);
-    }
+  const logout = async () => {
+    try { await fetch("/api/auth/logout", { method: "POST", credentials: "include" }); } catch {}
     sessionStorage.removeItem("access_token");
     sessionStorage.removeItem("user");
     router.push("/login");
   };
 
+  const inputSt: React.CSSProperties = {
+    width: "100%", padding: "11px 14px",
+    background: "var(--bg)", border: "1px solid var(--border)",
+    borderRadius: "10px", color: "var(--t1)", fontSize: "14px",
+    fontFamily: "inherit", outline: "none", transition: "border-color 0.2s, box-shadow 0.2s",
+  };
+  const labelSt: React.CSSProperties = { display: "block", fontSize: "12px", fontWeight: "600", color: "var(--t2)", marginBottom: "6px" };
+  const cardSt = { background: "var(--card)", border: "1px solid var(--border)", borderRadius: "16px", padding: "28px", marginBottom: "16px" };
+  const focus = (e: React.FocusEvent<HTMLInputElement>) => { e.target.style.borderColor = "#5865f2"; e.target.style.boxShadow = "0 0 0 3px rgba(88,101,242,0.12)"; };
+  const blur  = (e: React.FocusEvent<HTMLInputElement>) => { e.target.style.borderColor = "var(--border)"; e.target.style.boxShadow = "none"; };
+
+  const pwIsError   = passwordMsg.startsWith("error:");
+  const pwMsg       = passwordMsg.replace("error:", "");
+
   return (
-    <div className="animate-fadeUp">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2" style={{ color: "var(--t1)" }}>
-          Settings
-        </h1>
-        <p style={{ color: "var(--t2)" }}>
-          Manage your account settings and preferences
-        </p>
+    <div style={{ animation: "fadeUp 0.4s ease both", fontFamily: "'Outfit', sans-serif", maxWidth: "780px", margin: "0 auto" }}>
+      <div style={{ marginBottom: "32px" }}>
+        <h1 style={{ fontSize: "24px", fontWeight: "700", color: "var(--t1)", marginBottom: "4px" }}>Settings</h1>
+        <p style={{ fontSize: "14px", color: "var(--t2)" }}>Manage your account settings and preferences</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Profile Section */}
-        <div className="lg:col-span-2">
-          <div className="card p-6 mb-6">
-            <h2 className="text-xl font-semibold mb-6" style={{ color: "var(--t1)" }}>
-              Profile Information
-            </h2>
-            
-            <form onSubmit={handleProfileUpdate} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2" style={{ color: "var(--t1)" }}>
-                  Full Name
-                </label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="input-field w-full"
-                  required
-                />
-              </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", alignItems: "start" }}>
 
-              <div>
-                <label className="block text-sm font-medium mb-2" style={{ color: "var(--t1)" }}>
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="input-field w-full"
-                  required
-                />
+        {/* LEFT — Profile + Password */}
+        <div>
+          {/* Profile card */}
+          <div style={cardSt}>
+            <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "24px" }}>
+              <div style={{ width: "48px", height: "48px", borderRadius: "12px", background: "linear-gradient(135deg,#5865f2,#818cf8)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: "800", fontSize: "20px", flexShrink: 0 }}>
+                {(user?.name || user?.email || "?")[0].toUpperCase()}
               </div>
-
-              <button
-                type="submit"
-                className="btn-primary"
-                disabled={loading}
-              >
-                {loading ? "Updating..." : "Update Profile"}
+              <div>
+                <h2 style={{ fontSize: "16px", fontWeight: "700", color: "var(--t1)" }}>Profile Information</h2>
+                <p style={{ fontSize: "12px", color: "var(--t2)", marginTop: "2px" }}>Update your name and email</p>
+              </div>
+            </div>
+            <form onSubmit={saveProfile}>
+              <div style={{ marginBottom: "14px" }}>
+                <label style={labelSt}>Full Name</label>
+                <input type="text" value={name} onChange={e => setName(e.target.value)} required style={inputSt} onFocus={focus} onBlur={blur} />
+              </div>
+              <div style={{ marginBottom: "20px" }}>
+                <label style={labelSt}>Email Address</label>
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} required style={inputSt} onFocus={focus} onBlur={blur} />
+              </div>
+              {profileMsg === "success" && (
+                <div style={{ marginBottom: "14px", padding: "10px 14px", borderRadius: "9px", background: "rgba(63,185,80,0.08)", border: "1px solid rgba(63,185,80,0.25)", color: "#3fb950", fontSize: "13px", fontWeight: "500", display: "flex", alignItems: "center", gap: "6px" }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  Profile updated successfully
+                </div>
+              )}
+              <button type="submit" disabled={loading}
+                style={{ padding: "10px 22px", background: "linear-gradient(135deg,#5865f2,#818cf8)", border: "none", borderRadius: "10px", color: "white", fontSize: "14px", fontWeight: "600", cursor: loading ? "not-allowed" : "pointer", fontFamily: "inherit", boxShadow: "0 4px 12px rgba(88,101,242,0.25)", opacity: loading ? 0.7 : 1 }}>
+                {loading ? "Saving..." : "Update Profile"}
               </button>
             </form>
           </div>
 
-          {/* Security Section */}
-          <div className="card p-6">
-            <h2 className="text-xl font-semibold mb-6" style={{ color: "var(--t1)" }}>
-              Security
-            </h2>
-            
-            <form onSubmit={handlePasswordChange} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2" style={{ color: "var(--t1)" }}>
-                  Current Password
-                </label>
-                <input
-                  type="password"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  className="input-field w-full"
-                  required
-                />
+          {/* Password card */}
+          <div style={{ ...cardSt, marginBottom: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "24px" }}>
+              <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "rgba(88,101,242,0.1)", display: "flex", alignItems: "center", justifyContent: "center", color: "#5865f2" }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
               </div>
-
               <div>
-                <label className="block text-sm font-medium mb-2" style={{ color: "var(--t1)" }}>
-                  New Password
-                </label>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="input-field w-full"
-                  required
-                  minLength={6}
-                />
+                <h2 style={{ fontSize: "16px", fontWeight: "700", color: "var(--t1)" }}>Change Password</h2>
+                <p style={{ fontSize: "12px", color: "var(--t2)", marginTop: "2px" }}>Keep your account secure</p>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2" style={{ color: "var(--t1)" }}>
-                  Confirm New Password
-                </label>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="input-field w-full"
-                  required
-                  minLength={6}
-                />
+            </div>
+            <form onSubmit={savePassword}>
+              <div style={{ marginBottom: "12px" }}>
+                <label style={labelSt}>Current Password</label>
+                <input type="password" value={currentPw} onChange={e => setCurrentPw(e.target.value)} required style={inputSt} onFocus={focus} onBlur={blur} />
               </div>
-
-              <button
-                type="submit"
-                className="btn-primary"
-                disabled={loading}
-              >
-                {loading ? "Changing..." : "Change Password"}
+              <div style={{ marginBottom: "12px" }}>
+                <label style={labelSt}>New Password</label>
+                <input type="password" value={newPw} onChange={e => setNewPw(e.target.value)} required minLength={6} style={inputSt} onFocus={focus} onBlur={blur} />
+              </div>
+              <div style={{ marginBottom: "20px" }}>
+                <label style={labelSt}>Confirm New Password</label>
+                <input type="password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} required minLength={6} style={inputSt} onFocus={focus} onBlur={blur} />
+              </div>
+              {pwMsg && (
+                <div style={{ marginBottom: "14px", padding: "10px 14px", borderRadius: "9px", background: pwIsError ? "rgba(248,81,73,0.08)" : "rgba(63,185,80,0.08)", border: `1px solid ${pwIsError ? "rgba(248,81,73,0.25)" : "rgba(63,185,80,0.25)"}`, color: pwIsError ? "#f85149" : "#3fb950", fontSize: "13px", fontWeight: "500", display: "flex", alignItems: "center", gap: "6px" }}>
+                  {!pwIsError && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                  {pwMsg}
+                </div>
+              )}
+              <button type="submit" disabled={loading}
+                style={{ padding: "10px 22px", background: "linear-gradient(135deg,#5865f2,#818cf8)", border: "none", borderRadius: "10px", color: "white", fontSize: "14px", fontWeight: "600", cursor: loading ? "not-allowed" : "pointer", fontFamily: "inherit", boxShadow: "0 4px 12px rgba(88,101,242,0.25)", opacity: loading ? 0.7 : 1 }}>
+                {loading ? "Saving..." : "Change Password"}
               </button>
             </form>
           </div>
         </div>
 
-        {/* Sidebar */}
-        <div className="space-y-6">
-          {/* Preferences */}
-          <div className="card p-6">
-            <h2 className="text-xl font-semibold mb-6" style={{ color: "var(--t1)" }}>
-              Preferences
-            </h2>
-            
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium" style={{ color: "var(--t1)" }}>Theme</p>
-                  <p className="text-sm" style={{ color: "var(--t2)" }}>
-                    Choose your preferred color scheme
-                  </p>
+        {/* RIGHT — Account + Sign Out */}
+        <div>
+          {/* Account info card */}
+          <div style={cardSt}>
+            <h2 style={{ fontSize: "16px", fontWeight: "700", color: "var(--t1)", marginBottom: "20px" }}>Account</h2>
+            {user && (
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: "14px", padding: "16px", borderRadius: "12px", background: "var(--bg)", border: "1px solid var(--border)", marginBottom: "16px" }}>
+                  <div style={{ width: "44px", height: "44px", borderRadius: "11px", background: "linear-gradient(135deg,#5865f2,#818cf8)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: "800", fontSize: "18px", flexShrink: 0 }}>
+                    {(user.name || user.email)[0].toUpperCase()}
+                  </div>
+                  <div>
+                    <p style={{ fontSize: "15px", fontWeight: "700", color: "var(--t1)" }}>{user.name}</p>
+                    <p style={{ fontSize: "12px", color: "var(--t2)", marginTop: "2px" }}>{user.email}</p>
+                    <span style={{ display: "inline-block", marginTop: "6px", fontSize: "11px", fontWeight: "700", padding: "2px 10px", borderRadius: "20px", background: "rgba(88,101,242,0.1)", color: "#5865f2", border: "1px solid rgba(88,101,242,0.2)" }}>
+                      {user.role?.replace("_", " ")}
+                    </span>
+                  </div>
                 </div>
-                <button
-                  onClick={handleThemeToggle}
-                  className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
-                  style={{
-                    background: theme === "dark" ? "var(--accent)" : "var(--border)"
-                  }}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      theme === "dark" ? "translate-x-6" : "translate-x-1"
-                    }`}
-                  />
-                </button>
+
+                {/* Stats row */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                  {[
+                    { label: "Member since", value: "Jan 2024" },
+                    { label: "Last login",   value: "Today"    },
+                  ].map(s => (
+                    <div key={s.label} style={{ padding: "12px 14px", borderRadius: "10px", background: "var(--bg)", border: "1px solid var(--border)" }}>
+                      <p style={{ fontSize: "11px", color: "var(--t3)", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: "600" }}>{s.label}</p>
+                      <p style={{ fontSize: "14px", fontWeight: "600", color: "var(--t1)" }}>{s.value}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
-              
-              <div className="flex items-center gap-2">
-                <span className="text-lg">
-                  {theme === "dark" ? "🌙" : "☀️"}
-                </span>
-                <span className="text-sm" style={{ color: "var(--t2)" }}>
-                  {theme === "dark" ? "Dark mode" : "Light mode"}
-                </span>
-              </div>
-            </div>
+            )}
           </div>
 
-          {/* Danger Zone */}
-          <div className="card p-6" style={{ borderColor: "var(--danger)" }}>
-            <h2 className="text-xl font-semibold mb-4" style={{ color: "var(--danger)" }}>
-              Danger Zone
-            </h2>
-            
-            <div className="space-y-4">
-              <p className="text-sm" style={{ color: "var(--t2)" }}>
-                Once you sign out, you'll need to log in again to access your dashboard.
-              </p>
-              
-              <button
-                onClick={handleSignOut}
-                className="w-full py-3 px-4 rounded-lg font-medium transition-colors"
-                style={{
-                  background: "var(--danger)",
-                  color: "white"
-                }}
-              >
+          {/* Sign out card */}
+          <div style={{ ...cardSt, marginBottom: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
+              <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "rgba(248,81,73,0.08)", display: "flex", alignItems: "center", justifyContent: "center", color: "#f85149" }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              </div>
+              <div>
+                <h2 style={{ fontSize: "16px", fontWeight: "700", color: "var(--t1)" }}>Sign Out</h2>
+                <p style={{ fontSize: "12px", color: "var(--t2)", marginTop: "2px" }}>End your current session</p>
+              </div>
+            </div>
+
+            {!showLogout ? (
+              <button onClick={() => setShowLogout(true)}
+                style={{ width: "100%", padding: "11px", borderRadius: "10px", border: "1px solid rgba(248,81,73,0.25)", background: "rgba(248,81,73,0.06)", color: "#f85149", fontSize: "14px", fontWeight: "600", cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(248,81,73,0.12)"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(248,81,73,0.06)"; }}>
                 Sign Out
               </button>
-            </div>
+            ) : (
+              <div style={{ padding: "16px", borderRadius: "12px", background: "rgba(248,81,73,0.05)", border: "1px solid rgba(248,81,73,0.2)" }}>
+                <p style={{ fontSize: "13px", color: "var(--t2)", marginBottom: "14px", textAlign: "center" }}>Are you sure you want to sign out?</p>
+                <div style={{ display: "flex", gap: "10px" }}>
+                  <button onClick={() => setShowLogout(false)}
+                    style={{ flex: 1, padding: "9px", borderRadius: "9px", border: "1px solid var(--border)", background: "transparent", color: "var(--t2)", fontSize: "13px", fontWeight: "600", cursor: "pointer", fontFamily: "inherit" }}>
+                    Cancel
+                  </button>
+                  <button onClick={logout}
+                    style={{ flex: 1, padding: "9px", borderRadius: "9px", border: "none", background: "#f85149", color: "white", fontSize: "13px", fontWeight: "700", cursor: "pointer", fontFamily: "inherit" }}>
+                    Yes, sign out
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
