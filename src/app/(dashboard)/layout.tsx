@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 
@@ -15,6 +15,7 @@ const SVG = {
   detection: <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12h2l3-9 4 18 3-9h2"/></svg>,
   bell:      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>,
   menu:      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>,
+  logout:    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
 };
 
 const NAV_ITEMS = [
@@ -40,6 +41,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [brands, setBrands]          = useState<{ id: string; name: string }[]>([]);
   const [selectedBrand, setSelected] = useState("");
   const [notifCount]                 = useState(3);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     document.documentElement.removeAttribute("data-theme");
@@ -53,10 +56,39 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       if (u.role === "AGENCY_ADMIN") {
         fetch("/api/brands", { headers: { Authorization: `Bearer ${token}` }, credentials: "include" })
           .then(r => r.ok ? r.json() : [])
-          .then(d => { setBrands(d); if (d[0]) setSelected(d[0].id); });
+          .then(d => {
+            const list = d.items ?? d;
+            setBrands(list);
+            if (list[0]) setSelected(list[0].id);
+          });
       }
     } catch { router.push("/login"); }
   }, [router]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      const token = sessionStorage.getItem("access_token");
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+        credentials: "include",
+      });
+    } catch {}
+    sessionStorage.removeItem("access_token");
+    sessionStorage.removeItem("user");
+    router.push("/login");
+  };
 
   const isAdmin = user?.role === "AGENCY_ADMIN";
   const allNav  = isAdmin ? [...NAV_ITEMS, ...ADMIN_ITEMS] : NAV_ITEMS;
@@ -128,7 +160,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           )}
         </nav>
 
-        {/* User card only — sign out is in Settings */}
+        {/* User card */}
         {!collapsed && user && (
           <div style={{ padding: "12px 8px", borderTop: "1px solid var(--border)", flexShrink: 0 }}>
             <div style={{ padding: "12px", borderRadius: "10px", background: "var(--bg)", border: "1px solid var(--border)" }}>
@@ -169,6 +201,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
               </select>
             )}
+
+            {/* Bell */}
             <div style={{ position: "relative" }}>
               <button style={{ width: "36px", height: "36px", borderRadius: "10px", background: "var(--bg)", border: "1px solid var(--border)", cursor: "pointer", color: "var(--t2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 {SVG.bell}
@@ -177,9 +211,37 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <span style={{ position: "absolute", top: "-4px", right: "-4px", width: "18px", height: "18px", borderRadius: "50%", background: "var(--danger)", color: "white", fontSize: "10px", fontWeight: "700", display: "flex", alignItems: "center", justifyContent: "center" }}>{notifCount}</span>
               )}
             </div>
+
+            {/* Avatar + dropdown */}
             {user && (
-              <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "linear-gradient(135deg,#5865f2,#818cf8)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: "700", fontSize: "14px", boxShadow: "0 2px 8px rgba(88,101,242,0.25)" }}>
-                {(user.name || user.email)[0].toUpperCase()}
+              <div ref={dropdownRef} style={{ position: "relative" }}>
+                <button
+                  onClick={() => setShowDropdown(d => !d)}
+                  style={{ width: "36px", height: "36px", borderRadius: "10px", background: "linear-gradient(135deg,#5865f2,#818cf8)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: "700", fontSize: "14px", boxShadow: "0 2px 8px rgba(88,101,242,0.25)", border: "none", cursor: "pointer" }}
+                >
+                  {(user.name || user.email)[0].toUpperCase()}
+                </button>
+
+                {showDropdown && (
+                  <div style={{ position: "absolute", top: "44px", right: 0, width: "200px", background: "var(--card)", border: "1px solid var(--border)", borderRadius: "12px", boxShadow: "0 8px 24px rgba(0,0,0,0.1)", zIndex: 100, overflow: "hidden", animation: "fadeUp 0.15s ease both" }}>
+                    {/* User info */}
+                    <div style={{ padding: "12px 14px", borderBottom: "1px solid var(--border)" }}>
+                      <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--t1)", marginBottom: "2px" }}>{user.name}</div>
+                      <div style={{ fontSize: "11px", color: "var(--t2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.email}</div>
+                      <div style={{ fontSize: "10px", color: "#5865f2", fontWeight: "700", marginTop: "3px" }}>{user.role.replace("_", " ")}</div>
+                    </div>
+                    {/* Logout button */}
+                    <button
+                      onClick={handleLogout}
+                      style={{ width: "100%", padding: "11px 14px", background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: "10px", color: "#f85149", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", textAlign: "left", transition: "background 0.15s" }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(248,81,73,0.07)"; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                    >
+                      {SVG.logout}
+                      Sign out
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
