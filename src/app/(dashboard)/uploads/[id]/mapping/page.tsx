@@ -21,7 +21,7 @@ export default function ColumnMappingPage() {
     if (!token) return;
 
     try {
-      const response = await fetch(`/api/uploads/${uploadId}/mapping`, {
+      const response = await fetch(`/api/uploads/${uploadId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -30,14 +30,16 @@ export default function ColumnMappingPage() {
 
       if (response.ok) {
         const data = await response.json();
-        setCsvData(data);
-        
-        // Initialize mappings with existing data or empty
+        const upload = data.upload;
+        setCsvData(upload);
+
         const initialMappings: Record<string, string> = {};
-        data.headers?.forEach((header: string) => {
-          initialMappings[header] = data.existingMappings?.[header] || "";
+        upload?.columns?.forEach((column: any) => {
+          initialMappings[column.name] = column.mappedTo || "";
         });
         setMappings(initialMappings);
+      } else {
+        setCsvData(null);
       }
     } catch (error) {
       console.error("Failed to fetch upload data:", error);
@@ -68,11 +70,12 @@ export default function ColumnMappingPage() {
   };
 
   const autoMap = () => {
-    if (!csvData?.headers) return;
+    if (!csvData?.columns) return;
 
     const autoMappings: Record<string, string> = {};
     
-    csvData.headers.forEach((header: string) => {
+    csvData.columns.forEach((column: any) => {
+      const header = column.name;
       const lowerHeader = header.toLowerCase();
       
       // Simple auto-mapping logic
@@ -109,6 +112,13 @@ export default function ColumnMappingPage() {
 
     try {
       const token = sessionStorage.getItem("access_token");
+      const mappingList = Object.entries(mappings)
+        .filter(([, targetKey]) => targetKey !== "")
+        .map(([sourceColumn, targetKey]) => ({
+          sourceColumn,
+          targetKey,
+        }));
+
       const response = await fetch(`/api/uploads/${uploadId}/mapping`, {
         method: "POST",
         headers: {
@@ -116,7 +126,7 @@ export default function ColumnMappingPage() {
           Authorization: `Bearer ${token}`,
         },
         credentials: "include",
-        body: JSON.stringify({ mappings }),
+        body: JSON.stringify({ mappings: mappingList }),
       });
 
       if (response.ok) {
@@ -138,7 +148,7 @@ export default function ColumnMappingPage() {
   };
 
   const getTotalColumns = () => {
-    return csvData?.headers?.length || 0;
+    return csvData?.columns?.length || 0;
   };
 
   if (loading) {
@@ -195,7 +205,13 @@ export default function ColumnMappingPage() {
           onClick={autoMap}
           className="btn-primary"
         >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style="display:inline-block;verticalAlign:middle;marginRight:6px"><path d="M15 4V2m0 14v-2M8 9H2m14 0h-2M4.22 4.22l1.42 1.42M17.36 17.36l1.42 1.42M4.22 17.36l1.42-1.42M17.36 6.64l1.42-1.42"/><circle cx="12" cy="9" r="3"/></svg> Auto-Map Columns
+          <span className="inline-flex items-center gap-2">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M15 4V2m0 14v-2M8 9H2m14 0h-2M4.22 4.22l1.42 1.42M17.36 17.36l1.42 1.42M4.22 17.36l1.42-1.42M17.36 6.64l1.42-1.42"/>
+              <circle cx="12" cy="9" r="3"/>
+            </svg>
+            Auto-Map Columns
+          </span>
         </button>
       </div>
 
@@ -211,23 +227,23 @@ export default function ColumnMappingPage() {
               </tr>
             </thead>
             <tbody>
-              {csvData.headers?.map((header: string, index: number) => (
-                <tr key={header} style={{ borderBottom: `1px solid var(--border)` }}>
+              {csvData.columns?.map((column: any) => (
+                <tr key={column.id ?? column.name} style={{ borderBottom: `1px solid var(--border)` }}>
                   <td className="p-4">
                     <div className="font-medium" style={{ color: "var(--t1)" }}>
-                      {header}
+                      {column.name}
                     </div>
                   </td>
                   <td className="p-4">
                     <div className="text-sm" style={{ color: "var(--t2)" }}>
-                      {csvData.sampleData?.[index]?.slice(0, 50)}
-                      {csvData.sampleData?.[index]?.length > 50 && "..."}
+                      {Array.isArray(column.sample) ? column.sample.join(", ").slice(0, 50) : ""}
+                      {Array.isArray(column.sample) && column.sample.join(", ").length > 50 && "..."}
                     </div>
                   </td>
                   <td className="p-4">
                     <select
-                      value={mappings[header] || ""}
-                      onChange={(e) => handleMappingChange(header, e.target.value)}
+                      value={mappings[column.name] || ""}
+                      onChange={(e) => handleMappingChange(column.name, e.target.value)}
                       className="input-field w-full"
                       style={{ minWidth: "150px" }}
                     >

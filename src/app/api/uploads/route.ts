@@ -56,6 +56,18 @@ function cleanNumber(val: string): number {
   return parseFloat(val.replace(/[$,%\s]/g, "")) || 0;
 }
 
+function normalizePlatform(value: string | null): "GOOGLE" | "META" | "CSV" | null {
+  if (!value) return null;
+
+  const normalized = value.trim().toUpperCase();
+
+  if (normalized === "GOOGLE" || normalized === "GOOGLE ADS") return "GOOGLE";
+  if (normalized === "META" || normalized === "META ADS") return "META";
+  if (normalized === "CSV") return "CSV";
+
+  return null;
+}
+
 // ─── POST /api/uploads ────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   try {
@@ -65,11 +77,12 @@ export async function POST(req: NextRequest) {
     const file     = formData.get("file") as File | null;
     const brandId  = formData.get("brandId") as string | null;
     const platform = formData.get("platform") as string | null;
+    const normalizedPlatform = normalizePlatform(platform);
 
     // Validate inputs
     if (!file)    return NextResponse.json({ error: "No file uploaded" },          { status: 400 });
     if (!brandId) return NextResponse.json({ error: "brandId is required" },       { status: 400 });
-    if (!platform || !["GOOGLE", "META", "CSV"].includes(platform)) {
+    if (!normalizedPlatform) {
       return NextResponse.json({ error: "platform must be GOOGLE, META, or CSV" }, { status: 400 });
     }
     if (!file.name.endsWith(".csv")) {
@@ -99,7 +112,7 @@ export async function POST(req: NextRequest) {
 
     const headers       = Object.keys(records[0]);
     const detectedPlat  = detectPlatform(headers);
-    const finalPlatform = (platform as "GOOGLE" | "META" | "CSV");
+    const finalPlatform = normalizedPlatform;
 
     // Build column metadata
     const columnMeta = headers.map(col => {
