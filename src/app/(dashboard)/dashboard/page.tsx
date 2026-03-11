@@ -25,19 +25,21 @@ const inputSt: React.CSSProperties = {
 };
 
 export default function DashboardPage() {
-  const [user, setUser]             = useState<{ name: string } | null>(null);
+  const [user, setUser]             = useState<{ name: string; role: string } | null>(null);
   const [uploads, setUploads]       = useState<any[]>([]);
   const [analytics, setAnalytics]   = useState<any>(null);
   const [kpiLoading, setKpiLoading] = useState(true);
+  const [brands, setBrands]         = useState<{ id: string; name: string }[]>([]);
+  const [activeBrand, setActiveBrand] = useState("brand_visioad_001");
   const [platform, setPlatform]     = useState("");
   const [dateFrom, setDateFrom]     = useState("");
   const [dateTo, setDateTo]         = useState("");
 
-  const fetchAnalytics = (plat: string, from: string, to: string) => {
+  const fetchAnalytics = (brandId: string, plat: string, from: string, to: string) => {
     const token = sessionStorage.getItem("access_token");
     if (!token) return;
     setKpiLoading(true);
-    const p = new URLSearchParams({ brandId: "brand_visioad_001" });
+    const p = new URLSearchParams({ brandId });
     if (plat) p.set("platform", plat);
     if (from) p.set("dateFrom", from);
     if (to)   p.set("dateTo", to);
@@ -53,17 +55,42 @@ export default function DashboardPage() {
     const token = sessionStorage.getItem("access_token");
     if (raw) setUser(JSON.parse(raw));
     if (!token) return;
-    fetch("/api/uploads?pageSize=4", { headers: { Authorization: `Bearer ${token}` }, credentials: "include" })
+
+    const headers = { Authorization: `Bearer ${token}` };
+
+    // Fetch brands for switcher
+    fetch("/api/brands", { headers, credentials: "include" })
+      .then(r => r.ok ? r.json() : { items: [] })
+      .then(d => {
+        const list = d.items ?? [];
+        setBrands(list);
+        // Set first brand as active if available
+        if (list.length > 0) {
+          const first = list[0].id;
+          setActiveBrand(first);
+          fetchAnalytics(first, "", "", "");
+        } else {
+          fetchAnalytics("brand_visioad_001", "", "", "");
+        }
+      })
+      .catch(() => fetchAnalytics("brand_visioad_001", "", "", ""));
+
+    fetch("/api/uploads?pageSize=4", { headers, credentials: "include" })
       .then(r => r.ok ? r.json() : { items: [] })
       .then(d => setUploads(Array.isArray(d.items) ? d.items : []))
       .catch(() => {});
-    fetchAnalytics("", "", "");
   }, []);
 
-  const applyFilters = () => fetchAnalytics(platform, dateFrom, dateTo);
+  const applyFilters = () => fetchAnalytics(activeBrand, platform, dateFrom, dateTo);
   const resetFilters = () => {
     setPlatform(""); setDateFrom(""); setDateTo("");
-    fetchAnalytics("", "", "");
+    fetchAnalytics(activeBrand, "", "", "");
+  };
+
+  const handleBrandSwitch = (brandId: string) => {
+    setActiveBrand(brandId);
+    setPlatform(""); setDateFrom(""); setDateTo("");
+    fetchAnalytics(brandId, "", "", "");
   };
 
   const greeting = () => {
@@ -79,11 +106,12 @@ export default function DashboardPage() {
     return `${prefix}${formatted}${suffix}`;
   };
 
-  const kpis             = analytics?.kpis;
+  const kpis              = analytics?.kpis;
   const platformBreakdown = analytics?.platformBreakdown ?? [];
-  const spendOverTime    = analytics?.spendOverTime ?? [];
-  const topCampaigns     = analytics?.topCampaigns ?? [];
-  const totalSpend       = platformBreakdown.reduce((s: number, p: any) => s + Number(p.spend), 0);
+  const spendOverTime     = analytics?.spendOverTime ?? [];
+  const topCampaigns      = analytics?.topCampaigns ?? [];
+  const totalSpend        = platformBreakdown.reduce((s: number, p: any) => s + Number(p.spend), 0);
+  const activeBrandName   = brands.find(b => b.id === activeBrand)?.name ?? "Visioad Main";
 
   const chartData = Object.values(
     spendOverTime.reduce((acc: any, row: any) => {
@@ -120,24 +148,35 @@ export default function DashboardPage() {
         </Link>
       </div>
 
+      {/* Brand Switcher — shown when multiple brands or admin */}
+      {brands.length > 1 && (
+        <div style={{ display: "flex", gap: "8px", marginBottom: "16px", flexWrap: "wrap" }}>
+          {brands.map(b => (
+            <button key={b.id} onClick={() => handleBrandSwitch(b.id)}
+              style={{ padding: "7px 16px", borderRadius: "20px", border: `1px solid ${activeBrand === b.id ? "#5865f2" : "var(--border)"}`, background: activeBrand === b.id ? "rgba(88,101,242,0.12)" : "transparent", color: activeBrand === b.id ? "#5865f2" : "var(--t2)", fontSize: "13px", fontWeight: activeBrand === b.id ? "700" : "500", cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}>
+              {b.name}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Filter Bar */}
       <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "14px", padding: "14px 18px", marginBottom: "24px", display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-        <span style={{ fontSize: "12px", fontWeight: "700", color: "var(--t3)", letterSpacing: "0.8px", textTransform: "uppercase" }}>Filters</span>
+        <span style={{ fontSize: "12px", fontWeight: "700", color: "var(--t3)", letterSpacing: "0.8px", textTransform: "uppercase" as const }}>
+          {activeBrandName} · Filters
+        </span>
 
-        {/* Platform */}
         <select value={platform} onChange={e => setPlatform(e.target.value)} style={inputSt}>
           <option value="">All Platforms</option>
           <option value="GOOGLE">Google Ads</option>
           <option value="META">Meta Ads</option>
         </select>
 
-        {/* Date From */}
         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
           <span style={{ fontSize: "12px", color: "var(--t3)" }}>From</span>
           <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={inputSt} />
         </div>
 
-        {/* Date To */}
         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
           <span style={{ fontSize: "12px", color: "var(--t3)" }}>To</span>
           <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={inputSt} />

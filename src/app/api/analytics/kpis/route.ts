@@ -2,18 +2,30 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, AuthError } from "@/lib/auth-guard";
 
-// ─── GET /api/analytics/kpis ─────────────────────────────────────────────────
-// Returns aggregated KPIs: total spend, clicks, impressions, conversions,
-// avg CTR, avg CPC, avg ROAS — filterable by brandId, platform, date range
+// ─── Helper: verify user can access this brand ───────────────────────────────
+async function canAccessBrand(userId: string, role: string, brandId: string): Promise<boolean> {
+  if (role === "AGENCY_ADMIN") return true;
+  const member = await prisma.brandMember.findUnique({
+    where: { userId_brandId: { userId, brandId } },
+  });
+  return !!member;
+}
+
 export async function GET(req: NextRequest) {
   try {
-    requireAuth(req);
+    const payload = requireAuth(req);
 
     const { searchParams } = new URL(req.url);
-    const brandId   = searchParams.get("brandId")   ?? "brand_visioad_001";
-    const platform  = searchParams.get("platform")  ?? "";
-    const dateFrom  = searchParams.get("dateFrom")  ?? "";
-    const dateTo    = searchParams.get("dateTo")    ?? "";
+    const brandId  = searchParams.get("brandId") ?? "brand_visioad_001";
+    const platform = searchParams.get("platform") ?? "";
+    const dateFrom = searchParams.get("dateFrom") ?? "";
+    const dateTo   = searchParams.get("dateTo")   ?? "";
+
+    // ── Brand access check ──────────────────────────────────────────────────
+    const allowed = await canAccessBrand(payload.userId, payload.role, brandId);
+    if (!allowed) {
+      return NextResponse.json({ error: "Access denied to this brand" }, { status: 403 });
+    }
 
     // Build WHERE clause
     const conditions: string[] = [`"brandId" = '${brandId}'`];
@@ -25,61 +37,57 @@ export async function GET(req: NextRequest) {
 
     const where = conditions.join(" AND ");
 
-    // Aggregate KPIs from JSON metrics column
     const result = await prisma.$queryRawUnsafe(`
       SELECT
-        COUNT(*)::int                                          AS "totalRows",
-        COALESCE(SUM((metrics->>'spend')::numeric), 0)        AS "totalSpend",
-        COALESCE(SUM((metrics->>'clicks')::numeric), 0)       AS "totalClicks",
-        COALESCE(SUM((metrics->>'impressions')::numeric), 0)  AS "totalImpressions",
-        COALESCE(SUM((metrics->>'conversions')::numeric), 0)  AS "totalConversions",
+        COUNT(*)::int                                             AS "totalRows",
+        COALESCE(SUM((metrics->>'spend')::numeric), 0)           AS "totalSpend",
+        COALESCE(SUM((metrics->>'clicks')::numeric), 0)          AS "totalClicks",
+        COALESCE(SUM((metrics->>'impressions')::numeric), 0)     AS "totalImpressions",
+        COALESCE(SUM((metrics->>'conversions')::numeric), 0)     AS "totalConversions",
         COALESCE(SUM((metrics->>'conversionValue')::numeric), 0) AS "totalConversionValue",
-        COALESCE(AVG((metrics->>'ctr')::numeric), 0)          AS "avgCtr",
-        COALESCE(AVG((metrics->>'cpc')::numeric), 0)          AS "avgCpc",
-        COALESCE(AVG((metrics->>'roas')::numeric), 0)         AS "avgRoas"
+        COALESCE(AVG((metrics->>'ctr')::numeric), 0)             AS "avgCtr",
+        COALESCE(AVG((metrics->>'cpc')::numeric), 0)             AS "avgCpc",
+        COALESCE(AVG((metrics->>'roas')::numeric), 0)            AS "avgRoas"
       FROM public."PerformanceFact"
       WHERE ${where}
     `) as Record<string, unknown>[];
 
     const kpis = result[0];
 
-    // Spend by platform breakdown
     const platformBreakdown = await prisma.$queryRawUnsafe(`
       SELECT
         platform,
-        COUNT(*)::int                                         AS rows,
-        COALESCE(SUM((metrics->>'spend')::numeric), 0)       AS spend,
-        COALESCE(SUM((metrics->>'clicks')::numeric), 0)      AS clicks,
-        COALESCE(AVG((metrics->>'roas')::numeric), 0)        AS "avgRoas"
+        COUNT(*)::int                                        AS rows,
+        COALESCE(SUM((metrics->>'spend')::numeric), 0)      AS spend,
+        COALESCE(SUM((metrics->>'clicks')::numeric), 0)     AS clicks,
+        COALESCE(AVG((metrics->>'roas')::numeric), 0)       AS "avgRoas"
       FROM public."PerformanceFact"
       WHERE "brandId" = '${brandId}'
       GROUP BY platform
       ORDER BY spend DESC
     `) as Record<string, unknown>[];
 
-    // Spend over time (daily)
     const spendOverTime = await prisma.$queryRawUnsafe(`
       SELECT
-        date::date                                            AS date,
+        date::date                                           AS date,
         platform,
-        COALESCE(SUM((metrics->>'spend')::numeric), 0)       AS spend,
-        COALESCE(SUM((metrics->>'clicks')::numeric), 0)      AS clicks,
-        COALESCE(AVG((metrics->>'roas')::numeric), 0)        AS roas
+        COALESCE(SUM((metrics->>'spend')::numeric), 0)      AS spend,
+        COALESCE(SUM((metrics->>'clicks')::numeric), 0)     AS clicks,
+        COALESCE(AVG((metrics->>'roas')::numeric), 0)       AS roas
       FROM public."PerformanceFact"
       WHERE ${where}
       GROUP BY date::date, platform
       ORDER BY date::date ASC
     `) as Record<string, unknown>[];
 
-    // Top campaigns by spend
     const topCampaigns = await prisma.$queryRawUnsafe(`
       SELECT
-        dimensions->>'campaign_name'                          AS campaign,
+        dimensions->>'campaign_name'                             AS campaign,
         platform,
-        COALESCE(SUM((metrics->>'spend')::numeric), 0)       AS spend,
-        COALESCE(SUM((metrics->>'clicks')::numeric), 0)      AS clicks,
-        COALESCE(SUM((metrics->>'conversions')::numeric), 0) AS conversions,
-        COALESCE(AVG((metrics->>'roas')::numeric), 0)        AS roas
+        COALESCE(SUM((metrics->>'spend')::numeric), 0)          AS spend,
+        COALESCE(SUM((metrics->>'clicks')::numeric), 0)         AS clicks,
+        COALESCE(SUM((metrics->>'conversions')::numeric), 0)    AS conversions,
+        COALESCE(AVG((metrics->>'roas')::numeric), 0)           AS roas
       FROM public."PerformanceFact"
       WHERE ${where}
       GROUP BY dimensions->>'campaign_name', platform
