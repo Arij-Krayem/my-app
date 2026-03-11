@@ -13,39 +13,58 @@ const MOCK_ALERTS = [
 ];
 
 const KPI_META = [
-  { label: "Total Spend",  key: "totalSpend",  prefix: "$", suffix: "",  grad: "linear-gradient(135deg,#10b981,#34d399)", glow: "rgba(16,185,129,0.2)",  icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> },
-  { label: "Avg ROAS",     key: "avgRoas",     prefix: "",  suffix: "x", grad: "linear-gradient(135deg,#5865f2,#818cf8)", glow: "rgba(88,101,242,0.2)",  icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg> },
-  { label: "Avg CTR",      key: "avgCtr",      prefix: "",  suffix: "%", grad: "linear-gradient(135deg,#8b5cf6,#a78bfa)", glow: "rgba(139,92,246,0.2)", icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> },
-  { label: "Avg CPC",      key: "avgCpc",      prefix: "$", suffix: "",  grad: "linear-gradient(135deg,#f59e0b,#fbbf24)", glow: "rgba(245,158,11,0.2)",  icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg> },
+  { label: "Total Spend", key: "totalSpend", prefix: "$", suffix: "",  grad: "linear-gradient(135deg,#10b981,#34d399)", glow: "rgba(16,185,129,0.2)",  icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> },
+  { label: "Avg ROAS",    key: "avgRoas",    prefix: "",  suffix: "x", grad: "linear-gradient(135deg,#5865f2,#818cf8)", glow: "rgba(88,101,242,0.2)",  icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg> },
+  { label: "Avg CTR",     key: "avgCtr",     prefix: "",  suffix: "%", grad: "linear-gradient(135deg,#8b5cf6,#a78bfa)", glow: "rgba(139,92,246,0.2)", icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> },
+  { label: "Avg CPC",     key: "avgCpc",     prefix: "$", suffix: "",  grad: "linear-gradient(135deg,#f59e0b,#fbbf24)", glow: "rgba(245,158,11,0.2)",  icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg> },
 ];
 
+const inputSt: React.CSSProperties = {
+  padding: "8px 12px", background: "var(--card)", border: "1px solid var(--border)",
+  borderRadius: "9px", color: "var(--t1)", fontSize: "13px", fontFamily: "inherit", outline: "none",
+};
+
 export default function DashboardPage() {
-  const [user, setUser]       = useState<{ name: string } | null>(null);
-  const [uploads, setUploads] = useState<any[]>([]);
-  const [analytics, setAnalytics] = useState<any>(null);
+  const [user, setUser]             = useState<{ name: string } | null>(null);
+  const [uploads, setUploads]       = useState<any[]>([]);
+  const [analytics, setAnalytics]   = useState<any>(null);
   const [kpiLoading, setKpiLoading] = useState(true);
+  const [platform, setPlatform]     = useState("");
+  const [dateFrom, setDateFrom]     = useState("");
+  const [dateTo, setDateTo]         = useState("");
+
+  const fetchAnalytics = (plat: string, from: string, to: string) => {
+    const token = sessionStorage.getItem("access_token");
+    if (!token) return;
+    setKpiLoading(true);
+    const p = new URLSearchParams({ brandId: "brand_visioad_001" });
+    if (plat) p.set("platform", plat);
+    if (from) p.set("dateFrom", from);
+    if (to)   p.set("dateTo", to);
+    fetch(`/api/analytics/kpis?${p}`, { headers: { Authorization: `Bearer ${token}` }, credentials: "include" })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.kpis) setAnalytics(d); })
+      .catch(() => {})
+      .finally(() => setKpiLoading(false));
+  };
 
   useEffect(() => {
     const raw   = sessionStorage.getItem("user");
     const token = sessionStorage.getItem("access_token");
     if (raw) setUser(JSON.parse(raw));
     if (!token) return;
-
-    const headers = { Authorization: `Bearer ${token}` };
-
-    // Recent uploads
-    fetch("/api/uploads?pageSize=4", { headers, credentials: "include" })
+    fetch("/api/uploads?pageSize=4", { headers: { Authorization: `Bearer ${token}` }, credentials: "include" })
       .then(r => r.ok ? r.json() : { items: [] })
       .then(d => setUploads(Array.isArray(d.items) ? d.items : []))
       .catch(() => {});
-
-    // Analytics KPIs
-    fetch("/api/analytics/kpis?brandId=brand_visioad_001", { headers, credentials: "include" })
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d?.kpis) setAnalytics(d); })
-      .catch(() => {})
-      .finally(() => setKpiLoading(false));
+    fetchAnalytics("", "", "");
   }, []);
+
+  const applyFilters = () => fetchAnalytics(platform, dateFrom, dateTo);
+  const resetFilters = () => {
+    setPlatform(""); setDateFrom(""); setDateTo("");
+    fetchAnalytics("", "", "");
+  };
 
   const greeting = () => {
     const h = new Date().getHours();
@@ -60,13 +79,12 @@ export default function DashboardPage() {
     return `${prefix}${formatted}${suffix}`;
   };
 
-  const kpis = analytics?.kpis;
+  const kpis             = analytics?.kpis;
   const platformBreakdown = analytics?.platformBreakdown ?? [];
-  const spendOverTime = analytics?.spendOverTime ?? [];
-  const topCampaigns = analytics?.topCampaigns ?? [];
-  const totalSpend = platformBreakdown.reduce((s: number, p: any) => s + Number(p.spend), 0);
+  const spendOverTime    = analytics?.spendOverTime ?? [];
+  const topCampaigns     = analytics?.topCampaigns ?? [];
+  const totalSpend       = platformBreakdown.reduce((s: number, p: any) => s + Number(p.spend), 0);
 
-  // Group spendOverTime by date for chart
   const chartData = Object.values(
     spendOverTime.reduce((acc: any, row: any) => {
       const d = String(row.date).split("T")[0];
@@ -84,23 +102,68 @@ export default function DashboardPage() {
     FAILED:   { color: "#f85149", bg: "rgba(248,81,73,0.1)",  border: "rgba(248,81,73,0.25)"  },
   }[s] || { color: "#d29922", bg: "rgba(210,153,34,0.1)", border: "rgba(210,153,34,0.25)" });
 
+  const hasFilters = platform || dateFrom || dateTo;
+
   return (
     <div style={{ animation: "fadeUp 0.4s ease both", fontFamily: "'Outfit', sans-serif" }}>
 
       {/* Header */}
-      <div style={{ marginBottom: "28px", display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: "12px" }}>
+      <div style={{ marginBottom: "20px", display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: "12px" }}>
         <div>
           <h1 style={{ fontSize: "26px", fontWeight: "700", color: "var(--t1)", marginBottom: "4px" }}>
             {greeting()}{user?.name ? `, ${user.name.split(" ")[0]}` : ""}
           </h1>
-          <p style={{ fontSize: "14px", color: "var(--t2)" }}>Here's your campaign performance overview for today.</p>
+          <p style={{ fontSize: "14px", color: "var(--t2)" }}>Here's your campaign performance overview.</p>
         </div>
         <Link href="/uploads/new" style={{ padding: "10px 18px", background: "linear-gradient(135deg,#5865f2,#818cf8)", borderRadius: "10px", color: "white", fontWeight: "600", fontSize: "13px", textDecoration: "none", boxShadow: "0 4px 14px rgba(88,101,242,0.35)", display: "flex", alignItems: "center", gap: "6px" }}>
           + New Upload
         </Link>
       </div>
 
-      {/* KPI Cards — real data */}
+      {/* Filter Bar */}
+      <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "14px", padding: "14px 18px", marginBottom: "24px", display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+        <span style={{ fontSize: "12px", fontWeight: "700", color: "var(--t3)", letterSpacing: "0.8px", textTransform: "uppercase" }}>Filters</span>
+
+        {/* Platform */}
+        <select value={platform} onChange={e => setPlatform(e.target.value)} style={inputSt}>
+          <option value="">All Platforms</option>
+          <option value="GOOGLE">Google Ads</option>
+          <option value="META">Meta Ads</option>
+        </select>
+
+        {/* Date From */}
+        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+          <span style={{ fontSize: "12px", color: "var(--t3)" }}>From</span>
+          <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={inputSt} />
+        </div>
+
+        {/* Date To */}
+        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+          <span style={{ fontSize: "12px", color: "var(--t3)" }}>To</span>
+          <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={inputSt} />
+        </div>
+
+        <div style={{ display: "flex", gap: "8px", marginLeft: "auto" }}>
+          {hasFilters && (
+            <button onClick={resetFilters} style={{ padding: "8px 14px", borderRadius: "9px", border: "1px solid var(--border)", background: "transparent", color: "var(--t2)", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "inherit" }}>
+              Reset
+            </button>
+          )}
+          <button onClick={applyFilters} style={{ padding: "8px 18px", borderRadius: "9px", background: "linear-gradient(135deg,#5865f2,#818cf8)", border: "none", color: "white", fontSize: "13px", fontWeight: "600", cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "6px" }}>
+            {kpiLoading ? <><div style={{ width: "12px", height: "12px", borderRadius: "50%", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "white", animation: "spin 0.7s linear infinite" }} />Loading...</> : "Apply"}
+          </button>
+        </div>
+
+        {hasFilters && (
+          <div style={{ width: "100%", display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "4px" }}>
+            {platform && <span style={{ fontSize: "11px", padding: "2px 8px", borderRadius: "5px", background: "rgba(88,101,242,0.1)", color: "#5865f2", border: "1px solid rgba(88,101,242,0.25)", fontWeight: "600" }}>{platform === "GOOGLE" ? "Google Ads" : "Meta Ads"}</span>}
+            {dateFrom && <span style={{ fontSize: "11px", padding: "2px 8px", borderRadius: "5px", background: "rgba(88,101,242,0.1)", color: "#5865f2", border: "1px solid rgba(88,101,242,0.25)", fontWeight: "600" }}>From {dateFrom}</span>}
+            {dateTo   && <span style={{ fontSize: "11px", padding: "2px 8px", borderRadius: "5px", background: "rgba(88,101,242,0.1)", color: "#5865f2", border: "1px solid rgba(88,101,242,0.25)", fontWeight: "600" }}>To {dateTo}</span>}
+          </div>
+        )}
+      </div>
+
+      {/* KPI Cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "16px", marginBottom: "24px" }}>
         {KPI_META.map(k => {
           const val = kpis ? fmt(Number(kpis[k.key]), k.prefix, k.suffix) : "—";
@@ -111,9 +174,7 @@ export default function DashboardPage() {
               <div style={{ position: "absolute", top: "-20px", right: "-20px", width: "80px", height: "80px", borderRadius: "50%", background: k.glow, filter: "blur(20px)", pointerEvents: "none" }} />
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "14px", position: "relative" }}>
                 <div style={{ width: "40px", height: "40px", borderRadius: "11px", background: k.grad, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: `0 4px 12px ${k.glow}` }}>{k.icon}</div>
-                {kpiLoading && (
-                  <div style={{ width: "14px", height: "14px", borderRadius: "50%", border: "2px solid var(--border)", borderTopColor: "#5865f2", animation: "spin 0.8s linear infinite" }} />
-                )}
+                {kpiLoading && <div style={{ width: "14px", height: "14px", borderRadius: "50%", border: "2px solid var(--border)", borderTopColor: "#5865f2", animation: "spin 0.8s linear infinite" }} />}
               </div>
               <div style={{ fontSize: "28px", fontWeight: "700", color: "var(--t1)", marginBottom: "3px", fontVariantNumeric: "tabular-nums", position: "relative" }}>
                 {kpiLoading ? <span style={{ fontSize: "16px", color: "var(--t3)" }}>Loading...</span> : val}
@@ -136,11 +197,11 @@ export default function DashboardPage() {
               <defs>
                 <linearGradient id="gGoogle" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%"  stopColor="#4285F4" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#4285F4" stopOpacity={0}    />
+                  <stop offset="95%" stopColor="#4285F4" stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="gMeta" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%"  stopColor="#1877F2" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#1877F2" stopOpacity={0}    />
+                  <stop offset="95%" stopColor="#1877F2" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -198,7 +259,7 @@ export default function DashboardPage() {
         {/* Right column */}
         <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
 
-          {/* Platform Split — real data */}
+          {/* Platform Split */}
           <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "16px", padding: "20px" }}>
             <h2 style={{ fontSize: "15px", fontWeight: "600", color: "var(--t1)", marginBottom: "16px" }}>Platform Split</h2>
             <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
