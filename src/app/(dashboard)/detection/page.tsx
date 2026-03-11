@@ -145,7 +145,7 @@ export default function DetectionPage() {
 
           {/* Visual preview */}
           <div style={{ padding: "16px 20px", borderRadius: "12px", background: "var(--bg)", border: "1px solid var(--border)", marginBottom: "20px", display: "flex", alignItems: "center", gap: "20px", flexWrap: "wrap" }}>
-            <div style={{ display: "flex", items: "center", gap: "6px", flex: 1 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", flex: 1 }}>
               <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: s.sensitivity >= 0.7 ? "#f85149" : s.sensitivity >= 0.4 ? "#d29922" : "#3fb950", marginTop: "4px", flexShrink: 0 }} />
               <div>
                 <p style={{ fontSize: "11px", color: "var(--t3)", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "2px" }}>Detection Mode</p>
