@@ -50,7 +50,9 @@ export async function POST(req: NextRequest, ctx: { params: { id: string } }) {
   const member = await prisma.brandMember.findUnique({
     where: { userId_brandId: { userId: auth.userId, brandId: upload.brandId } },
   });
-  if (!member) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (auth.role !== "AGENCY_ADMIN" && !member) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   // ✅ Upsert mappings + mark upload as MAPPED
   await prisma.$transaction([

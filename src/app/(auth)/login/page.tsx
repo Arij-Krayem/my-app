@@ -111,7 +111,7 @@ export default function LoginPage() {
             <div style={{ marginBottom: "22px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "7px" }}>
                 <label style={{ fontSize: "11px", fontWeight: "700", color: "var(--t2)", letterSpacing: "0.8px", textTransform: "uppercase" }}>Password</label>
-                <a href="#" style={{ fontSize: "12px", color: "#5865f2", textDecoration: "none", fontWeight: "500" }}>Forgot?</a>
+                <Link href="/forgot-password" style={{ fontSize: "12px", color: "#5865f2", textDecoration: "none", fontWeight: "500" }}>Forgot?</Link>
               </div>
               <div style={{ position: "relative" }}>
                 <span style={iconWrap}>

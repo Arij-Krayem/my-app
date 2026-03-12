@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
@@ -10,7 +10,7 @@ const Body = z.object({
   role: z.enum(["MARKETER", "AGENCY_ADMIN"]).optional(),
 });
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const data = Body.parse(await req.json());
 
@@ -33,7 +33,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ user }, { status: 201 });
   } catch (err: any) {
-    // show useful error in Postman instead of HTML
+    if (err?.code === "P2002") {
+      return NextResponse.json({ error: "Email already in use" }, { status: 400 });
+    }
     return NextResponse.json(
       { error: err?.message ?? "Internal Server Error" },
       { status: 500 }
