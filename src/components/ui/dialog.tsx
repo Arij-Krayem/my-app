@@ -1,21 +1,17 @@
 "use client"
 import * as React from "react"
-
 interface DialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   children: React.ReactNode
 }
-
 export function Dialog({ open, onOpenChange, children }: DialogProps) {
   React.useEffect(() => {
     const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") onOpenChange(false) }
     if (open) document.addEventListener("keydown", handleKey)
     return () => document.removeEventListener("keydown", handleKey)
   }, [open, onOpenChange])
-
   if (!open) return null
-
   return (
     <div style={{
       position: "fixed", inset: 0, zIndex: 9999,
@@ -26,12 +22,10 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
     </div>
   )
 }
-
 interface DialogContentProps {
   children: React.ReactNode
   style?: React.CSSProperties
 }
-
 export function DialogContent({ children, style }: DialogContentProps) {
   return (
     <div style={{
@@ -50,14 +44,12 @@ export function DialogContent({ children, style }: DialogContentProps) {
     </div>
   )
 }
-
 interface DialogHeaderProps {
   icon?: React.ReactNode
   title: string
   description?: string
   onClose: () => void
 }
-
 export function DialogHeader({ icon, title, description, onClose }: DialogHeaderProps) {
   return (
     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24 }}>
@@ -86,12 +78,10 @@ export function DialogHeader({ icon, title, description, onClose }: DialogHeader
     </div>
   )
 }
-
 interface DialogFooterProps {
   children: React.ReactNode
   style?: React.CSSProperties
 }
-
 export function DialogFooter({ children, style }: DialogFooterProps) {
   return (
     <div style={{

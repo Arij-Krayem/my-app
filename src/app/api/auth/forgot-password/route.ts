@@ -5,6 +5,9 @@ import crypto from "crypto";
 
 export async function POST(req: NextRequest) {
   try {
+    console.log('EMAIL_USER:', process.env.EMAIL_USER)
+    console.log('EMAIL_PASS:', process.env.EMAIL_PASS ? 'SET' : 'MISSING')
+
     const { email } = await req.json();
 
     if (!email || typeof email !== "string") {

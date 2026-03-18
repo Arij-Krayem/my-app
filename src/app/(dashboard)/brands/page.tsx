@@ -77,10 +77,10 @@ export default function BrandsPage() {
       {/* Stats */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:16, marginBottom:24 }}>
         {[
-          { label:"Total",   value:brands.length,                                    color:"#5865f2" },
-          { label:"Healthy", value:brands.filter(b=>b.health==="HEALTHY").length,     color:"#16a34a" },
-          { label:"Warning", value:brands.filter(b=>b.health==="WARNING").length,     color:"#d97706" },
-          { label:"Critical",value:brands.filter(b=>b.health==="CRITICAL").length,    color:"#dc2626" },
+          { label:"Total",    value:brands.length,                                 color:"#5865f2" },
+          { label:"Healthy",  value:brands.filter(b=>b.health==="HEALTHY").length,  color:"#16a34a" },
+          { label:"Warning",  value:brands.filter(b=>b.health==="WARNING").length,  color:"#d97706" },
+          { label:"Critical", value:brands.filter(b=>b.health==="CRITICAL").length, color:"#dc2626" },
         ].map(st => (
           <div key={st.label} style={{ background:"#fff", border:"1px solid #e8edf2", borderRadius:14, padding:"18px 22px" }}>
             <div style={{ fontSize:12, color:"#64748b", marginBottom:4 }}>{st.label}</div>
@@ -173,15 +173,10 @@ export default function BrandsPage() {
         )}
       </div>
 
-      {/* ── New Brand Modal ── */}
+      {/* New Brand Modal */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent style={{ maxWidth:420 }}>
-          <DialogHeader
-            icon={<BriefcaseIcon />}
-            title="New Brand"
-            description="Create a new client workspace"
-            onClose={() => setOpen(false)}
-          />
+          <DialogHeader icon={<BriefcaseIcon />} title="New Brand" description="Create a new client workspace" onClose={() => setOpen(false)} />
           <div>
             <label style={{ fontSize:11, fontWeight:700, color:"#64748b", textTransform:"uppercase", letterSpacing:".06em", marginBottom:8, display:"block" }}>Brand Name</label>
             <input style={inp} placeholder="e.g. TechCorp" value={name} onChange={e=>setName(e.target.value)}
@@ -191,7 +186,7 @@ export default function BrandsPage() {
           <DialogFooter>
             <button onClick={() => setOpen(false)} style={{ ...btn, background:"#f1f5f9", color:"#475569" }}>Cancel</button>
             <button onClick={handleCreate} disabled={saving||!name.trim()}
-              style={{ ...btn, background:"linear-gradient(135deg,#5865f2,#818cf8)", color:"#fff", opacity:saving||!name.trim()?.6:1 }}>
+              style={{ ...btn, background:"linear-gradient(135deg,#5865f2,#818cf8)", color:"#fff", opacity: saving||!name.trim() ? 0.6 : 1 }}>
               {saving ? "Creating…" : "Create Brand"}
             </button>
           </DialogFooter>

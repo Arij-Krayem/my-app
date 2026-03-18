@@ -6,10 +6,10 @@ type Role = "AGENCY_ADMIN"|"MARKETER";
 type User = { id:number; name:string; email:string; role:Role; brands:string[]; createdAt:string; avatar:string };
 
 const MOCK: User[] = [
-  { id:1, name:"Eya Laaroussi",  email:"eya@visioad.com",  role:"AGENCY_ADMIN", brands:["TechCorp","RetailMax","ServicePro"], createdAt:"Jan 12, 2025", avatar:"SJ" },
+  { id:1, name:"Sarah Johnson",  email:"sarah@visioad.com",  role:"AGENCY_ADMIN", brands:["TechCorp","RetailMax","ServicePro"], createdAt:"Jan 12, 2025", avatar:"SJ" },
   { id:2, name:"Marc Dupont",    email:"marc@visioad.com",   role:"MARKETER",     brands:["TechCorp"],                          createdAt:"Feb 3, 2025",  avatar:"MD" },
   { id:3, name:"Amira Benali",   email:"amira@visioad.com",  role:"MARKETER",     brands:["RetailMax","GrowthCo"],              createdAt:"Feb 18, 2025", avatar:"AB" },
-  { id:4, name:"Areej Krayem", email:"areej@visioad.com",    role:"MARKETER",     brands:["ServicePro"],                        createdAt:"Mar 1, 2025",  avatar:"TK" },
+  { id:4, name:"Tom Kristensen", email:"tom@visioad.com",    role:"MARKETER",     brands:["ServicePro"],                        createdAt:"Mar 1, 2025",  avatar:"TK" },
 ];
 
 const ROLE_CFG: Record<Role,{color:string;bg:string;border:string}> = {
@@ -36,18 +36,18 @@ const btn: React.CSSProperties = { padding:"9px 20px", borderRadius:9, border:"n
 const lbl: React.CSSProperties = { fontSize:11, fontWeight:700, color:"#64748b", textTransform:"uppercase" as const, letterSpacing:".06em", marginBottom:6, display:"block" };
 
 export default function UsersPage() {
-  const [users, setUsers]         = useState<User[]>(MOCK);
-  const [search, setSearch]       = useState("");
+  const [users, setUsers]           = useState<User[]>(MOCK);
+  const [search, setSearch]         = useState("");
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [editOpen, setEditOpen]   = useState(false);
-  const [delId, setDelId]         = useState<number|null>(null);
-  const [editUser, setEditUser]   = useState<User|null>(null);
-  const [msg, setMsg]             = useState("");
-  const [saving, setSaving]       = useState(false);
+  const [editOpen, setEditOpen]     = useState(false);
+  const [delId, setDelId]           = useState<number|null>(null);
+  const [editUser, setEditUser]     = useState<User|null>(null);
+  const [msg, setMsg]               = useState("");
+  const [saving, setSaving]         = useState(false);
 
   const emptyForm = { name:"", email:"", role:"MARKETER" as Role, brands:[] as string[] };
   const [inviteForm, setInviteForm] = useState(emptyForm);
-  const [editForm, setEditForm]   = useState(emptyForm);
+  const [editForm, setEditForm]     = useState(emptyForm);
 
   const filtered = users.filter(u =>
     u.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -228,7 +228,7 @@ export default function UsersPage() {
         </table>
       </div>
 
-      {/* ── Invite Dialog ── */}
+      {/* Invite Dialog */}
       <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
         <DialogContent>
           <DialogHeader icon={<UserIcon />} title="Invite User" description="Add a new team member to the platform" onClose={()=>setInviteOpen(false)} />
@@ -236,14 +236,14 @@ export default function UsersPage() {
           <DialogFooter>
             <button onClick={()=>setInviteOpen(false)} style={{ ...btn, background:"#f1f5f9", color:"#475569" }}>Cancel</button>
             <button onClick={handleInvite} disabled={saving||!inviteForm.name||!inviteForm.email}
-              style={{ ...btn, background:"linear-gradient(135deg,#5865f2,#818cf8)", color:"#fff", opacity:saving||!inviteForm.name||!inviteForm.email?.6:1 }}>
+              style={{ ...btn, background:"linear-gradient(135deg,#5865f2,#818cf8)", color:"#fff", opacity: saving||!inviteForm.name||!inviteForm.email ? 0.6 : 1 }}>
               {saving ? "Sending…" : "Send Invite"}
             </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* ── Edit Dialog ── */}
+      {/* Edit Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent>
           <DialogHeader icon={<UserIcon />} title="Edit User" description="Update team member details and access" onClose={()=>setEditOpen(false)} />
@@ -251,14 +251,14 @@ export default function UsersPage() {
           <DialogFooter>
             <button onClick={()=>setEditOpen(false)} style={{ ...btn, background:"#f1f5f9", color:"#475569" }}>Cancel</button>
             <button onClick={handleEdit} disabled={saving||!editForm.name||!editForm.email}
-              style={{ ...btn, background:"linear-gradient(135deg,#5865f2,#818cf8)", color:"#fff", opacity:saving||!editForm.name||!editForm.email?.6:1 }}>
+              style={{ ...btn, background:"linear-gradient(135deg,#5865f2,#818cf8)", color:"#fff", opacity: saving||!editForm.name||!editForm.email ? 0.6 : 1 }}>
               {saving ? "Saving…" : "Save Changes"}
             </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* ── Delete Dialog ── */}
+      {/* Delete Dialog */}
       <Dialog open={delId!==null} onOpenChange={()=>setDelId(null)}>
         <DialogContent style={{ maxWidth:400 }}>
           <DialogHeader icon={<span style={{ fontSize:18 }}>⚠️</span>} title="Remove User?" description="This user will lose access to all brands immediately." onClose={()=>setDelId(null)} />

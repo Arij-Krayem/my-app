@@ -1,12 +1,18 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 
-const MOCK = [
-  { id: 1, campaign: "Summer Sale Campaign", metric: "ROAS", score: 0.95, severity: "HIGH",   dateRange: "2024-06-15 to 2024-06-22", description: "ROAS dropped significantly from 4.2x to 2.1x over the past week",       platform: "Google" },
-  { id: 2, campaign: "Brand Awareness Q3",   metric: "CTR",  score: 0.78, severity: "MEDIUM", dateRange: "2024-06-20 to 2024-06-27", description: "CTR declined by 40% compared to baseline performance",                   platform: "Meta"   },
-  { id: 3, campaign: "Product Launch",        metric: "CPC",  score: 0.82, severity: "MEDIUM", dateRange: "2024-06-18 to 2024-06-25", description: "CPC increased by 65% indicating potential bidding issues",               platform: "Google" },
-  { id: 4, campaign: "Holiday Special",       metric: "Spend",score: 0.61, severity: "LOW",    dateRange: "2024-06-10 to 2024-06-17", description: "Spend deviation detected, within acceptable range but worth monitoring", platform: "Meta"   },
-];
+interface Anomaly {
+  id:             string;
+  campaign:       string;
+  metric:         string;
+  score:          number;
+  severity:       "HIGH" | "MEDIUM" | "LOW";
+  dateRange:      string;
+  description:    string;
+  platform:       string;
+  recommendation: string;
+  direction:      "up" | "down";
+}
 
 const SEV: Record<string, { color: string; bg: string; border: string; label: string }> = {
   HIGH:   { color: "#f85149", bg: "rgba(248,81,73,0.1)",  border: "rgba(248,81,73,0.25)",  label: "High"   },
@@ -15,13 +21,38 @@ const SEV: Record<string, { color: string; bg: string; border: string; label: st
 };
 
 export default function AnomaliesPage() {
-  const [metricFilter,   setMetric]   = useState("All Metrics");
-  const [severityFilter, setSeverity] = useState("All Severity");
-  const [expanded, setExpanded]       = useState<number | null>(null);
+  const [anomalies,      setAnomalies]    = useState<Anomaly[]>([]);
+  const [loading,        setLoading]      = useState(true);
+  const [error,          setError]        = useState("");
+  const [metricFilter,   setMetric]       = useState("All Metrics");
+  const [severityFilter, setSeverity]     = useState("All Severity");
+  const [expanded,       setExpanded]     = useState<string | null>(null);
 
-  const visible = MOCK
-    .filter(a => metricFilter   === "All Metrics"   || a.metric   === metricFilter)
-    .filter(a => severityFilter === "All Severity"  || a.severity === severityFilter);
+  const token = () => sessionStorage.getItem("access_token") ?? "";
+
+  const loadAnomalies = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/anomalies", {
+        headers: { Authorization: `Bearer ${token()}` },
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to load anomalies");
+      const data = await res.json();
+      setAnomalies(data.items ?? []);
+    } catch {
+      setError("Could not load anomalies. Please refresh.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadAnomalies(); }, [loadAnomalies]);
+
+  const visible = anomalies
+    .filter(a => metricFilter   === "All Metrics"  || a.metric   === metricFilter)
+    .filter(a => severityFilter === "All Severity" || a.severity === severityFilter);
 
   const selSt: React.CSSProperties = {
     padding: "9px 14px", background: "var(--card)", border: "1px solid var(--border)",
@@ -30,29 +61,44 @@ export default function AnomaliesPage() {
   };
 
   const summary = {
-    high:   MOCK.filter(a => a.severity === "HIGH").length,
-    medium: MOCK.filter(a => a.severity === "MEDIUM").length,
-    low:    MOCK.filter(a => a.severity === "LOW").length,
+    high:   anomalies.filter(a => a.severity === "HIGH").length,
+    medium: anomalies.filter(a => a.severity === "MEDIUM").length,
+    low:    anomalies.filter(a => a.severity === "LOW").length,
   };
+
+  // Unique metrics from real data
+  const uniqueMetrics = ["All Metrics", ...Array.from(new Set(anomalies.map(a => a.metric)))];
 
   return (
     <div style={{ animation: "fadeUp 0.4s ease both", fontFamily: "'Outfit', sans-serif" }}>
       {/* Header */}
-      <div style={{ marginBottom: "28px" }}>
-        <h1 style={{ fontSize: "24px", fontWeight: "700", color: "var(--t1)", marginBottom: "4px" }}>Anomalies</h1>
-        <p style={{ fontSize: "14px", color: "var(--t2)" }}>Explore statistical anomalies detected in your campaign performance</p>
+      <div style={{ marginBottom: "28px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div>
+          <h1 style={{ fontSize: "24px", fontWeight: "700", color: "var(--t1)", marginBottom: "4px" }}>Anomalies</h1>
+          <p style={{ fontSize: "14px", color: "var(--t2)" }}>Explore statistical anomalies detected in your campaign performance</p>
+        </div>
+        <button onClick={loadAnomalies}
+          style={{ padding: "8px 16px", borderRadius: "10px", background: "var(--card)", border: "1px solid var(--border)", color: "var(--t2)", fontSize: "13px", fontWeight: "600", cursor: "pointer", fontFamily: "inherit" }}>
+          ↻ Refresh
+        </button>
       </div>
+
+      {error && (
+        <div style={{ background: "rgba(248,81,73,0.08)", border: "1px solid rgba(248,81,73,0.25)", borderRadius: "10px", padding: "12px 16px", marginBottom: "20px", color: "#f85149", fontSize: "14px" }}>
+          ✗ {error}
+        </div>
+      )}
 
       {/* Summary pills */}
       <div style={{ display: "flex", gap: "10px", marginBottom: "24px", flexWrap: "wrap" }}>
         {[
-          { label: "High severity",   count: summary.high,   ...SEV.HIGH   },
-          { label: "Medium severity", count: summary.medium, ...SEV.MEDIUM },
-          { label: "Low severity",    count: summary.low,    ...SEV.LOW    },
+          { label: "High",   count: summary.high,   ...SEV.HIGH   },
+          { label: "Medium", count: summary.medium, ...SEV.MEDIUM },
+          { label: "Low",    count: summary.low,    ...SEV.LOW    },
         ].map(s => (
           <div key={s.label} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 14px", borderRadius: "10px", background: s.bg, border: `1px solid ${s.border}` }}>
             <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: s.color, flexShrink: 0 }} />
-            <span style={{ fontSize: "13px", fontWeight: "700", color: s.color }}>{s.count}</span>
+            <span style={{ fontSize: "13px", fontWeight: "700", color: s.color }}>{loading ? "—" : s.count}</span>
             <span style={{ fontSize: "12px", color: s.color, opacity: 0.8 }}>{s.label}</span>
           </div>
         ))}
@@ -61,10 +107,10 @@ export default function AnomaliesPage() {
       {/* Filters */}
       <div style={{ display: "flex", gap: "10px", marginBottom: "20px", alignItems: "center", flexWrap: "wrap" }}>
         <select value={metricFilter} onChange={e => setMetric(e.target.value)} style={selSt}>
-          {["All Metrics","ROAS","CTR","CPC","CPA","Spend"].map(o => <option key={o}>{o}</option>)}
+          {uniqueMetrics.map(o => <option key={o}>{o}</option>)}
         </select>
         <select value={severityFilter} onChange={e => setSeverity(e.target.value)} style={selSt}>
-          {["All Severity","HIGH","MEDIUM","LOW"].map(o => <option key={o}>{o}</option>)}
+          {["All Severity", "HIGH", "MEDIUM", "LOW"].map(o => <option key={o}>{o}</option>)}
         </select>
         {(metricFilter !== "All Metrics" || severityFilter !== "All Severity") && (
           <button onClick={() => { setMetric("All Metrics"); setSeverity("All Severity"); }}
@@ -72,18 +118,35 @@ export default function AnomaliesPage() {
             Clear filters ×
           </button>
         )}
-        <span style={{ marginLeft: "auto", fontSize: "13px", color: "var(--t3)", fontWeight: "500" }}>{visible.length} result{visible.length !== 1 ? "s" : ""}</span>
+        <span style={{ marginLeft: "auto", fontSize: "13px", color: "var(--t3)", fontWeight: "500" }}>
+          {loading ? "Loading…" : `${visible.length} result${visible.length !== 1 ? "s" : ""}`}
+        </span>
       </div>
 
-      {/* Cards */}
-      {visible.length === 0 ? (
+      {/* Loading */}
+      {loading ? (
+        <div style={{ textAlign: "center", padding: "80px 20px", background: "var(--card)", border: "1px solid var(--border)", borderRadius: "16px" }}>
+          <div style={{ width: 32, height: 32, borderRadius: "50%", border: "3px solid var(--border)", borderTopColor: "#f85149", animation: "spin 0.8s linear infinite", margin: "0 auto 16px" }} />
+          <p style={{ fontSize: "14px", color: "var(--t2)" }}>Running anomaly detection…</p>
+        </div>
+
+      /* Empty */
+      ) : visible.length === 0 ? (
         <div style={{ textAlign: "center", padding: "80px 20px", background: "var(--card)", border: "1px solid var(--border)", borderRadius: "16px" }}>
           <div style={{ color: "var(--t3)", display: "flex", justifyContent: "center", marginBottom: "12px" }}>
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/>
+            </svg>
           </div>
           <p style={{ fontSize: "16px", fontWeight: "600", color: "var(--t1)", marginBottom: "4px" }}>No anomalies found</p>
-          <p style={{ fontSize: "14px", color: "var(--t2)" }}>Try adjusting your filters</p>
+          <p style={{ fontSize: "14px", color: "var(--t2)" }}>
+            {anomalies.length === 0
+              ? "Upload more data to enable statistical anomaly detection."
+              : "Try adjusting your filters"}
+          </p>
         </div>
+
+      /* Cards */
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           {visible.map(a => {
@@ -100,7 +163,6 @@ export default function AnomaliesPage() {
 
                 {/* Main row */}
                 <div style={{ padding: "20px 24px", display: "flex", alignItems: "flex-start", gap: "20px" }}>
-                  {/* Left: campaign info */}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px", flexWrap: "wrap" }}>
                       <h3 style={{ fontSize: "15px", fontWeight: "700", color: "var(--t1)" }}>{a.campaign}</h3>
@@ -132,14 +194,13 @@ export default function AnomaliesPage() {
                     </div>
                   </div>
 
-                  {/* Right: score + actions */}
+                  {/* Score + actions */}
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "12px", flexShrink: 0 }}>
                     <div style={{ textAlign: "right" }}>
                       <p style={{ fontSize: "10px", color: "var(--t3)", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "4px" }}>Anomaly Score</p>
                       <p style={{ fontSize: "32px", fontWeight: "800", color: sv.color, lineHeight: 1 }}>{(a.score * 100).toFixed(0)}%</p>
                     </div>
-                    <button
-                      onClick={() => setExpanded(open ? null : a.id)}
+                    <button onClick={() => setExpanded(open ? null : a.id)}
                       style={{ padding: "8px 18px", borderRadius: "9px", border: "none", background: "linear-gradient(135deg,#5865f2,#818cf8)", color: "white", fontSize: "13px", fontWeight: "600", cursor: "pointer", fontFamily: "inherit", boxShadow: "0 4px 12px rgba(88,101,242,0.25)", whiteSpace: "nowrap" }}>
                       {open ? "Hide Details" : "View Details"}
                     </button>
@@ -150,12 +211,12 @@ export default function AnomaliesPage() {
                 {open && (
                   <div style={{ borderTop: "1px solid var(--border)", padding: "20px 24px", background: "var(--bg)", display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "16px" }}>
                     {[
-                      { label: "Affected Metric",  value: a.metric      },
-                      { label: "Severity Level",   value: a.severity    },
-                      { label: "Anomaly Score",    value: `${(a.score * 100).toFixed(0)}%` },
-                      { label: "Date Range",       value: a.dateRange   },
-                      { label: "Platform",         value: a.platform    },
-                      { label: "Recommendation",   value: "Review campaign budget and bid strategy" },
+                      { label: "Affected Metric",  value: a.metric                              },
+                      { label: "Severity Level",   value: a.severity                            },
+                      { label: "Anomaly Score",    value: `${(a.score * 100).toFixed(0)}%`      },
+                      { label: "Date Range",       value: a.dateRange                           },
+                      { label: "Platform",         value: a.platform                            },
+                      { label: "Recommendation",   value: a.recommendation                      },
                     ].map(d => (
                       <div key={d.label} style={{ padding: "14px", borderRadius: "10px", background: "var(--card)", border: "1px solid var(--border)" }}>
                         <p style={{ fontSize: "10px", color: "var(--t3)", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "6px" }}>{d.label}</p>
@@ -169,6 +230,8 @@ export default function AnomaliesPage() {
           })}
         </div>
       )}
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

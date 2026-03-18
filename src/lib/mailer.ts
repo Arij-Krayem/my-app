@@ -3,14 +3,14 @@ import nodemailer from "nodemailer";
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASSWORD,
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
   },
 });
 
 export async function sendPasswordResetEmail(to: string, resetUrl: string) {
   await transporter.sendMail({
-    from: `"Visioad" <${process.env.GMAIL_USER}>`,
+    from: `"Visioad" <${process.env.EMAIL_USER}>`,
     to,
     subject: "Reset your Visioad password",
     html: `
