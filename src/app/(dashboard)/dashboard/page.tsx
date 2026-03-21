@@ -5,12 +5,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
-
-const MOCK_ALERTS = [
-  { id: 1, campaign: "Summer Sale Campaign", metric: "ROAS",  current: "2.1",   threshold: "3.0",   severity: "CRITICAL", ago: "2h ago",  platform: "Google" },
-  { id: 2, campaign: "Brand Awareness Q3",   metric: "CTR",   current: "1.2%",  threshold: "2.0%",  severity: "WARNING",  ago: "4h ago",  platform: "Meta"   },
-  { id: 3, campaign: "Product Launch",       metric: "CPC",   current: "$3.45", threshold: "$2.50", severity: "WARNING",  ago: "6h ago",  platform: "Google" },
-];
+import DashboardEnhanced from "@/components/DashboardEnhanced";
 
 const KPI_META = [
   { label: "Total Spend", key: "totalSpend", prefix: "$", suffix: "",  grad: "linear-gradient(135deg,#10b981,#34d399)", glow: "rgba(16,185,129,0.2)",  icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> },
@@ -24,16 +19,26 @@ const inputSt: React.CSSProperties = {
   borderRadius: "9px", color: "var(--t1)", fontSize: "13px", fontFamily: "inherit", outline: "none",
 };
 
+interface Alert {
+  id: string;
+  message: string;
+  status: string;
+  createdAt: string;
+  rule?: { metricKey: string; severity: string } | null;
+  brand?: { name: string } | null;
+}
+
 export default function DashboardPage() {
-  const [user, setUser]             = useState<{ name: string; role: string } | null>(null);
-  const [uploads, setUploads]       = useState<any[]>([]);
-  const [analytics, setAnalytics]   = useState<any>(null);
-  const [kpiLoading, setKpiLoading] = useState(true);
-  const [brands, setBrands]         = useState<{ id: string; name: string }[]>([]);
+  const [user, setUser]               = useState<{ name: string; role: string } | null>(null);
+  const [uploads, setUploads]         = useState<any[]>([]);
+  const [analytics, setAnalytics]     = useState<any>(null);
+  const [kpiLoading, setKpiLoading]   = useState(true);
+  const [brands, setBrands]           = useState<{ id: string; name: string }[]>([]);
   const [activeBrand, setActiveBrand] = useState("brand_visioad_001");
-  const [platform, setPlatform]     = useState("");
-  const [dateFrom, setDateFrom]     = useState("");
-  const [dateTo, setDateTo]         = useState("");
+  const [platform, setPlatform]       = useState("");
+  const [dateFrom, setDateFrom]       = useState("");
+  const [dateTo, setDateTo]           = useState("");
+  const [realAlerts, setRealAlerts]   = useState<Alert[]>([]);
 
   const fetchAnalytics = (brandId: string, plat: string, from: string, to: string) => {
     const token = sessionStorage.getItem("access_token");
@@ -50,30 +55,35 @@ export default function DashboardPage() {
       .finally(() => setKpiLoading(false));
   };
 
+  const fetchAlerts = (brandId: string) => {
+    const token = sessionStorage.getItem("access_token");
+    if (!token) return;
+    fetch(`/api/alerts?status=OPEN&brandId=${brandId}`, {
+      headers: { Authorization: `Bearer ${token}` }, credentials: "include",
+    })
+      .then(r => r.ok ? r.json() : { items: [] })
+      .then(d => setRealAlerts((d.items ?? []).slice(0, 3)))
+      .catch(() => {});
+  };
+
   useEffect(() => {
     const raw   = sessionStorage.getItem("user");
     const token = sessionStorage.getItem("access_token");
     if (raw) setUser(JSON.parse(raw));
     if (!token) return;
-
     const headers = { Authorization: `Bearer ${token}` };
 
-    // Fetch brands for switcher
     fetch("/api/brands", { headers, credentials: "include" })
       .then(r => r.ok ? r.json() : { items: [] })
       .then(d => {
         const list = d.items ?? [];
         setBrands(list);
-        // Set first brand as active if available
-        if (list.length > 0) {
-          const first = list[0].id;
-          setActiveBrand(first);
-          fetchAnalytics(first, "", "", "");
-        } else {
-          fetchAnalytics("brand_visioad_001", "", "", "");
-        }
+        const first = list.length > 0 ? list[0].id : "brand_visioad_001";
+        setActiveBrand(first);
+        fetchAnalytics(first, "", "", "");
+        fetchAlerts(first);
       })
-      .catch(() => fetchAnalytics("brand_visioad_001", "", "", ""));
+      .catch(() => { fetchAnalytics("brand_visioad_001", "", "", ""); fetchAlerts("brand_visioad_001"); });
 
     fetch("/api/uploads?pageSize=4", { headers, credentials: "include" })
       .then(r => r.ok ? r.json() : { items: [] })
@@ -91,6 +101,7 @@ export default function DashboardPage() {
     setActiveBrand(brandId);
     setPlatform(""); setDateFrom(""); setDateTo("");
     fetchAnalytics(brandId, "", "", "");
+    fetchAlerts(brandId);
   };
 
   const greeting = () => {
@@ -130,7 +141,18 @@ export default function DashboardPage() {
     FAILED:   { color: "#f85149", bg: "rgba(248,81,73,0.1)",  border: "rgba(248,81,73,0.25)"  },
   }[s] || { color: "#d29922", bg: "rgba(210,153,34,0.1)", border: "rgba(210,153,34,0.25)" });
 
-  const hasFilters = platform || dateFrom || dateTo;
+  const hasFilters     = platform || dateFrom || dateTo;
+  const criticalAlerts = realAlerts.filter(a => a.rule?.severity === "CRITICAL").length;
+
+  function timeAgo(dateStr: string) {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const m = Math.floor(diff / 60000);
+    if (m < 1)  return "just now";
+    if (m < 60) return `${m}m ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h ago`;
+    return `${Math.floor(h / 24)}d ago`;
+  }
 
   return (
     <div style={{ animation: "fadeUp 0.4s ease both", fontFamily: "'Outfit', sans-serif" }}>
@@ -148,7 +170,7 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      {/* Brand Switcher — shown when multiple brands or admin */}
+      {/* Brand Switcher */}
       {brands.length > 1 && (
         <div style={{ display: "flex", gap: "8px", marginBottom: "16px", flexWrap: "wrap" }}>
           {brands.map(b => (
@@ -165,23 +187,19 @@ export default function DashboardPage() {
         <span style={{ fontSize: "12px", fontWeight: "700", color: "var(--t3)", letterSpacing: "0.8px", textTransform: "uppercase" as const }}>
           {activeBrandName} · Filters
         </span>
-
         <select value={platform} onChange={e => setPlatform(e.target.value)} style={inputSt}>
           <option value="">All Platforms</option>
           <option value="GOOGLE">Google Ads</option>
           <option value="META">Meta Ads</option>
         </select>
-
         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
           <span style={{ fontSize: "12px", color: "var(--t3)" }}>From</span>
           <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={inputSt} />
         </div>
-
         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
           <span style={{ fontSize: "12px", color: "var(--t3)" }}>To</span>
           <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={inputSt} />
         </div>
-
         <div style={{ display: "flex", gap: "8px", marginLeft: "auto" }}>
           {hasFilters && (
             <button onClick={resetFilters} style={{ padding: "8px 14px", borderRadius: "9px", border: "1px solid var(--border)", background: "transparent", color: "var(--t2)", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "inherit" }}>
@@ -192,7 +210,6 @@ export default function DashboardPage() {
             {kpiLoading ? <><div style={{ width: "12px", height: "12px", borderRadius: "50%", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "white", animation: "spin 0.7s linear infinite" }} />Loading...</> : "Apply"}
           </button>
         </div>
-
         {hasFilters && (
           <div style={{ width: "100%", display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "4px" }}>
             {platform && <span style={{ fontSize: "11px", padding: "2px 8px", borderRadius: "5px", background: "rgba(88,101,242,0.1)", color: "#5865f2", border: "1px solid rgba(88,101,242,0.25)", fontWeight: "600" }}>{platform === "GOOGLE" ? "Google Ads" : "Meta Ads"}</span>}
@@ -264,35 +281,49 @@ export default function DashboardPage() {
       {/* Bottom grid */}
       <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "16px", marginBottom: "24px" }}>
 
-        {/* Active Alerts */}
+        {/* Active Alerts — real data */}
         <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "16px", padding: "22px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
               <h2 style={{ fontSize: "16px", fontWeight: "600", color: "var(--t1)" }}>Active Alerts</h2>
-              <span style={{ fontSize: "11px", fontWeight: "700", padding: "2px 8px", borderRadius: "5px", background: "rgba(248,81,73,0.12)", color: "#f85149", border: "1px solid rgba(248,81,73,0.25)" }}>
-                {MOCK_ALERTS.filter(a => a.severity === "CRITICAL").length} critical
-              </span>
+              {criticalAlerts > 0 && (
+                <span style={{ fontSize: "11px", fontWeight: "700", padding: "2px 8px", borderRadius: "5px", background: "rgba(248,81,73,0.12)", color: "#f85149", border: "1px solid rgba(248,81,73,0.25)" }}>
+                  {criticalAlerts} critical
+                </span>
+              )}
             </div>
             <Link href="/alerts" style={{ fontSize: "12px", color: "#5865f2", textDecoration: "none", fontWeight: "500" }}>View all →</Link>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            {MOCK_ALERTS.map(a => {
-              const isCrit = a.severity === "CRITICAL";
-              return (
-                <div key={a.id} style={{ padding: "14px 16px", borderRadius: "12px", background: "var(--bg)", borderLeft: `3px solid ${isCrit ? "#f85149" : "#d29922"}`, border: `1px solid ${isCrit ? "rgba(248,81,73,0.15)" : "rgba(210,153,34,0.15)"}` }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-                    <span style={{ fontSize: "13px", fontWeight: "600", color: "var(--t1)" }}>{a.campaign}</span>
-                    <span style={{ fontSize: "10px", fontWeight: "700", padding: "2px 7px", borderRadius: "5px", background: isCrit ? "rgba(248,81,73,0.12)" : "rgba(210,153,34,0.12)", color: isCrit ? "#f85149" : "#d29922", border: `1px solid ${isCrit ? "rgba(248,81,73,0.25)" : "rgba(210,153,34,0.25)"}` }}>{a.severity}</span>
+
+          {realAlerts.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "32px 0" }}>
+              <div style={{ fontSize: "24px", marginBottom: "8px" }}>✅</div>
+              <p style={{ fontSize: "13px", color: "var(--t2)" }}>No active alerts</p>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {realAlerts.map(a => {
+                const isCrit = a.rule?.severity === "CRITICAL";
+                const color  = isCrit ? "#f85149" : "#d29922";
+                return (
+                  <div key={a.id} style={{ padding: "14px 16px", borderRadius: "12px", background: "var(--bg)", borderLeft: `3px solid ${color}`, border: `1px solid ${isCrit ? "rgba(248,81,73,0.15)" : "rgba(210,153,34,0.15)"}` }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                      <span style={{ fontSize: "13px", fontWeight: "600", color: "var(--t1)" }}>
+                        {a.rule?.metricKey?.toUpperCase() ?? "Alert"}
+                      </span>
+                      <span style={{ fontSize: "10px", fontWeight: "700", padding: "2px 7px", borderRadius: "5px", background: isCrit ? "rgba(248,81,73,0.12)" : "rgba(210,153,34,0.12)", color, border: `1px solid ${isCrit ? "rgba(248,81,73,0.25)" : "rgba(210,153,34,0.25)"}` }}>
+                        {a.rule?.severity ?? "WARNING"}
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
+                      <span style={{ fontSize: "12px", color: "var(--t2)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.message}</span>
+                      <span style={{ fontSize: "11px", color: "var(--t3)", flexShrink: 0 }}>{timeAgo(a.createdAt)}</span>
+                    </div>
                   </div>
-                  <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
-                    <span style={{ fontSize: "12px", color: "var(--t2)" }}>{a.metric}: <span style={{ color: isCrit ? "#f85149" : "#d29922", fontWeight: "700" }}>{a.current}</span> / {a.threshold}</span>
-                    <span style={{ fontSize: "11px", color: a.platform === "Google" ? "#4285F4" : "#1877F2", fontWeight: "600" }}>{a.platform}</span>
-                    <span style={{ fontSize: "11px", color: "var(--t3)", marginLeft: "auto" }}>{a.ago}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Right column */}
@@ -317,20 +348,9 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 );
-              }) : [
-                { label: "Google Ads", pct: 62, color: "#4285F4", spend: "—" },
-                { label: "Meta Ads",   pct: 38, color: "#1877F2", spend: "—" },
-              ].map(p => (
-                <div key={p.label}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
-                    <span style={{ fontSize: "13px", fontWeight: "600", color: p.color }}>{p.label}</span>
-                    <span style={{ fontSize: "13px", color: "var(--t2)" }}>{p.spend}</span>
-                  </div>
-                  <div style={{ height: "6px", borderRadius: "3px", background: "var(--border)" }}>
-                    <div style={{ height: "100%", width: `${p.pct}%`, background: p.color, borderRadius: "3px" }} />
-                  </div>
-                </div>
-              ))}
+              }) : (
+                <p style={{ fontSize: "13px", color: "var(--t3)", textAlign: "center", padding: "12px 0" }}>No platform data yet</p>
+              )}
             </div>
           </div>
 
@@ -369,7 +389,7 @@ export default function DashboardPage() {
 
       {/* Top Campaigns Table */}
       {topCampaigns.length > 0 && (
-        <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "16px", padding: "22px" }}>
+        <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "16px", padding: "22px", marginBottom: "0" }}>
           <h2 style={{ fontSize: "16px", fontWeight: "600", color: "var(--t1)", marginBottom: "18px" }}>Top Campaigns by Spend</h2>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
@@ -404,6 +424,15 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* ── Enhanced Analytics Sections ── */}
+      <DashboardEnhanced
+        brandId={activeBrand}
+        platform={platform}
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+      />
+
     </div>
   );
 }
