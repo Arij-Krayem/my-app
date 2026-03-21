@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth, AuthError } from "@/lib/auth-guard";
 import { parse } from "csv-parse/sync";
 import { EntityType, Prisma } from "@prisma/client";
+import { sendAlertEmail } from "@/lib/notification-mailer";
 
 function cleanNumber(val: string): number {
   if (!val) return 0;
@@ -49,12 +50,163 @@ function inferEntityId(mapped: Record<string, string>): string | null {
     "campaign_name",
     "account_name",
   ];
-
   for (const key of candidates) {
     const value = mapped[key]?.trim();
     if (value) return value;
   }
   return null;
+}
+
+function evaluate(value: number, operator: string, threshold: number): boolean {
+  switch (operator) {
+    case ">":  return value > threshold;
+    case "<":  return value < threshold;
+    case ">=": return value >= threshold;
+    case "<=": return value <= threshold;
+    case "==": return value === threshold;
+    default:   return false;
+  }
+}
+
+async function runAlertCheck(brandId: string) {
+  try {
+    // Get active rules
+    const rules = await prisma.alertRule.findMany({
+      where: { brandId, isActive: true },
+    });
+    if (rules.length === 0) return;
+
+    // Get brand name
+    const brand = await prisma.brand.findUnique({
+      where: { id: brandId },
+      select: { name: true },
+    });
+
+    // Get last 30 days of facts
+    const since = new Date();
+    since.setDate(since.getDate() - 30);
+
+    const facts = await prisma.performanceFact.findMany({
+      where: { brandId, date: { gte: since } },
+    });
+    if (facts.length === 0) return;
+
+    // Aggregate metrics
+    const totals: Record<string, number[]> = {};
+    for (const fact of facts) {
+      const metrics = fact.metrics as Record<string, number>;
+      for (const [key, val] of Object.entries(metrics)) {
+        if (typeof val === "number") {
+          if (!totals[key]) totals[key] = [];
+          totals[key].push(val);
+        }
+      }
+    }
+
+    const aggregated: Record<string, number> = {};
+    for (const [key, vals] of Object.entries(totals)) {
+      aggregated[key] = vals.reduce((a, b) => a + b, 0) / vals.length;
+    }
+    for (const sumKey of ["spend", "clicks", "impressions", "conversions"]) {
+      if (totals[sumKey]) {
+        aggregated[sumKey] = totals[sumKey].reduce((a, b) => a + b, 0);
+      }
+    }
+
+    // Get recipients
+    const [brandMembers, admins] = await Promise.all([
+      prisma.brandMember.findMany({
+        where: { brandId },
+        include: { user: { select: { email: true } } },
+      }),
+      prisma.user.findMany({
+        where: { role: "AGENCY_ADMIN" },
+        select: { email: true },
+      }),
+    ]);
+
+    const allEmails = Array.from(new Set([
+      ...brandMembers.map(m => m.user.email),
+      ...admins.map(a => a.email),
+    ]));
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    for (const rule of rules) {
+      const value = aggregated[rule.metricKey];
+      if (value === undefined) continue;
+
+      if (evaluate(value, rule.operator, rule.threshold)) {
+        // Skip if OPEN alert already exists
+        const existing = await prisma.alert.findFirst({
+          where: { ruleId: rule.id, status: "OPEN" },
+        });
+        if (existing) continue;
+
+        // Create alert
+        const alert = await prisma.alert.create({
+          data: {
+            brandId,
+            ruleId:  rule.id,
+            status:  "OPEN",
+            message: `${rule.metricKey} is ${value.toFixed(2)} ${rule.operator} ${rule.threshold} (${rule.severity}) — triggered on CSV ingest`,
+          },
+        });
+
+        // Once-per-day email dedup
+        const sentToday = await prisma.notification.findFirst({
+          where: {
+            brandId,
+            type:      "THRESHOLD",
+            createdAt: { gte: todayStart },
+            message:   { contains: rule.metricKey },
+          },
+        });
+
+        if (!sentToday && allEmails.length > 0) {
+          try {
+            await sendAlertEmail({
+              brandName:  brand?.name ?? brandId,
+              metricKey:  rule.metricKey,
+              value,
+              operator:   rule.operator,
+              threshold:  rule.threshold,
+              severity:   rule.severity as "WARNING" | "CRITICAL",
+              message:    alert.message,
+              recipients: allEmails,
+            });
+
+            const notification = await prisma.notification.create({
+              data: {
+                brandId,
+                type:    "THRESHOLD",
+                message: `${rule.metricKey} threshold breached: ${value.toFixed(2)} ${rule.operator} ${rule.threshold}`,
+                status:  "OPEN",
+              },
+            });
+
+            const recipientUsers = await prisma.user.findMany({
+              where: { email: { in: allEmails } },
+              select: { id: true },
+            });
+
+            await prisma.notificationRecipient.createMany({
+              data: recipientUsers.map(u => ({
+                notificationId: notification.id,
+                userId:         u.id,
+              })),
+              skipDuplicates: true,
+            });
+          } catch (emailErr) {
+            console.error("[ingest/alert-check] Email failed:", emailErr);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error("[ingest/alert-check] Failed:", err);
+  }
 }
 
 // ─── POST /api/uploads/[id]/ingest ───────────────────────────────────────────
@@ -63,7 +215,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const payload    = requireAuth(req);
+    const payload          = requireAuth(req);
     const { id: uploadId } = await params;
 
     // Load upload with mappings
@@ -131,49 +283,38 @@ export async function POST(
       }
 
       const entityType = inferEntityType(mapped);
-      const entityId = inferEntityId(mapped);
+      const entityId   = inferEntityId(mapped);
       if (!entityId) {
         errors.push(`Row ${i + 2}: missing entity identifier - skipped`);
         continue;
       }
 
       const metrics = {
-        impressions: cleanNumber(mapped["impressions"] ?? ""),
-        clicks: cleanNumber(mapped["clicks"] ?? ""),
-        spend: cleanNumber(mapped["spend"] ?? ""),
-        conversions: cleanNumber(mapped["conversions"] ?? ""),
+        impressions:     cleanNumber(mapped["impressions"]      ?? ""),
+        clicks:          cleanNumber(mapped["clicks"]           ?? ""),
+        spend:           cleanNumber(mapped["spend"]            ?? ""),
+        conversions:     cleanNumber(mapped["conversions"]      ?? ""),
         conversionValue: cleanNumber(mapped["conversion_value"] ?? ""),
-        ctr: cleanNumber(mapped["ctr"] ?? ""),
-        cpc: cleanNumber(mapped["cpc"] ?? ""),
-        roas: cleanNumber(mapped["roas"] ?? ""),
+        ctr:             cleanNumber(mapped["ctr"]              ?? ""),
+        cpc:             cleanNumber(mapped["cpc"]              ?? ""),
+        roas:            cleanNumber(mapped["roas"]             ?? ""),
       };
 
       const dimensions = Object.fromEntries(
         Object.entries(mapped).filter(([key, value]) => {
           if (!value) return false;
           return ![
-            "date",
-            "entity_type",
-            "entity_id",
-            "ad_id",
-            "adset_id",
-            "campaign_id",
-            "account_id",
-            "impressions",
-            "clicks",
-            "spend",
-            "conversions",
-            "conversion_value",
-            "ctr",
-            "cpc",
-            "roas",
+            "date", "entity_type", "entity_id",
+            "ad_id", "adset_id", "campaign_id", "account_id",
+            "impressions", "clicks", "spend", "conversions",
+            "conversion_value", "ctr", "cpc", "roas",
           ].includes(key);
         })
       );
 
       facts.push({
         uploadId: upload.id,
-        brandId: upload.brandId,
+        brandId:  upload.brandId,
         platform: upload.platform,
         date,
         entityType,
@@ -184,10 +325,7 @@ export async function POST(
     }
 
     if (facts.length === 0)
-      return NextResponse.json({
-        error:  "No valid rows to ingest",
-        errors,
-      }, { status: 400 });
+      return NextResponse.json({ error: "No valid rows to ingest", errors }, { status: 400 });
 
     // Delete any existing facts for this upload (re-ingest safety)
     await prisma.performanceFact.deleteMany({ where: { uploadId } });
@@ -201,13 +339,18 @@ export async function POST(
       data:  { status: "IMPORTED" },
     });
 
+    // ✅ Auto-trigger alert check after successful ingest (non-blocking)
+    runAlertCheck(upload.brandId).catch(err =>
+      console.error("[ingest] Alert check failed silently:", err)
+    );
+
     return NextResponse.json({
-      message:      "CSV ingested successfully",
+      message:   "CSV ingested successfully",
       uploadId,
-      totalRows:    records.length,
-      ingested:     facts.length,
-      skipped:      records.length - facts.length,
-      errors:       errors.length > 0 ? errors : undefined,
+      totalRows: records.length,
+      ingested:  facts.length,
+      skipped:   records.length - facts.length,
+      errors:    errors.length > 0 ? errors : undefined,
     });
 
   } catch (err) {

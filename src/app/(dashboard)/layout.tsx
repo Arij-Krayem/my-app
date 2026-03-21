@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 
@@ -33,16 +33,55 @@ const ADMIN_ITEMS = [
   { href: "/detection", icon: SVG.detection, label: "Detection" },
 ];
 
+interface AlertNotif {
+  id:        string;
+  message:   string;
+  status:    string;
+  createdAt: string;
+  rule?:     { metricKey: string; severity: string } | null;
+  brand?:    { name: string } | null;
+}
+
+function timeAgo(dateStr: string) {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1)  return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router   = useRouter();
   const pathname = usePathname();
-  const [collapsed, setCollapsed]    = useState(false);
-  const [user, setUser]              = useState<{ name: string; email: string; role: string } | null>(null);
-  const [brands, setBrands]          = useState<{ id: string; name: string }[]>([]);
-  const [selectedBrand, setSelected] = useState("");
-  const [notifCount]                 = useState(3);
+  const [collapsed, setCollapsed]       = useState(false);
+  const [user, setUser]                 = useState<{ name: string; email: string; role: string } | null>(null);
+  const [brands, setBrands]             = useState<{ id: string; name: string }[]>([]);
+  const [selectedBrand, setSelected]    = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showBell, setShowBell]         = useState(false);
+  const [notifications, setNotifications] = useState<AlertNotif[]>([]);
+  const [notifCount, setNotifCount]     = useState(0);
+
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const bellRef     = useRef<HTMLDivElement>(null);
+
+  const fetchNotifications = useCallback(async () => {
+    const token = sessionStorage.getItem("access_token");
+    if (!token) return;
+    try {
+      const res  = await fetch("/api/alerts?status=OPEN", {
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: "include",
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const items: AlertNotif[] = data.items ?? [];
+      setNotifications(items.slice(0, 5)); // show max 5 in dropdown
+      setNotifCount(items.length);
+    } catch {}
+  }, []);
 
   useEffect(() => {
     document.documentElement.removeAttribute("data-theme");
@@ -62,14 +101,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             if (list[0]) setSelected(list[0].id);
           });
       }
+      // Fetch notifications on mount
+      fetchNotifications();
     } catch { router.push("/login"); }
-  }, [router]);
+  }, [router, fetchNotifications]);
 
-  // Close dropdown when clicking outside
+  // Poll notifications every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [fetchNotifications]);
+
+  // Refresh notifications when navigating to alerts page
+  useEffect(() => {
+    if (pathname === "/alerts") fetchNotifications();
+  }, [pathname, fetchNotifications]);
+
+  // Close dropdowns when clicking outside
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setShowDropdown(false);
+      }
+      if (bellRef.current && !bellRef.current.contains(e.target as Node)) {
+        setShowBell(false);
       }
     };
     document.addEventListener("mousedown", handler);
@@ -90,9 +145,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     router.push("/login");
   };
 
-  const isAdmin = user?.role === "AGENCY_ADMIN";
-  const allNav  = isAdmin ? [...NAV_ITEMS, ...ADMIN_ITEMS] : NAV_ITEMS;
-  const sideW   = collapsed ? "68px" : "230px";
+  const isAdmin   = user?.role === "AGENCY_ADMIN";
+  const allNav    = isAdmin ? [...NAV_ITEMS, ...ADMIN_ITEMS] : NAV_ITEMS;
+  const sideW     = collapsed ? "68px" : "230px";
   const pageTitle = allNav.find(n => {
     if (n.href === "/dashboard") return pathname === "/dashboard";
     return pathname?.startsWith(n.href);
@@ -125,6 +180,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </Link>
     );
   };
+
+  const sevColor = (sev?: string) => sev === "CRITICAL" ? "#f85149" : "#d29922";
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg)", fontFamily: "'Outfit', sans-serif" }}>
@@ -202,13 +259,105 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </select>
             )}
 
-            {/* Bell */}
-            <div style={{ position: "relative" }}>
-              <button style={{ width: "36px", height: "36px", borderRadius: "10px", background: "var(--bg)", border: "1px solid var(--border)", cursor: "pointer", color: "var(--t2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {/* ── NOTIFICATION BELL ── */}
+            <div ref={bellRef} style={{ position: "relative" }}>
+              <button
+                onClick={() => { setShowBell(v => !v); if (!showBell) fetchNotifications(); }}
+                style={{ width: "36px", height: "36px", borderRadius: "10px", background: "var(--bg)", border: "1px solid var(--border)", cursor: "pointer", color: notifCount > 0 ? "#f85149" : "var(--t2)", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s" }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--border)"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "var(--bg)"; }}
+              >
                 {SVG.bell}
               </button>
+
+              {/* Badge */}
               {notifCount > 0 && (
-                <span style={{ position: "absolute", top: "-4px", right: "-4px", width: "18px", height: "18px", borderRadius: "50%", background: "var(--danger)", color: "white", fontSize: "10px", fontWeight: "700", display: "flex", alignItems: "center", justifyContent: "center" }}>{notifCount}</span>
+                <span style={{ position: "absolute", top: "-4px", right: "-4px", minWidth: "18px", height: "18px", borderRadius: "9px", background: "#f85149", color: "white", fontSize: "10px", fontWeight: "700", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px" }}>
+                  {notifCount > 99 ? "99+" : notifCount}
+                </span>
+              )}
+
+              {/* Bell dropdown */}
+              {showBell && (
+                <div style={{ position: "absolute", top: "44px", right: 0, width: "340px", background: "var(--card)", border: "1px solid var(--border)", borderRadius: "14px", boxShadow: "0 8px 32px rgba(0,0,0,0.12)", zIndex: 100, overflow: "hidden", animation: "fadeUp 0.15s ease both" }}>
+
+                  {/* Header */}
+                  <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <span style={{ fontSize: "14px", fontWeight: "700", color: "var(--t1)" }}>Notifications</span>
+                      {notifCount > 0 && (
+                        <span style={{ marginLeft: "8px", fontSize: "11px", fontWeight: "700", padding: "2px 7px", borderRadius: "5px", background: "rgba(248,81,73,0.1)", color: "#f85149", border: "1px solid rgba(248,81,73,0.25)" }}>
+                          {notifCount} open
+                        </span>
+                      )}
+                    </div>
+                    <Link href="/alerts" onClick={() => setShowBell(false)}
+                      style={{ fontSize: "12px", color: "#5865f2", textDecoration: "none", fontWeight: "600" }}>
+                      View all →
+                    </Link>
+                  </div>
+
+                  {/* Notification list */}
+                  <div style={{ maxHeight: "320px", overflowY: "auto" }}>
+                    {notifications.length === 0 ? (
+                      <div style={{ padding: "32px 16px", textAlign: "center" }}>
+                        <div style={{ fontSize: "24px", marginBottom: "8px" }}>🔔</div>
+                        <p style={{ fontSize: "13px", color: "var(--t2)", margin: 0 }}>No open alerts</p>
+                      </div>
+                    ) : (
+                      notifications.map((n, i) => {
+                        const sev   = n.rule?.severity ?? (n.message.toLowerCase().includes("critical") ? "CRITICAL" : "WARNING");
+                        const color = sevColor(sev);
+                        return (
+                          <Link key={n.id} href="/alerts" onClick={() => setShowBell(false)} style={{ textDecoration: "none" }}>
+                            <div style={{
+                              padding: "12px 16px",
+                              borderBottom: i < notifications.length - 1 ? "1px solid var(--border)" : "none",
+                              display: "flex", gap: "12px", alignItems: "flex-start",
+                              transition: "background 0.12s", cursor: "pointer",
+                              borderLeft: `3px solid ${color}`,
+                            }}
+                              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--bg)"; }}
+                              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                            >
+                              {/* Dot */}
+                              <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: color, flexShrink: 0, marginTop: "4px", boxShadow: `0 0 6px ${color}` }} />
+
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "3px" }}>
+                                  <span style={{ fontSize: "12px", fontWeight: "700", color, textTransform: "uppercase", letterSpacing: "0.3px" }}>
+                                    {n.rule?.metricKey ?? "Alert"}
+                                  </span>
+                                  <span style={{ fontSize: "11px", color: "var(--t3)", flexShrink: 0, marginLeft: "8px" }}>
+                                    {timeAgo(n.createdAt)}
+                                  </span>
+                                </div>
+                                <p style={{ fontSize: "12px", color: "var(--t2)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  {n.message}
+                                </p>
+                                {n.brand?.name && (
+                                  <span style={{ fontSize: "10px", color: "#5865f2", fontWeight: "600", marginTop: "3px", display: "block" }}>
+                                    {n.brand.name}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </Link>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {/* Footer */}
+                  {notifCount > 5 && (
+                    <div style={{ padding: "10px 16px", borderTop: "1px solid var(--border)", textAlign: "center" }}>
+                      <Link href="/alerts" onClick={() => setShowBell(false)}
+                        style={{ fontSize: "12px", color: "#5865f2", textDecoration: "none", fontWeight: "600" }}>
+                        View {notifCount - 5} more alerts →
+                      </Link>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 
@@ -224,13 +373,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
                 {showDropdown && (
                   <div style={{ position: "absolute", top: "44px", right: 0, width: "200px", background: "var(--card)", border: "1px solid var(--border)", borderRadius: "12px", boxShadow: "0 8px 24px rgba(0,0,0,0.1)", zIndex: 100, overflow: "hidden", animation: "fadeUp 0.15s ease both" }}>
-                    {/* User info */}
                     <div style={{ padding: "12px 14px", borderBottom: "1px solid var(--border)" }}>
                       <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--t1)", marginBottom: "2px" }}>{user.name}</div>
                       <div style={{ fontSize: "11px", color: "var(--t2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.email}</div>
                       <div style={{ fontSize: "10px", color: "#5865f2", fontWeight: "700", marginTop: "3px" }}>{user.role.replace("_", " ")}</div>
                     </div>
-                    {/* Logout button */}
                     <button
                       onClick={handleLogout}
                       style={{ width: "100%", padding: "11px 14px", background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: "10px", color: "#f85149", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", textAlign: "left", transition: "background 0.15s" }}

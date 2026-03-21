@@ -10,42 +10,103 @@ export default function SettingsPage() {
   const [currentPw, setCurrentPw]     = useState("");
   const [newPw, setNewPw]             = useState("");
   const [confirmPw, setConfirmPw]     = useState("");
-  const [loading, setLoading]         = useState(false);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
   const [profileMsg, setProfileMsg]   = useState("");
   const [passwordMsg, setPasswordMsg] = useState("");
   const [showLogout, setShowLogout]   = useState(false);
 
+  const token = () => sessionStorage.getItem("access_token") ?? "";
+
   useEffect(() => {
     document.documentElement.removeAttribute("data-theme");
     const raw = sessionStorage.getItem("user");
-    if (raw) { const u = JSON.parse(raw); setUser(u); setName(u.name || ""); setEmail(u.email || ""); }
+    if (raw) {
+      const u = JSON.parse(raw);
+      setUser(u);
+      setName(u.name || "");
+      setEmail(u.email || "");
+    }
+    // Fetch fresh user data from DB
+    fetch("/api/users/me", {
+      headers: { Authorization: `Bearer ${token()}` },
+      credentials: "include",
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.user) {
+          setUser(d.user);
+          setName(d.user.name || "");
+          setEmail(d.user.email || "");
+          sessionStorage.setItem("user", JSON.stringify(d.user));
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const saveProfile = async (e: React.FormEvent) => {
-    e.preventDefault(); setLoading(true);
+    e.preventDefault();
+    setProfileLoading(true);
+    setProfileMsg("");
     try {
-      const updated = { ...user, name, email };
+      const res = await fetch("/api/users/me", {
+        method:  "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
+        credentials: "include",
+        body: JSON.stringify({ name, email }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to update profile");
+
+      // Update sessionStorage
+      const updated = { ...user, name: data.user.name, email: data.user.email };
       sessionStorage.setItem("user", JSON.stringify(updated));
       setUser(updated);
       setProfileMsg("success");
       setTimeout(() => setProfileMsg(""), 3000);
-    } finally { setLoading(false); }
+    } catch (err: any) {
+      setProfileMsg(`error:${err.message}`);
+      setTimeout(() => setProfileMsg(""), 4000);
+    } finally {
+      setProfileLoading(false);
+    }
   };
 
   const savePassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    setPasswordMsg("");
     if (newPw !== confirmPw) { setPasswordMsg("error:Passwords do not match"); return; }
     if (newPw.length < 6)    { setPasswordMsg("error:Must be at least 6 characters"); return; }
-    setLoading(true);
+    setPasswordLoading(true);
     try {
+      const res = await fetch("/api/users/me/password", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
+        credentials: "include",
+        body: JSON.stringify({ currentPassword: currentPw, newPassword: newPw }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to change password");
+
       setPasswordMsg("success");
       setCurrentPw(""); setNewPw(""); setConfirmPw("");
       setTimeout(() => setPasswordMsg(""), 3000);
-    } finally { setLoading(false); }
+    } catch (err: any) {
+      setPasswordMsg(`error:${err.message}`);
+      setTimeout(() => setPasswordMsg(""), 4000);
+    } finally {
+      setPasswordLoading(false);
+    }
   };
 
   const logout = async () => {
-    try { await fetch("/api/auth/logout", { method: "POST", credentials: "include" }); } catch {}
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token()}` },
+        credentials: "include",
+      });
+    } catch {}
     sessionStorage.removeItem("access_token");
     sessionStorage.removeItem("user");
     router.push("/login");
@@ -58,12 +119,18 @@ export default function SettingsPage() {
     fontFamily: "inherit", outline: "none", transition: "border-color 0.2s, box-shadow 0.2s",
   };
   const labelSt: React.CSSProperties = { display: "block", fontSize: "12px", fontWeight: "600", color: "var(--t2)", marginBottom: "6px" };
-  const cardSt = { background: "var(--card)", border: "1px solid var(--border)", borderRadius: "16px", padding: "28px", marginBottom: "16px" };
-  const focus = (e: React.FocusEvent<HTMLInputElement>) => { e.target.style.borderColor = "#5865f2"; e.target.style.boxShadow = "0 0 0 3px rgba(88,101,242,0.12)"; };
-  const blur  = (e: React.FocusEvent<HTMLInputElement>) => { e.target.style.borderColor = "var(--border)"; e.target.style.boxShadow = "none"; };
+  const cardSt  = { background: "var(--card)", border: "1px solid var(--border)", borderRadius: "16px", padding: "28px", marginBottom: "16px" };
+  const focus   = (e: React.FocusEvent<HTMLInputElement>) => { e.target.style.borderColor = "#5865f2"; e.target.style.boxShadow = "0 0 0 3px rgba(88,101,242,0.12)"; };
+  const blur    = (e: React.FocusEvent<HTMLInputElement>) => { e.target.style.borderColor = "var(--border)"; e.target.style.boxShadow = "none"; };
 
-  const pwIsError   = passwordMsg.startsWith("error:");
-  const pwMsg       = passwordMsg.replace("error:", "");
+  const profileIsError = profileMsg.startsWith("error:");
+  const profileText    = profileMsg.replace("error:", "");
+  const pwIsError      = passwordMsg.startsWith("error:");
+  const pwMsg          = passwordMsg.replace("error:", "");
+
+  const memberSince = user?.createdAt
+    ? new Date(user.createdAt).toLocaleDateString("en-US", { month: "short", year: "numeric" })
+    : "—";
 
   return (
     <div style={{ animation: "fadeUp 0.4s ease both", fontFamily: "'Outfit', sans-serif", maxWidth: "780px", margin: "0 auto" }}>
@@ -96,15 +163,15 @@ export default function SettingsPage() {
                 <label style={labelSt}>Email Address</label>
                 <input type="email" value={email} onChange={e => setEmail(e.target.value)} required style={inputSt} onFocus={focus} onBlur={blur} />
               </div>
-              {profileMsg === "success" && (
-                <div style={{ marginBottom: "14px", padding: "10px 14px", borderRadius: "9px", background: "rgba(63,185,80,0.08)", border: "1px solid rgba(63,185,80,0.25)", color: "#3fb950", fontSize: "13px", fontWeight: "500", display: "flex", alignItems: "center", gap: "6px" }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                  Profile updated successfully
+              {profileText && (
+                <div style={{ marginBottom: "14px", padding: "10px 14px", borderRadius: "9px", background: profileIsError ? "rgba(248,81,73,0.08)" : "rgba(63,185,80,0.08)", border: `1px solid ${profileIsError ? "rgba(248,81,73,0.25)" : "rgba(63,185,80,0.25)"}`, color: profileIsError ? "#f85149" : "#3fb950", fontSize: "13px", fontWeight: "500", display: "flex", alignItems: "center", gap: "6px" }}>
+                  {!profileIsError && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                  {profileIsError ? profileText : "Profile updated successfully"}
                 </div>
               )}
-              <button type="submit" disabled={loading}
-                style={{ padding: "10px 22px", background: "linear-gradient(135deg,#5865f2,#818cf8)", border: "none", borderRadius: "10px", color: "white", fontSize: "14px", fontWeight: "600", cursor: loading ? "not-allowed" : "pointer", fontFamily: "inherit", boxShadow: "0 4px 12px rgba(88,101,242,0.25)", opacity: loading ? 0.7 : 1 }}>
-                {loading ? "Saving..." : "Update Profile"}
+              <button type="submit" disabled={profileLoading}
+                style={{ padding: "10px 22px", background: "linear-gradient(135deg,#5865f2,#818cf8)", border: "none", borderRadius: "10px", color: "white", fontSize: "14px", fontWeight: "600", cursor: profileLoading ? "not-allowed" : "pointer", fontFamily: "inherit", boxShadow: "0 4px 12px rgba(88,101,242,0.25)", opacity: profileLoading ? 0.7 : 1 }}>
+                {profileLoading ? "Saving..." : "Update Profile"}
               </button>
             </form>
           </div>
@@ -139,9 +206,9 @@ export default function SettingsPage() {
                   {pwMsg}
                 </div>
               )}
-              <button type="submit" disabled={loading}
-                style={{ padding: "10px 22px", background: "linear-gradient(135deg,#5865f2,#818cf8)", border: "none", borderRadius: "10px", color: "white", fontSize: "14px", fontWeight: "600", cursor: loading ? "not-allowed" : "pointer", fontFamily: "inherit", boxShadow: "0 4px 12px rgba(88,101,242,0.25)", opacity: loading ? 0.7 : 1 }}>
-                {loading ? "Saving..." : "Change Password"}
+              <button type="submit" disabled={passwordLoading}
+                style={{ padding: "10px 22px", background: "linear-gradient(135deg,#5865f2,#818cf8)", border: "none", borderRadius: "10px", color: "white", fontSize: "14px", fontWeight: "600", cursor: passwordLoading ? "not-allowed" : "pointer", fontFamily: "inherit", boxShadow: "0 4px 12px rgba(88,101,242,0.25)", opacity: passwordLoading ? 0.7 : 1 }}>
+                {passwordLoading ? "Saving..." : "Change Password"}
               </button>
             </form>
           </div>
@@ -170,8 +237,8 @@ export default function SettingsPage() {
                 {/* Stats row */}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
                   {[
-                    { label: "Member since", value: "Jan 2024" },
-                    { label: "Last login",   value: "Today"    },
+                    { label: "Member since", value: memberSince },
+                    { label: "Last login",   value: "Today"     },
                   ].map(s => (
                     <div key={s.label} style={{ padding: "12px 14px", borderRadius: "10px", background: "var(--bg)", border: "1px solid var(--border)" }}>
                       <p style={{ fontSize: "11px", color: "var(--t3)", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: "600" }}>{s.label}</p>
