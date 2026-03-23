@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       alertsPerDay: alertsPerDay.map(d => ({
-        date:         String(d.date).split("T")[0],
+        date:         d.date instanceof Date ? d.date.toISOString().split('T')[0] : String(d.date).split('T')[0],
         total:        Number(d.total),
         open:         Number(d.open),
         acknowledged: Number(d.acknowledged),

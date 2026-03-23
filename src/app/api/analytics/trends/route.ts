@@ -108,7 +108,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       metricsOverTime: metricsOverTime.map((d: any) => ({
-        date:        String(d.date).split("T")[0],
+        date:        d.date instanceof Date ? d.date.toISOString().split('T')[0] : String(d.date).split('T')[0],
         roas:        Number(Number(d.roas).toFixed(2)),
         ctr:         Number(Number(d.ctr).toFixed(2)),
         cpc:         Number(Number(d.cpc).toFixed(2)),

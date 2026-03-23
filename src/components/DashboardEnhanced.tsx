@@ -104,7 +104,7 @@ export default function DashboardEnhanced({ brandId, platform, dateFrom, dateTo 
 
   // ✅ Explicit string return type fixes all labelFormatter errors
   const fmtDate = (d: any): string =>
-    new Date(String(d).split('T')[0] + 'T12:00:00').toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    new Date(d + 'T12:00:00').toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
   const tooltipStyle = {
     contentStyle: { background: "var(--card)", border: "1px solid var(--border)", borderRadius: "10px", fontSize: "12px" },
@@ -293,7 +293,7 @@ export default function DashboardEnhanced({ brandId, platform, dateFrom, dateTo 
                     onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(88,101,242,0.02)"; }}
                     onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
                     <td style={{ padding: "10px 12px", color: "var(--t2)", fontWeight: "500" }}>
-                      {new Date(String(row.date).split('T')[0] + 'T12:00:00').toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                      {new Date(row.date + 'T12:00:00').toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                     </td>
                     <td style={{ padding: "10px 12px" }}>
                       <span style={{ padding: "2px 8px", borderRadius: "5px", fontSize: "12px", fontWeight: "700", background: `${roasColor}15`, color: roasColor }}>
