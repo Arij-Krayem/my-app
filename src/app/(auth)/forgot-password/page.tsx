@@ -38,7 +38,7 @@ export default function ForgotPasswordPage() {
         <div style={{ textAlign: "center", marginBottom: "28px" }}>
           <div style={{ width: "48px", height: "48px", borderRadius: "14px", background: "linear-gradient(135deg,#6c63ff,#818cf8)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: "22px", fontWeight: "800", color: "white", marginBottom: "12px", boxShadow: "0 6px 24px rgba(108,99,255,0.35)" }}>V</div>
           <h1 style={{ fontSize: "22px", fontWeight: "700", color: "var(--t1)", marginBottom: "4px" }}>Forgot password?</h1>
-          <p style={{ fontSize: "13px", color: "var(--t2)" }}>Enter your email and we'll send you a reset link</p>
+          <p style={{ fontSize: "13px", color: "var(--t2)" }}>Enter your email and we&apos;ll send you a reset link</p>
         </div>
 
         <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "18px", padding: "28px", boxShadow: "0 8px 32px rgba(0,0,0,0.2)" }}>
@@ -47,7 +47,7 @@ export default function ForgotPasswordPage() {
               <div style={{ fontSize: "48px", marginBottom: "16px" }}>📧</div>
               <h2 style={{ fontSize: "18px", fontWeight: "700", color: "var(--t1)", marginBottom: "8px" }}>Check your inbox</h2>
               <p style={{ fontSize: "13px", color: "var(--t2)", lineHeight: "1.6", marginBottom: "20px" }}>
-                We sent a password reset link to <strong style={{ color: "var(--t1)" }}>{email}</strong>. Check your spam folder if you don't see it.
+                We sent a password reset link to <strong style={{ color: "var(--t1)" }}>{email}</strong>. Check your spam folder if you don&apos;t see it.
               </p>
               <Link href="/login" style={{ display: "block", textAlign: "center", padding: "11px", background: "linear-gradient(135deg,#6c63ff,#818cf8)", borderRadius: "10px", color: "white", fontSize: "14px", fontWeight: "600", textDecoration: "none" }}>
                 Back to Sign In
@@ -88,7 +88,6 @@ export default function ForgotPasswordPage() {
         </div>
         <p style={{ textAlign: "center", fontSize: "11px", color: "var(--t3)", marginTop: "20px" }}>© 2026 VisioAd · Full-Service Brand Advertising Agency</p>
       </div>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 }

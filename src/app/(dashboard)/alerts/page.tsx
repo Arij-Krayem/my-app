@@ -116,10 +116,10 @@ export default function AlertsPage() {
     <div style={{ animation: "fadeUp 0.4s ease both", fontFamily: "'Outfit', sans-serif" }}>
 
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "28px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "24px", gap: "16px", flexWrap: "wrap", padding: "18px 20px", borderRadius: "16px", background: "linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(247,248,255,0.94) 100%)", border: "1px solid var(--border)" }}>
         <div>
-          <h1 style={{ fontSize: "24px", fontWeight: "700", color: "var(--t1)", marginBottom: "4px" }}>Alerts</h1>
-          <p style={{ fontSize: "14px", color: "var(--t2)" }}>Monitor and manage campaign performance alerts</p>
+          <p style={{ fontSize: "12px", fontWeight: "700", color: "#5865f2", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "8px" }}>Alert center</p>
+          <p style={{ fontSize: "14px", color: "var(--t2)", lineHeight: 1.6 }}>Monitor and manage campaign performance alerts from one place.</p>
         </div>
         <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
           {counts.CRITICAL > 0 && (
@@ -274,8 +274,6 @@ export default function AlertsPage() {
           })}
         </div>
       )}
-
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
