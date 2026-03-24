@@ -4,10 +4,10 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 
 const Body = z.object({
-  email: z.string().email(),
+  email:    z.string().email(),
   password: z.string().min(6),
-  name: z.string().optional(),
-  role: z.enum(["MARKETER", "AGENCY_ADMIN"]).optional(),
+  name:     z.string().optional(),
+  role:     z.literal("MARKETER").optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -23,21 +23,22 @@ export async function POST(req: NextRequest) {
 
     const user = await prisma.user.create({
       data: {
-        email: data.email,
-        name: data.name,
-        role: data.role ?? "MARKETER",
+        email:        data.email,
+        name:         data.name,
+        role:         "MARKETER",
         passwordHash,
       },
       select: { id: true, email: true, role: true, name: true, createdAt: true },
     });
 
     return NextResponse.json({ user }, { status: 201 });
-  } catch (err: any) {
-    if (err?.code === "P2002") {
-      return NextResponse.json({ error: "Email already in use" }, { status: 400 });
+
+  } catch (err: unknown) {
+    if (err instanceof z.ZodError) {
+      return NextResponse.json({ error: "Validation failed", fields: err.issues }, { status: 400 });
     }
     return NextResponse.json(
-      { error: err?.message ?? "Internal Server Error" },
+      { error: err instanceof Error ? err.message : "Internal Server Error" },
       { status: 500 }
     );
   }

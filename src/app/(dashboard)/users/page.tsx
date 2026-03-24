@@ -1,443 +1,370 @@
 "use client";
-
-import { useMemo, useState } from "react";
-
-import EmptyState from "@/components/ui/EmptyState";
-import StatBadge from "@/components/ui/StatBadge";
-import { Dialog, DialogContent, DialogFooter, DialogHeader } from "@/components/ui/dialog";
-import { AVATAR_COLORS, BRAND_OPTIONS } from "@/lib/constants";
-import {
-  avatarStyle,
-  badgeStyle,
-  btnDanger,
-  btnPrimary,
-  btnSecondary,
-  cardStyle,
-  inputStyle,
-  labelStyle,
-  tableHeaderStyle,
-  tableRowStyle,
-} from "@/lib/styles";
+import { useState, useEffect, useCallback } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogFooter } from "@/components/ui/dialog";
 
 type Role = "AGENCY_ADMIN" | "MARKETER";
 
-interface UserRecord {
-  avatar: string;
-  brands: string[];
-  createdAt: string;
-  email: string;
-  id: number;
-  name: string;
-  role: Role;
+interface Brand { id: string; name: string; }
+interface User {
+  id:           string;
+  name:         string | null;
+  email:        string;
+  role:         Role;
+  createdAt:    string;
+  brandMembers: { brand: Brand }[];
 }
 
-interface UserFormState {
-  brands: string[];
-  email: string;
-  name: string;
-  role: Role;
-}
-
-const MOCK_USERS: UserRecord[] = [
-  { id: 1, name: "Sarah Johnson", email: "sarah@visioad.com", role: "AGENCY_ADMIN", brands: ["TechCorp", "RetailMax", "ServicePro"], createdAt: "Jan 12, 2025", avatar: "SJ" },
-  { id: 2, name: "Marc Dupont", email: "marc@visioad.com", role: "MARKETER", brands: ["TechCorp"], createdAt: "Feb 3, 2025", avatar: "MD" },
-  { id: 3, name: "Amira Benali", email: "amira@visioad.com", role: "MARKETER", brands: ["RetailMax", "GrowthCo"], createdAt: "Feb 18, 2025", avatar: "AB" },
-  { id: 4, name: "Tom Kristensen", email: "tom@visioad.com", role: "MARKETER", brands: ["ServicePro"], createdAt: "Mar 1, 2025", avatar: "TK" },
-];
-
-const ROLE_CONFIG: Record<Role, { bg: string; border: string; color: string; label: string }> = {
-  AGENCY_ADMIN: { color: "#5865f2", bg: "rgba(88,101,242,.08)", border: "rgba(88,101,242,.2)", label: "Admin" },
-  MARKETER: { color: "#d97706", bg: "rgba(217,119,6,.08)", border: "rgba(217,119,6,.2)", label: "Marketer" },
+const ROLE_CFG: Record<Role, { color: string; bg: string; border: string }> = {
+  AGENCY_ADMIN: { color: "#5865f2", bg: "rgba(88,101,242,.08)", border: "rgba(88,101,242,.2)" },
+  MARKETER:     { color: "#d97706", bg: "rgba(217,119,6,.08)",  border: "rgba(217,119,6,.2)"  },
 };
+const AVATAR_COLORS = ["#5865f2", "#16a34a", "#dc2626", "#d97706", "#0ea5e9"];
 
-const emptyForm: UserFormState = { name: "", email: "", role: "MARKETER", brands: [] };
+const UserIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+  </svg>
+);
 
-function UserIcon(): React.ReactElement {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-      <circle cx="12" cy="7" r="4" />
-    </svg>
+const inp: React.CSSProperties = {
+  width: "100%", padding: "10px 12px", borderRadius: 8,
+  border: "1.5px solid #e2e8f0", background: "#f8fafc",
+  fontSize: 14, color: "#1e293b", outline: "none", boxSizing: "border-box",
+};
+const sel: React.CSSProperties = { ...inp, cursor: "pointer" };
+const btn: React.CSSProperties = { padding: "9px 20px", borderRadius: 9, border: "none", cursor: "pointer", fontWeight: 600, fontSize: 14 };
+const lbl: React.CSSProperties = { fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" as const, letterSpacing: ".06em", marginBottom: 6, display: "block" };
+
+const emptyForm = { name: "", email: "", password: "", role: "MARKETER" as Role, brandIds: [] as string[] };
+
+export default function UsersPage() {
+  const [users,       setUsers]       = useState<User[]>([]);
+  const [brands,      setBrands]      = useState<Brand[]>([]);
+  const [loading,     setLoading]     = useState(true);
+  const [search,      setSearch]      = useState("");
+  const [inviteOpen,  setInviteOpen]  = useState(false);
+  const [editOpen,    setEditOpen]    = useState(false);
+  const [delId,       setDelId]       = useState<string | null>(null);
+  const [editUser,    setEditUser]    = useState<User | null>(null);
+  const [msg,         setMsg]         = useState("");
+  const [saving,      setSaving]      = useState(false);
+  const [inviteForm,  setInviteForm]  = useState(emptyForm);
+  const [editForm,    setEditForm]    = useState(emptyForm);
+
+  const token = () => sessionStorage.getItem("access_token") ?? "";
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const headers = { Authorization: `Bearer ${token()}` };
+      const [usersRes, brandsRes] = await Promise.all([
+        fetch("/api/users?pageSize=100", { headers, credentials: "include" }),
+        fetch("/api/brands",             { headers, credentials: "include" }),
+      ]);
+      if (usersRes.ok)  setUsers((await usersRes.json()).items ?? []);
+      if (brandsRes.ok) setBrands((await brandsRes.json()).items ?? []);
+    } catch {}
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  const filtered = users.filter(u =>
+    (u.name ?? "").toLowerCase().includes(search.toLowerCase()) ||
+    u.email.toLowerCase().includes(search.toLowerCase())
   );
-}
 
-interface BrandPillsProps {
-  form: UserFormState;
-  onChange: (next: UserFormState) => void;
-}
-
-function BrandPills({ form, onChange }: BrandPillsProps): React.ReactElement {
-  const toggleBrand = (brand: string): void => {
-    onChange({
-      ...form,
-      brands: form.brands.includes(brand)
-        ? form.brands.filter((value) => value !== brand)
-        : [...form.brands, brand],
+  function openEdit(u: User) {
+    setEditUser(u);
+    setEditForm({
+      name:     u.name ?? "",
+      email:    u.email,
+      password: "",
+      role:     u.role,
+      brandIds: u.brandMembers.map(m => m.brand.id),
     });
-  };
+    setEditOpen(true);
+  }
 
-  return (
+  async function handleInvite() {
+    if (!inviteForm.name || !inviteForm.email || !inviteForm.password) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/users", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
+        credentials: "include",
+        body: JSON.stringify(inviteForm),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed");
+      setInviteOpen(false);
+      setInviteForm(emptyForm);
+      setMsg("User created successfully");
+      setTimeout(() => setMsg(""), 2500);
+      await loadData();
+    } catch (e: any) {
+      setMsg(`Error: ${e.message}`);
+      setTimeout(() => setMsg(""), 3000);
+    } finally { setSaving(false); }
+  }
+
+  async function handleEdit() {
+    if (!editUser) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/users?id=${editUser.id}`, {
+        method:  "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
+        credentials: "include",
+        body: JSON.stringify({ name: editForm.name, role: editForm.role, brandIds: editForm.brandIds }),
+      });
+      if (!res.ok) throw new Error("Failed to update");
+      setEditOpen(false);
+      setMsg("User updated");
+      setTimeout(() => setMsg(""), 2500);
+      await loadData();
+    } catch (e: any) {
+      setMsg(`Error: ${e.message}`);
+      setTimeout(() => setMsg(""), 3000);
+    } finally { setSaving(false); }
+  }
+
+  async function handleDelete() {
+    if (!delId) return;
+    try {
+      const res = await fetch(`/api/users?id=${delId}`, {
+        method:  "DELETE",
+        headers: { Authorization: `Bearer ${token()}` },
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to delete");
+      setDelId(null);
+      setMsg("User removed");
+      setTimeout(() => setMsg(""), 2500);
+      await loadData();
+    } catch (e: any) {
+      setMsg(`Error: ${e.message}`);
+      setTimeout(() => setMsg(""), 3000);
+    }
+  }
+
+  function toggleBrand(brandId: string, form: typeof emptyForm, setForm: (f: typeof emptyForm) => void) {
+    setForm({ ...form, brandIds: form.brandIds.includes(brandId) ? form.brandIds.filter(b => b !== brandId) : [...form.brandIds, brandId] });
+  }
+
+  const BrandPills = ({ form, setForm }: { form: typeof emptyForm; setForm: (f: typeof emptyForm) => void }) => (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-      {BRAND_OPTIONS.map((brand) => {
-        const active = form.brands.includes(brand);
-
-        return (
-          <button
-            key={brand}
-            type="button"
-            onClick={() => toggleBrand(brand)}
-            style={{
-              ...btnSecondary,
-              padding: "6px 14px",
-              borderRadius: 20,
-              fontSize: 13,
-              fontWeight: 500,
-              background: active ? "rgba(88,101,242,.08)" : "var(--bg)",
-              color: active ? "#5865f2" : "var(--t2)",
-              border: active ? "1.5px solid #5865f2" : "1.5px solid var(--border)",
-            }}
-          >
-            {brand}
-          </button>
-        );
-      })}
+      {brands.map(b => (
+        <div key={b.id} onClick={() => toggleBrand(b.id, form, setForm)}
+          style={{ padding: "6px 14px", borderRadius: 20, cursor: "pointer", fontSize: 13, fontWeight: 500, transition: "all .15s",
+            border:      form.brandIds.includes(b.id) ? "1.5px solid #5865f2" : "1.5px solid #e2e8f0",
+            background:  form.brandIds.includes(b.id) ? "rgba(88,101,242,.08)" : "#f8fafc",
+            color:       form.brandIds.includes(b.id) ? "#5865f2" : "#64748b" }}>
+          {b.name}
+        </div>
+      ))}
+      {brands.length === 0 && <p style={{ fontSize: 12, color: "#94a3b8" }}>No brands available</p>}
     </div>
   );
-}
 
-interface UserFormProps {
-  form: UserFormState;
-  onChange: (next: UserFormState) => void;
-}
-
-function UserForm({ form, onChange }: UserFormProps): React.ReactElement {
-  return (
+  const FormBody = ({ form, setForm, isInvite }: { form: typeof emptyForm; setForm: (f: typeof emptyForm) => void; isInvite?: boolean }) => (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <div>
-          <label style={labelStyle}>Full Name</label>
-          <input
-            style={inputStyle}
-            placeholder="Jane Doe"
-            value={form.name}
-            onChange={(event) => onChange({ ...form, name: event.target.value })}
-          />
+          <label style={lbl}>Full Name</label>
+          <input style={inp} placeholder="Jane Doe" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
         </div>
         <div>
-          <label style={labelStyle}>Email</label>
-          <input
-            style={inputStyle}
-            type="email"
-            placeholder="jane@co.com"
-            value={form.email}
-            onChange={(event) => onChange({ ...form, email: event.target.value })}
-          />
+          <label style={lbl}>Email</label>
+          <input style={inp} type="email" placeholder="jane@co.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} disabled={!isInvite} />
         </div>
       </div>
+      {isInvite && (
+        <div>
+          <label style={lbl}>Password</label>
+          <input style={inp} type="password" placeholder="Min. 6 characters" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} />
+        </div>
+      )}
       <div>
-        <label style={labelStyle}>Role</label>
-        <select
-          style={{ ...inputStyle, cursor: "pointer" }}
-          value={form.role}
-          onChange={(event) => onChange({ ...form, role: event.target.value as Role })}
-        >
+        <label style={lbl}>Role</label>
+        <select style={sel} value={form.role} onChange={e => setForm({ ...form, role: e.target.value as Role })}>
           <option value="MARKETER">Marketer</option>
           <option value="AGENCY_ADMIN">Agency Admin</option>
         </select>
       </div>
       <div>
-        <label style={labelStyle}>Assign Brands</label>
-        <BrandPills form={form} onChange={onChange} />
+        <label style={lbl}>Assign Brands</label>
+        <BrandPills form={form} setForm={setForm} />
       </div>
     </div>
   );
-}
-
-export default function UsersPage(): React.ReactElement {
-  const [users, setUsers] = useState<UserRecord[]>(MOCK_USERS);
-  const [search, setSearch] = useState("");
-  const [inviteOpen, setInviteOpen] = useState(false);
-  const [editOpen, setEditOpen] = useState(false);
-  const [deleteId, setDeleteId] = useState<number | null>(null);
-  const [editUser, setEditUser] = useState<UserRecord | null>(null);
-  const [message, setMessage] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [inviteForm, setInviteForm] = useState<UserFormState>(emptyForm);
-  const [editForm, setEditForm] = useState<UserFormState>(emptyForm);
-
-  const filteredUsers = useMemo(
-    () =>
-      users.filter(
-        (user) =>
-          user.name.toLowerCase().includes(search.toLowerCase()) ||
-          user.email.toLowerCase().includes(search.toLowerCase()),
-      ),
-    [search, users],
-  );
-
-  const openEdit = (user: UserRecord): void => {
-    setEditUser(user);
-    setEditForm({ name: user.name, email: user.email, role: user.role, brands: [...user.brands] });
-    setEditOpen(true);
-  };
-
-  const withToast = (text: string): void => {
-    setMessage(text);
-    window.setTimeout(() => setMessage(""), 2500);
-  };
-
-  const handleInvite = (): void => {
-    if (!inviteForm.name || !inviteForm.email) return;
-    setSaving(true);
-    window.setTimeout(() => {
-      const avatar = inviteForm.name
-        .split(" ")
-        .map((word) => word[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2);
-      setUsers((current) => [...current, { id: Date.now(), ...inviteForm, createdAt: "Just now", avatar }]);
-      setSaving(false);
-      setInviteOpen(false);
-      setInviteForm(emptyForm);
-      withToast("User invited successfully");
-    }, 600);
-  };
-
-  const handleEdit = (): void => {
-    if (!editUser) return;
-    setSaving(true);
-    window.setTimeout(() => {
-      setUsers((current) => current.map((user) => (user.id === editUser.id ? { ...user, ...editForm } : user)));
-      setSaving(false);
-      setEditOpen(false);
-      withToast("User updated");
-    }, 600);
-  };
-
-  const handleDelete = (): void => {
-    setUsers((current) => current.filter((user) => user.id !== deleteId));
-    setDeleteId(null);
-    withToast("User removed");
-  };
-
-  const stats = [
-    { label: "Total Users", count: users.length, color: "#5865f2", bg: "rgba(88,101,242,.08)", border: "rgba(88,101,242,.2)" },
-    { label: "Admins", count: users.filter((user) => user.role === "AGENCY_ADMIN").length, color: "#dc2626", bg: "rgba(220,38,38,.08)", border: "rgba(220,38,38,.2)" },
-    { label: "Marketers", count: users.filter((user) => user.role === "MARKETER").length, color: "#16a34a", bg: "rgba(22,163,74,.08)", border: "rgba(22,163,74,.2)" },
-    { label: "Brands", count: BRAND_OPTIONS.length, color: "#d97706", bg: "rgba(217,119,6,.08)", border: "rgba(217,119,6,.2)" },
-  ];
 
   return (
-    <div style={{ animation: "fadeUp 0.4s ease both" }}>
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 20 }}>
-        <button onClick={() => setInviteOpen(true)} style={btnPrimary}>
+    <div style={{ padding: 32, fontFamily: "'Outfit',sans-serif", color: "#1e293b" }}>
+
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
+        <div>
+          <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>Users</h1>
+          <p style={{ color: "#64748b", fontSize: 14, margin: "4px 0 0" }}>Manage team members and their brand access</p>
+        </div>
+        <button onClick={() => setInviteOpen(true)} style={{ ...btn, background: "linear-gradient(135deg,#5865f2,#818cf8)", color: "#fff" }}>
           + Invite User
         </button>
       </div>
 
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
-        {stats.map((stat) => (
-          <StatBadge key={stat.label} count={stat.count} label={stat.label} color={stat.color} bg={stat.bg} border={stat.border} />
+      {/* Stats */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 24 }}>
+        {[
+          { label: "Total Users", value: loading ? "—" : users.length,                                   color: "#5865f2" },
+          { label: "Admins",      value: loading ? "—" : users.filter(u => u.role === "AGENCY_ADMIN").length, color: "#dc2626" },
+          { label: "Marketers",   value: loading ? "—" : users.filter(u => u.role === "MARKETER").length,     color: "#16a34a" },
+          { label: "Brands",      value: loading ? "—" : brands.length,                                   color: "#d97706" },
+        ].map(st => (
+          <div key={st.label} style={{ background: "#fff", border: "1px solid #e8edf2", borderRadius: 14, padding: "18px 22px" }}>
+            <div style={{ fontSize: 12, color: "#64748b", marginBottom: 4 }}>{st.label}</div>
+            <div style={{ fontSize: 28, fontWeight: 700, color: st.color }}>{st.value}</div>
+          </div>
         ))}
       </div>
 
-      {message ? (
-        <div
-          style={{
-            marginBottom: 16,
-            padding: "10px 16px",
-            borderRadius: 10,
-            background: "rgba(22,163,74,.08)",
-            border: "1px solid rgba(22,163,74,.25)",
-            color: "#16a34a",
-            fontSize: 14,
-          }}
-        >
-          {message}
+      {msg && (
+        <div style={{
+          background: msg.startsWith("Error") ? "rgba(220,38,38,.08)" : "rgba(22,163,74,.08)",
+          border: `1px solid ${msg.startsWith("Error") ? "rgba(220,38,38,.25)" : "rgba(22,163,74,.25)"}`,
+          borderRadius: 9, padding: "10px 16px", marginBottom: 16,
+          color: msg.startsWith("Error") ? "#dc2626" : "#16a34a", fontSize: 14,
+        }}>
+          {msg.startsWith("Error") ? "✗" : "✓"} {msg}
         </div>
-      ) : null}
+      )}
 
-      <div style={{ ...cardStyle, padding: "16px 20px", marginBottom: 20 }}>
+      {/* Search */}
+      <div style={{ background: "#fff", border: "1px solid #e8edf2", borderRadius: 14, padding: "16px 20px", marginBottom: 20 }}>
         <div style={{ position: "relative", maxWidth: 320 }}>
-          <span
-            style={{
-              position: "absolute",
-              left: 12,
-              top: "50%",
-              transform: "translateY(-50%)",
-              color: "var(--t3)",
-              display: "flex",
-            }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="8" />
-              <path d="m21 21-4.35-4.35" />
-            </svg>
-          </span>
-          <input
-            style={{ ...inputStyle, paddingLeft: 34 }}
-            placeholder="Search users..."
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-          />
+          <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#94a3b8", fontSize: 14 }}>🔍</span>
+          <input style={{ ...inp, paddingLeft: 34 }} placeholder="Search users…" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
       </div>
 
-      <div style={{ ...cardStyle, overflow: "hidden" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ borderBottom: "2px solid #f1f5f9", background: "var(--bg)" }}>
-              {["User", "Role", "Brands", "Member Since", ""].map((header) => (
-                <th key={header} style={tableHeaderStyle}>
-                  {header}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filteredUsers.length > 0 ? (
-              filteredUsers.map((user, index) => {
-                const roleConfig = ROLE_CONFIG[user.role];
-                const color = AVATAR_COLORS[index % AVATAR_COLORS.length];
-
+      {/* Table */}
+      <div style={{ background: "#fff", border: "1px solid #e8edf2", borderRadius: 14, overflow: "hidden" }}>
+        {loading ? (
+          <div style={{ textAlign: "center", padding: "48px 0", color: "#94a3b8" }}>
+            <div style={{ width: 24, height: 24, borderRadius: "50%", border: "3px solid #e8edf2", borderTopColor: "#5865f2", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
+            <div style={{ fontSize: 13 }}>Loading users…</div>
+          </div>
+        ) : (
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ borderBottom: "2px solid #f1f5f9", background: "#f8fafc" }}>
+                {["User", "Role", "Brands", "Member Since", ""].map(h => (
+                  <th key={h} style={{ textAlign: "left", padding: "12px 16px", fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: ".06em" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((u, i) => {
+                const rc    = ROLE_CFG[u.role];
+                const color = AVATAR_COLORS[i % AVATAR_COLORS.length];
+                const initials = (u.name ?? u.email).split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+                const memberSince = new Date(u.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
                 return (
-                  <tr
-                    key={user.id}
-                    style={{
-                      ...tableRowStyle,
-                      borderBottom: index < filteredUsers.length - 1 ? "1px solid #f1f5f9" : "none",
-                    }}
-                    onMouseEnter={(event) => {
-                      event.currentTarget.style.background = "#f8fafc";
-                    }}
-                    onMouseLeave={(event) => {
-                      event.currentTarget.style.background = "transparent";
-                    }}
-                  >
+                  <tr key={u.id} style={{ borderBottom: i < filtered.length - 1 ? "1px solid #f1f5f9" : "none", transition: "background .12s" }}
+                    onMouseEnter={e => (e.currentTarget.style.background = "#f8fafc")}
+                    onMouseLeave={e => (e.currentTarget.style.background = "")}>
                     <td style={{ padding: "14px 16px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                        <div style={{ ...avatarStyle, background: color }}>{user.avatar}</div>
+                        <div style={{ width: 38, height: 38, borderRadius: 10, background: color, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 700, fontSize: 13, flexShrink: 0 }}>
+                          {initials}
+                        </div>
                         <div>
-                          <div style={{ fontWeight: 600, fontSize: 14 }}>{user.name}</div>
-                          <div style={{ fontSize: 12, color: "var(--t3)" }}>{user.email}</div>
+                          <div style={{ fontWeight: 600, fontSize: 14 }}>{u.name ?? "—"}</div>
+                          <div style={{ fontSize: 12, color: "#94a3b8" }}>{u.email}</div>
                         </div>
                       </div>
                     </td>
                     <td style={{ padding: "14px 16px" }}>
-                      <span style={{ ...badgeStyle, background: roleConfig.bg, color: roleConfig.color, border: `1px solid ${roleConfig.border}` }}>
-                        {roleConfig.label}
+                      <span style={{ padding: "4px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600, background: rc.bg, color: rc.color, border: `1px solid ${rc.border}` }}>
+                        {u.role === "AGENCY_ADMIN" ? "Admin" : "Marketer"}
                       </span>
                     </td>
                     <td style={{ padding: "14px 16px" }}>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                        {user.brands.map((brand) => (
-                          <span
-                            key={brand}
-                            style={{
-                              fontSize: 11,
-                              padding: "3px 8px",
-                              borderRadius: 6,
-                              background: "#f1f5f9",
-                              color: "#475569",
-                              fontWeight: 500,
-                            }}
-                          >
-                            {brand}
-                          </span>
-                        ))}
+                        {u.brandMembers.length > 0
+                          ? u.brandMembers.map(m => (
+                              <span key={m.brand.id} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 6, background: "#f1f5f9", color: "#475569", fontWeight: 500 }}>
+                                {m.brand.name}
+                              </span>
+                            ))
+                          : <span style={{ fontSize: 12, color: "#94a3b8" }}>No brands</span>
+                        }
                       </div>
                     </td>
-                    <td style={{ padding: "14px 16px", fontSize: 13, color: "var(--t3)" }}>{user.createdAt}</td>
+                    <td style={{ padding: "14px 16px", fontSize: 13, color: "#94a3b8" }}>{memberSince}</td>
                     <td style={{ padding: "14px 16px" }}>
                       <div style={{ display: "flex", gap: 8 }}>
-                        <button onClick={() => openEdit(user)} style={{ ...btnSecondary, padding: "7px 14px", fontSize: 13 }}>
-                          Edit
-                        </button>
-                        <button onClick={() => setDeleteId(user.id)} style={{ ...btnDanger, padding: "7px 14px", fontSize: 13 }}>
-                          Delete
-                        </button>
+                        <button onClick={() => openEdit(u)} style={{ ...btn, padding: "7px 14px", fontSize: 13, background: "#f1f5f9", color: "#475569" }}>Edit</button>
+                        <button onClick={() => setDelId(u.id)} style={{ ...btn, padding: "7px 14px", fontSize: 13, background: "rgba(220,38,38,.08)", color: "#dc2626" }}>Delete</button>
                       </div>
                     </td>
                   </tr>
                 );
-              })
-            ) : (
-              <tr>
-                <td colSpan={5} style={{ padding: 20 }}>
-                  <EmptyState
-                    title="No users found"
-                    subtitle="Try adjusting your search to find a team member."
-                    icon={
-                      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                        <circle cx="12" cy="7" r="4" />
-                      </svg>
-                    }
-                  />
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+              })}
+            </tbody>
+          </table>
+        )}
+        {!loading && filtered.length === 0 && (
+          <div style={{ textAlign: "center", padding: "48px 0", color: "#94a3b8" }}>
+            <div style={{ fontWeight: 600, marginBottom: 4 }}>No users found</div>
+            <div style={{ fontSize: 13 }}>Try adjusting your search</div>
+          </div>
+        )}
       </div>
 
+      {/* Invite Dialog */}
       <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
         <DialogContent>
           <DialogHeader icon={<UserIcon />} title="Invite User" description="Add a new team member to the platform" onClose={() => setInviteOpen(false)} />
-          <UserForm form={inviteForm} onChange={setInviteForm} />
+          <FormBody form={inviteForm} setForm={setInviteForm} isInvite />
           <DialogFooter>
-            <button onClick={() => setInviteOpen(false)} style={btnSecondary}>
-              Cancel
-            </button>
-            <button
-              onClick={handleInvite}
-              disabled={saving || !inviteForm.name || !inviteForm.email}
-              style={{ ...btnPrimary, opacity: saving || !inviteForm.name || !inviteForm.email ? 0.6 : 1 }}
-            >
-              {saving ? "Sending..." : "Send Invite"}
+            <button onClick={() => setInviteOpen(false)} style={{ ...btn, background: "#f1f5f9", color: "#475569" }}>Cancel</button>
+            <button onClick={handleInvite} disabled={saving || !inviteForm.name || !inviteForm.email || !inviteForm.password}
+              style={{ ...btn, background: "linear-gradient(135deg,#5865f2,#818cf8)", color: "#fff", opacity: saving || !inviteForm.name || !inviteForm.email || !inviteForm.password ? 0.6 : 1 }}>
+              {saving ? "Creating…" : "Create User"}
             </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
+      {/* Edit Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent>
           <DialogHeader icon={<UserIcon />} title="Edit User" description="Update team member details and access" onClose={() => setEditOpen(false)} />
-          <UserForm form={editForm} onChange={setEditForm} />
+          <FormBody form={editForm} setForm={setEditForm} />
           <DialogFooter>
-            <button onClick={() => setEditOpen(false)} style={btnSecondary}>
-              Cancel
-            </button>
-            <button
-              onClick={handleEdit}
-              disabled={saving || !editForm.name || !editForm.email}
-              style={{ ...btnPrimary, opacity: saving || !editForm.name || !editForm.email ? 0.6 : 1 }}
-            >
-              {saving ? "Saving..." : "Save Changes"}
+            <button onClick={() => setEditOpen(false)} style={{ ...btn, background: "#f1f5f9", color: "#475569" }}>Cancel</button>
+            <button onClick={handleEdit} disabled={saving || !editForm.name}
+              style={{ ...btn, background: "linear-gradient(135deg,#5865f2,#818cf8)", color: "#fff", opacity: saving || !editForm.name ? 0.6 : 1 }}>
+              {saving ? "Saving…" : "Save Changes"}
             </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
+      {/* Delete Dialog */}
+      <Dialog open={delId !== null} onOpenChange={() => setDelId(null)}>
         <DialogContent style={{ maxWidth: 400 }}>
-          <DialogHeader
-            icon={<span style={{ fontSize: 18 }}>!</span>}
-            title="Remove User?"
-            description="This user will lose access to all brands immediately."
-            onClose={() => setDeleteId(null)}
-          />
+          <DialogHeader icon={<span style={{ fontSize: 18 }}>⚠️</span>} title="Remove User?" description="This user will lose access to all brands immediately." onClose={() => setDelId(null)} />
           <DialogFooter>
-            <button onClick={() => setDeleteId(null)} style={btnSecondary}>
-              Cancel
-            </button>
-            <button onClick={handleDelete} style={btnDanger}>
-              Remove
-            </button>
+            <button onClick={() => setDelId(null)} style={{ ...btn, background: "#f1f5f9", color: "#475569" }}>Cancel</button>
+            <button onClick={handleDelete} style={{ ...btn, background: "#dc2626", color: "#fff" }}>Remove</button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
