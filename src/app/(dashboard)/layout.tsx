@@ -234,9 +234,6 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   };
 
   const isAdmin = user?.role === "AGENCY_ADMIN";
-  const allNav = isAdmin ? [...NAV_ITEMS, ...ADMIN_ITEMS] : NAV_ITEMS;
-  const pageTitle =
-    allNav.find((item) => isActivePath(pathname, item.href))?.label ?? "Dashboard";
   const shellStateClass = collapsed ? styles.shellCollapsed : styles.shellExpanded;
 
   const sevColor = (severity?: string) =>
@@ -316,7 +313,6 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             >
               {SVG.menu}
             </button>
-            <h1 className={styles.pageTitle}>{pageTitle}</h1>
           </div>
 
           <div className={styles.topbarRight}>
@@ -490,7 +486,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        <main className={styles.pageContent}>{children}</main>
+        <main className={styles.pageContent}>
+          <div className={styles.pageInner}>{children}</div>
+        </main>
       </div>
     </div>
   );

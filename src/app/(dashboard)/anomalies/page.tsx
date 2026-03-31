@@ -75,15 +75,9 @@ export default function AnomaliesPage() {
   const isPython      = engine.includes("Python") || engine.includes("Z-Score + IQR");
 
   return (
-    <div style={{ animation: "fadeUp 0.4s ease both", fontFamily: "'Outfit', sans-serif" }}>
-
-      {/* Header */}
-      <div style={{ marginBottom: "28px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-        <div>
-          <h1 style={{ fontSize: "24px", fontWeight: "700", color: "var(--t1)", marginBottom: "4px" }}>Anomalies</h1>
-          <p style={{ fontSize: "14px", color: "var(--t2)" }}>Explore statistical anomalies detected in your campaign performance</p>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+    <div className="dashboard-page">
+      <div className="dashboard-toolbar dashboard-toolbar-end">
+        <div className="dashboard-actions">
           {engine && (
             <span style={{
               fontSize: "11px", fontWeight: "700", padding: "5px 12px", borderRadius: "8px",

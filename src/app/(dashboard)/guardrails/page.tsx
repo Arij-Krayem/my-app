@@ -150,14 +150,8 @@ export default function GuardrailsPage() {
   const critical = rules.filter(r => r.severity === "CRITICAL").length;
 
   return (
-    <div style={{ padding: 32, fontFamily: "'Outfit',sans-serif", color: "#1e293b" }}>
-
-      {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
-        <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>Guardrails</h1>
-          <p style={{ color: "#64748b", fontSize: 14, margin: "4px 0 0" }}>Manage threshold rules and alert triggers</p>
-        </div>
+    <div className="dashboard-page" style={{ color: "#1e293b" }}>
+      <div className="dashboard-toolbar dashboard-toolbar-end">
         <button onClick={openNew} style={{ ...btn, background: "linear-gradient(135deg,#5865f2,#818cf8)", color: "#fff" }}>
           + New Rule
         </button>

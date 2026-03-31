@@ -29,7 +29,6 @@ interface Alert {
 }
 
 export default function DashboardPage() {
-  const [user, setUser]               = useState<{ name: string; role: string } | null>(null);
   const [uploads, setUploads]         = useState<any[]>([]);
   const [analytics, setAnalytics]     = useState<any>(null);
   const [kpiLoading, setKpiLoading]   = useState(true);
@@ -67,9 +66,7 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    const raw   = sessionStorage.getItem("user");
     const token = sessionStorage.getItem("access_token");
-    if (raw) setUser(JSON.parse(raw));
     if (!token) return;
     const headers = { Authorization: `Bearer ${token}` };
 
@@ -102,11 +99,6 @@ export default function DashboardPage() {
     setPlatform(""); setDateFrom(""); setDateTo("");
     fetchAnalytics(brandId, "", "", "");
     fetchAlerts(brandId);
-  };
-
-  const greeting = () => {
-    const h = new Date().getHours();
-    return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
   };
 
   const fmt = (val: number, prefix = "", suffix = "") => {
@@ -155,16 +147,8 @@ export default function DashboardPage() {
   }
 
   return (
-    <div style={{ animation: "fadeUp 0.4s ease both", fontFamily: "'Outfit', sans-serif" }}>
-
-      {/* Header */}
-      <div style={{ marginBottom: "20px", display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: "12px" }}>
-        <div>
-          <h1 style={{ fontSize: "26px", fontWeight: "700", color: "var(--t1)", marginBottom: "4px" }}>
-            {greeting()}{user?.name ? `, ${user.name.split(" ")[0]}` : ""}
-          </h1>
-          <p style={{ fontSize: "14px", color: "var(--t2)" }}>Here's your campaign performance overview.</p>
-        </div>
+    <div className="dashboard-page">
+      <div className="dashboard-toolbar dashboard-toolbar-end">
         <Link href="/uploads/new" style={{ padding: "10px 18px", background: "linear-gradient(135deg,#5865f2,#818cf8)", borderRadius: "10px", color: "white", fontWeight: "600", fontSize: "13px", textDecoration: "none", boxShadow: "0 4px 14px rgba(88,101,242,0.35)", display: "flex", alignItems: "center", gap: "6px" }}>
           + New Upload
         </Link>

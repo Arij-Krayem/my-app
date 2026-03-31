@@ -147,16 +147,7 @@ export default function NewUploadPage() {
   };
 
   return (
-    <div className="animate-fadeUp" style={{ maxWidth: "760px", margin: "0 auto" }}>
-      <div style={{ marginBottom: "32px" }}>
-        <h1 className="text-3xl font-bold mb-2" style={{ color: "var(--t1)", letterSpacing: "-0.04em" }}>
-          New Upload
-        </h1>
-        <p style={{ color: "var(--t2)", fontSize: "15px" }}>
-          Upload your Google Ads or Meta CSV data to start monitoring
-        </p>
-      </div>
-
+    <div className="dashboard-page dashboard-page--narrow">
       <form onSubmit={handleSubmit} className="space-y-5">
         <div style={sectionCardStyle}>
           <div className="flex items-center gap-3" style={{ marginBottom: "22px" }}>

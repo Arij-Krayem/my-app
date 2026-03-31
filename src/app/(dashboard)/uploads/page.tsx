@@ -30,18 +30,14 @@ export default function UploadsPage() {
   );
 
   return (
-    <div style={{ animation: "fadeUp 0.4s ease both", fontFamily: "'Outfit', sans-serif" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "28px" }}>
-        <div>
-          <h1 style={{ fontSize: "24px", fontWeight: "700", color: "var(--t1)", marginBottom: "4px" }}>Uploads</h1>
-          <p style={{ fontSize: "14px", color: "var(--t2)" }}>Manage your CSV data uploads</p>
-        </div>
+    <div className="dashboard-page">
+      <div className="dashboard-toolbar dashboard-toolbar-end">
         <Link href="/uploads/new" style={{ padding: "10px 20px", background: "linear-gradient(135deg,#5865f2,#818cf8)", borderRadius: "10px", color: "white", fontWeight: "600", fontSize: "14px", textDecoration: "none", boxShadow: "0 4px 14px rgba(88,101,242,0.3)" }}>
           + New Upload
         </Link>
       </div>
 
-      <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "16px", overflow: "hidden" }}>
+      <div className="dashboard-table-card">
         {/* Table header */}
         <div style={{ display: "grid", gridTemplateColumns: "2fr 120px 120px 110px 120px 110px", padding: "13px 24px", background: "var(--bg)", borderBottom: "1px solid var(--border)", gap: "8px" }}>
           {["File Name","Platform","Brand","Status","Date","Actions"].map(h => (

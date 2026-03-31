@@ -113,15 +113,9 @@ export default function AlertsPage() {
   };
 
   return (
-    <div style={{ animation: "fadeUp 0.4s ease both", fontFamily: "'Outfit', sans-serif" }}>
-
-      {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "28px" }}>
-        <div>
-          <h1 style={{ fontSize: "24px", fontWeight: "700", color: "var(--t1)", marginBottom: "4px" }}>Alerts</h1>
-          <p style={{ fontSize: "14px", color: "var(--t2)" }}>Monitor and manage campaign performance alerts</p>
-        </div>
-        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+    <div className="dashboard-page">
+      <div className="dashboard-toolbar dashboard-toolbar-end">
+        <div className="dashboard-actions">
           {counts.CRITICAL > 0 && (
             <div style={{ padding: "8px 14px", borderRadius: "10px", background: "rgba(248,81,73,0.1)", border: "1px solid rgba(248,81,73,0.25)", fontSize: "13px", fontWeight: "700", color: "#f85149", display: "flex", alignItems: "center", gap: "6px" }}>
               <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#f85149", display: "inline-block" }} />

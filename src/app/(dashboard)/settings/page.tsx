@@ -133,12 +133,7 @@ export default function SettingsPage() {
     : "—";
 
   return (
-    <div style={{ animation: "fadeUp 0.4s ease both", fontFamily: "'Outfit', sans-serif", maxWidth: "780px", margin: "0 auto" }}>
-      <div style={{ marginBottom: "32px" }}>
-        <h1 style={{ fontSize: "24px", fontWeight: "700", color: "var(--t1)", marginBottom: "4px" }}>Settings</h1>
-        <p style={{ fontSize: "14px", color: "var(--t2)" }}>Manage your account settings and preferences</p>
-      </div>
-
+    <div className="dashboard-page dashboard-page--narrow">
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", alignItems: "start" }}>
 
         {/* LEFT — Profile + Password */}

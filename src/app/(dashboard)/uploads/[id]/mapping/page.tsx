@@ -162,15 +162,7 @@ export default function ColumnMappingPage() {
   );
 
   return (
-    <div style={{ animation: "fadeUp 0.4s ease both", fontFamily: "'Outfit', sans-serif", maxWidth: "900px" }}>
-
-      {/* Header */}
-      <div style={{ marginBottom: "28px" }}>
-        <h1 style={{ fontSize: "24px", fontWeight: "700", color: "var(--t1)", marginBottom: "4px" }}>Map Your Columns</h1>
-        <p style={{ fontSize: "14px", color: "var(--t2)" }}>
-          Match your CSV columns to our unified schema — <strong style={{ color: "var(--t1)" }}>{upload.fileName}</strong> · {upload.platform}
-        </p>
-      </div>
+    <div className="dashboard-page dashboard-page--narrow">
 
       {error && (
         <div style={{ padding: "12px 16px", borderRadius: "10px", marginBottom: "16px", fontSize: "13px", background: "rgba(248,81,73,0.1)", color: "#f85149", border: "1px solid rgba(248,81,73,0.25)" }}>

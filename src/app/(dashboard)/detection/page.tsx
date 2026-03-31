@@ -144,13 +144,7 @@ export default function DetectionPage() {
   const s           = settings[activeTab] ?? { sensitivity: 0.7, threshold: 0.8 };
 
   return (
-    <div style={{ animation: "fadeUp 0.4s ease both", fontFamily: "'Outfit', sans-serif" }}>
-      {/* Header */}
-      <div style={{ marginBottom: "28px" }}>
-        <h1 style={{ fontSize: "24px", fontWeight: "700", color: "var(--t1)", marginBottom: "4px" }}>Detection Settings</h1>
-        <p style={{ fontSize: "14px", color: "var(--t2)" }}>Configure anomaly detection sensitivity and thresholds per brand</p>
-      </div>
-
+    <div className="dashboard-page">
       {error && (
         <div style={{ background: "rgba(248,81,73,0.08)", border: "1px solid rgba(248,81,73,0.25)", borderRadius: "10px", padding: "12px 16px", marginBottom: "16px", color: "#f85149", fontSize: "14px" }}>
           ✗ {error}

@@ -114,10 +114,10 @@ export default function BrandDetailPage() {
               ← Back
             </button>
             <div>
-              <h1 className="text-3xl font-bold mb-1" style={{ color: "var(--t1)" }}>
-                {brand.name}
-              </h1>
               <div className="flex items-center gap-3">
+                <span className="text-xl font-bold" style={{ color: "var(--t1)" }}>
+                  {brand.name}
+                </span>
                 {getHealthBadge(brand.health)}
                 <span className="text-sm" style={{ color: "var(--t2)" }}>
                   {brand.memberCount} members • {brand.uploadCount} uploads
