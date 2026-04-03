@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, type CSSProperties, type ReactNode } from "react";
 import {
   AreaChart, Area, BarChart, Bar,
   LineChart, Line, PieChart, Pie, Cell, Sector,
@@ -44,7 +44,7 @@ const CPC_COLOR    = "#f59e0b";
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
-const card: React.CSSProperties = {
+const card: CSSProperties = {
   background: "var(--card)", border: "1px solid var(--border)",
   borderRadius: "16px", padding: "22px",
 };
@@ -106,16 +106,17 @@ function DonutChart({ data, valueKey, labelKey, colorKey, formatter }: {
   data: any[]; valueKey: string; labelKey: string; colorKey: string; formatter: (v: number) => string;
 }) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const renderActiveShape = (props: any) => {
+  const renderPieShape = (props: any) => {
     const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, payload } = props;
+    const isActive = props.index === activeIndex;
     return (
       <g>
-        <Sector cx={cx} cy={cy} innerRadius={innerRadius - 4} outerRadius={outerRadius + 6} startAngle={startAngle} endAngle={endAngle} fill={fill} />
-        <text x={cx} y={cy - 10} textAnchor="middle" fill="var(--t1)" fontSize={13} fontWeight={700}>
+        <Sector cx={cx} cy={cy} innerRadius={isActive ? innerRadius - 4 : innerRadius} outerRadius={isActive ? outerRadius + 6 : outerRadius} startAngle={startAngle} endAngle={endAngle} fill={fill} />
+        {isActive && <text x={cx} y={cy - 10} textAnchor="middle" fill="var(--t1)" fontSize={13} fontWeight={700}>
           {payload[labelKey].length > 14 ? payload[labelKey].slice(0, 14) + "…" : payload[labelKey]}
-        </text>
-        <text x={cx} y={cy + 10} textAnchor="middle" fill="var(--t2)" fontSize={12}>{formatter(payload[valueKey])}</text>
-        <text x={cx} y={cy + 26} textAnchor="middle" fill="var(--t3)" fontSize={11}>{payload.share}%</text>
+        </text>}
+        {isActive && <text x={cx} y={cy + 10} textAnchor="middle" fill="var(--t2)" fontSize={12}>{formatter(payload[valueKey])}</text>}
+        {isActive && <text x={cx} y={cy + 26} textAnchor="middle" fill="var(--t3)" fontSize={11}>{payload.share}%</text>}
       </g>
     );
   };
@@ -123,7 +124,7 @@ function DonutChart({ data, valueKey, labelKey, colorKey, formatter }: {
     <ResponsiveContainer width="100%" height={220}>
       <PieChart>
         <Pie data={data} dataKey={valueKey} nameKey={labelKey} cx="50%" cy="50%" innerRadius={60} outerRadius={90}
-          activeIndex={activeIndex ?? undefined} activeShape={renderActiveShape}
+          shape={renderPieShape}
           onMouseEnter={(_, i) => setActiveIndex(i)} onMouseLeave={() => setActiveIndex(null)} paddingAngle={2}>
           {data.map((entry, i) => <Cell key={i} fill={entry[colorKey]} stroke="transparent" />)}
         </Pie>
@@ -161,7 +162,7 @@ function GeoRow({ row, maxSpend, index }: { row: GeoRow; maxSpend: number; index
 
 function FunnelChart({ stages, costPerConversion }: { stages: FunnelStage[]; costPerConversion: number | null }) {
   const max = stages[0]?.value ?? 1;
-  const icons: Record<string, JSX.Element> = {
+  const icons: Record<string, ReactNode> = {
     eye:    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
     cursor: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4l7.07 17 2.51-7.39L21 11.07z"/></svg>,
     check:  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>,
@@ -425,7 +426,7 @@ export default function DashboardEnhanced({ brandId, platform, dateFrom, dateTo 
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="date" tick={{ fontSize: 11, fill: "var(--t3)" }} tickLine={false} axisLine={false} tickFormatter={fmtDate} />
                 <YAxis tick={{ fontSize: 11, fill: "var(--t3)" }} tickLine={false} axisLine={false} tickFormatter={(v: any) => `${v}x`} />
-                <Tooltip {...tooltipStyle} formatter={(v: any, name: string) => [`${Number(v).toFixed(2)}x`, name]} labelFormatter={fmtDate} />
+                <Tooltip {...tooltipStyle} formatter={(v: any, name?: string | number) => [`${Number(v).toFixed(2)}x`, name ?? ""]} labelFormatter={fmtDate} />
                 {singlePlatform ? (
                   <Line type="monotone" dataKey="roas" name="ROAS" stroke="#5865f2" strokeWidth={2} dot={false} connectNulls />
                 ) : (
@@ -454,7 +455,7 @@ export default function DashboardEnhanced({ brandId, platform, dateFrom, dateTo 
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis dataKey="date" tick={{ fontSize: 10, fill: "var(--t3)" }} tickLine={false} axisLine={false} tickFormatter={fmtDate} />
                   <YAxis tick={{ fontSize: 10, fill: "var(--t3)" }} tickLine={false} axisLine={false} tickFormatter={(v: any) => `${v}%`} />
-                  <Tooltip {...tooltipStyle} formatter={(v: any, name: string) => [`${Number(v).toFixed(2)}%`, name]} labelFormatter={fmtDate} />
+                  <Tooltip {...tooltipStyle} formatter={(v: any, name?: string | number) => [`${Number(v).toFixed(2)}%`, name ?? ""]} labelFormatter={fmtDate} />
                   {singlePlatform ? (
                     <Line type="monotone" dataKey="ctr" name="CTR" stroke={CTR_COLOR} strokeWidth={2} dot={false} connectNulls />
                   ) : (
@@ -481,7 +482,7 @@ export default function DashboardEnhanced({ brandId, platform, dateFrom, dateTo 
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis dataKey="date" tick={{ fontSize: 10, fill: "var(--t3)" }} tickLine={false} axisLine={false} tickFormatter={fmtDate} />
                   <YAxis tick={{ fontSize: 10, fill: "var(--t3)" }} tickLine={false} axisLine={false} tickFormatter={(v: any) => `$${v}`} />
-                  <Tooltip {...tooltipStyle} formatter={(v: any, name: string) => [`$${Number(v).toFixed(2)}`, name]} labelFormatter={fmtDate} />
+                  <Tooltip {...tooltipStyle} formatter={(v: any, name?: string | number) => [`$${Number(v).toFixed(2)}`, name ?? ""]} labelFormatter={fmtDate} />
                   {singlePlatform ? (
                     <Line type="monotone" dataKey="cpc" name="CPC" stroke={CPC_COLOR} strokeWidth={2} dot={false} connectNulls />
                   ) : (
@@ -494,28 +495,6 @@ export default function DashboardEnhanced({ brandId, platform, dateFrom, dateTo 
                 </LineChart>
               </ResponsiveContainer>
             </div>
-          </div>
-
-          {/* Spend — stacked bars by platform + prev period line overlay */}
-          <div style={{ ...card, marginBottom: "16px" }}>
-            <h3 style={{ fontSize: "14px", fontWeight: "600", color: "var(--t1)", margin: "0 0 2px" }}>Spend Over Time</h3>
-            <p style={{ fontSize: "12px", color: "var(--t3)", marginBottom: "6px" }}>Daily spend by platform — bars + previous period overlay</p>
-            <ChartLegend items={[
-              { color: GOOGLE_COLOR, label: "Google spend" },
-              { color: META_COLOR,   label: "Meta spend" },
-              { color: PREV_COLOR,   label: "Prev. period total", dashed: true },
-            ]} />
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={trends} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="date" tick={{ fontSize: 11, fill: "var(--t3)" }} tickLine={false} axisLine={false} tickFormatter={fmtDate} />
-                <YAxis tick={{ fontSize: 11, fill: "var(--t3)" }} tickLine={false} axisLine={false} tickFormatter={(v: any) => `$${v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}`} />
-                <Tooltip {...tooltipStyle} formatter={(v: any, name: string) => [`$${Number(v).toLocaleString()}`, name]} labelFormatter={fmtDate} />
-                <Bar dataKey="spend_google" name="Google" stackId="a" fill={GOOGLE_COLOR} radius={[0,0,0,0]} />
-                <Bar dataKey="spend_meta"   name="Meta"   stackId="a" fill={META_COLOR}   radius={[3,3,0,0]} />
-                <Line type="monotone" dataKey="spend_prev" name="Prev. period" stroke={PREV_COLOR} strokeWidth={1.5} dot={false} connectNulls strokeDasharray="5 4" opacity={0.6} />
-              </BarChart>
-            </ResponsiveContainer>
           </div>
 
           {/* Alert Trends */}
