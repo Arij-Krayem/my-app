@@ -2,7 +2,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid,
+  AreaChart, Area, BarChart, Bar, LineChart, Line,
+  XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 import DashboardEnhanced from "@/components/DashboardEnhanced";
@@ -20,24 +21,76 @@ const inputSt: React.CSSProperties = {
 };
 
 interface Alert {
-  id: string;
-  message: string;
-  status: string;
-  createdAt: string;
+  id: string; message: string; status: string; createdAt: string;
   rule?: { metricKey: string; severity: string } | null;
   brand?: { name: string } | null;
 }
 
+// ─── Spend chart legend pill ──────────────────────────────────────────────────
+function SpendLegendPill({ color, label, dashed = false }: { color: string; label: string; dashed?: boolean }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+      <svg width="18" height="6">
+        <line x1="0" y1="3" x2="18" y2="3" stroke={color} strokeWidth="2"
+          strokeDasharray={dashed ? "4 3" : undefined} />
+      </svg>
+      <span style={{ fontSize: "11px", color: "var(--t2)", fontWeight: "500" }}>{label}</span>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
-  const [uploads, setUploads]         = useState<any[]>([]);
-  const [analytics, setAnalytics]     = useState<any>(null);
-  const [kpiLoading, setKpiLoading]   = useState(true);
-  const [brands, setBrands]           = useState<{ id: string; name: string }[]>([]);
+  const [uploads,     setUploads]     = useState<any[]>([]);
+  const [analytics,   setAnalytics]   = useState<any>(null);
+  const [kpiLoading,  setKpiLoading]  = useState(true);
+  const [brands,      setBrands]      = useState<{ id: string; name: string }[]>([]);
   const [activeBrand, setActiveBrand] = useState("brand_visioad_001");
-  const [platform, setPlatform]       = useState("");
-  const [dateFrom, setDateFrom]       = useState("");
-  const [dateTo, setDateTo]           = useState("");
-  const [realAlerts, setRealAlerts]   = useState<Alert[]>([]);
+  const [platform,    setPlatform]    = useState("");
+  const [dateFrom,    setDateFrom]    = useState("");
+  const [dateTo,      setDateTo]      = useState("");
+  const [realAlerts,  setRealAlerts]  = useState<Alert[]>([]);
+
+  // ── NEW: previous period spend for multidimensional overlay ────────────────
+  const [prevSpend, setPrevSpend] = useState<{ date: string; Google: number; Meta: number }[]>([]);
+
+  // ── Compute prev period bounds ─────────────────────────────────────────────
+  function getPrevBounds(from: string, to: string) {
+    if (from && to) {
+      const f = new Date(from), t = new Date(to);
+      const days = Math.ceil((t.getTime() - f.getTime()) / 86400000) + 1;
+      const pf = new Date(f); pf.setDate(pf.getDate() - days);
+      const pt = new Date(f); pt.setDate(pt.getDate() - 1);
+      return { prevFrom: pf.toISOString().split("T")[0], prevTo: pt.toISOString().split("T")[0] };
+    }
+    const today = new Date();
+    const pf = new Date(today); pf.setDate(pf.getDate() - 60);
+    const pt = new Date(today); pt.setDate(pt.getDate() - 31);
+    return { prevFrom: pf.toISOString().split("T")[0], prevTo: pt.toISOString().split("T")[0] };
+  }
+
+  const fetchPrevSpend = (brandId: string, plat: string, from: string, to: string) => {
+    const token = sessionStorage.getItem("access_token");
+    if (!token) return;
+    const { prevFrom, prevTo } = getPrevBounds(from, to);
+    const p = new URLSearchParams({ brandId, dateFrom: prevFrom, dateTo: prevTo });
+    if (plat) p.set("platform", plat);
+    fetch(`/api/analytics/kpis?${p}`, { headers: { Authorization: `Bearer ${token}` }, credentials: "include" })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (!d?.spendOverTime) return;
+        const rows: { date: string; Google: number; Meta: number }[] = Object.values(
+          d.spendOverTime.reduce((acc: any, row: any) => {
+            const dt = String(row.date).split("T")[0];
+            if (!acc[dt]) acc[dt] = { date: dt, Google: 0, Meta: 0 };
+            if (row.platform === "GOOGLE") acc[dt].Google = Number(row.spend);
+            if (row.platform === "META")   acc[dt].Meta   = Number(row.spend);
+            return acc;
+          }, {})
+        );
+        setPrevSpend(rows);
+      })
+      .catch(() => {});
+  };
 
   const fetchAnalytics = (brandId: string, plat: string, from: string, to: string) => {
     const token = sessionStorage.getItem("access_token");
@@ -52,6 +105,8 @@ export default function DashboardPage() {
       .then(d => { if (d?.kpis) setAnalytics(d); })
       .catch(() => {})
       .finally(() => setKpiLoading(false));
+    // also fetch prev period for the overlay
+    fetchPrevSpend(brandId, plat, from, to);
   };
 
   const fetchAlerts = (brandId: string) => {
@@ -103,19 +158,18 @@ export default function DashboardPage() {
 
   const fmt = (val: number, prefix = "", suffix = "") => {
     if (val === undefined || val === null) return "—";
-    const formatted = val >= 1000
-      ? `${(val / 1000).toFixed(1)}k`
-      : val.toLocaleString("en-US", { maximumFractionDigits: 2 });
+    const formatted = val >= 1000 ? `${(val / 1000).toFixed(1)}k` : val.toLocaleString("en-US", { maximumFractionDigits: 2 });
     return `${prefix}${formatted}${suffix}`;
   };
 
   const kpis              = analytics?.kpis;
   const platformBreakdown = analytics?.platformBreakdown ?? [];
-  const spendOverTime     = analytics?.spendOverTime ?? [];
-  const topCampaigns      = analytics?.topCampaigns ?? [];
+  const spendOverTime     = analytics?.spendOverTime     ?? [];
+  const topCampaigns      = analytics?.topCampaigns      ?? [];
   const totalSpend        = platformBreakdown.reduce((s: number, p: any) => s + Number(p.spend), 0);
   const activeBrandName   = brands.find(b => b.id === activeBrand)?.name ?? "Visioad Main";
 
+  // ── Build per-day data with Google + Meta split ────────────────────────────
   const chartData = Object.values(
     spendOverTime.reduce((acc: any, row: any) => {
       const d = String(row.date).split("T")[0];
@@ -125,6 +179,14 @@ export default function DashboardPage() {
       return acc;
     }, {})
   ) as { date: string; Google: number; Meta: number }[];
+
+  // ── Merge prev-period spend by position index (overlay alignment) ──────────
+  const mergedChartData = chartData.map((row, i) => ({
+    ...row,
+    prevTotal: prevSpend[i] != null
+      ? (prevSpend[i].Google + prevSpend[i].Meta)
+      : null,
+  }));
 
   const statusCfg = (s: string) => ({
     IMPORTED: { color: "#3fb950", bg: "rgba(63,185,80,0.1)",  border: "rgba(63,185,80,0.25)"  },
@@ -225,39 +287,62 @@ export default function DashboardPage() {
         })}
       </div>
 
-      {/* Spend Over Time Chart */}
-      {chartData.length > 0 && (
+      {/* ══════════════════════════════════════════════════════════════════
+          SPEND OVER TIME — MULTIDIMENSIONAL
+          Dim 1: Google spend (solid bar)
+          Dim 2: Meta spend (stacked bar)
+          Dim 3: Previous period total (dashed line overlay)
+      ══════════════════════════════════════════════════════════════════ */}
+      {mergedChartData.length > 0 && (
         <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "16px", padding: "22px", marginBottom: "24px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
             <h2 style={{ fontSize: "16px", fontWeight: "600", color: "var(--t1)" }}>Spend Over Time</h2>
-            <span style={{ fontSize: "12px", color: "var(--t2)" }}>{chartData.length} days</span>
+            <span style={{ fontSize: "12px", color: "var(--t2)" }}>{mergedChartData.length} days</span>
           </div>
-          <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-              <defs>
-                <linearGradient id="gGoogle" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="#4285F4" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#4285F4" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="gMeta" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="#1877F2" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#1877F2" stopOpacity={0} />
-                </linearGradient>
-              </defs>
+
+          {/* Legend */}
+          <div style={{ display: "flex", gap: "16px", marginBottom: "14px", flexWrap: "wrap" }}>
+            <SpendLegendPill color="#4285F4" label="Google" />
+            <SpendLegendPill color="#1877F2" label="Meta" />
+            <SpendLegendPill color="#888780" label="Prev. period" dashed />
+          </div>
+
+          <ResponsiveContainer width="100%" height={240}>
+            <BarChart data={mergedChartData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-              <XAxis dataKey="date" tick={{ fontSize: 11, fill: "var(--t3)" }} tickLine={false} axisLine={false}
-                tickFormatter={d => new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" })} />
-              <YAxis tick={{ fontSize: 11, fill: "var(--t3)" }} tickLine={false} axisLine={false}
-                tickFormatter={v => `$${v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}`} />
+              <XAxis
+                dataKey="date"
+                tick={{ fontSize: 11, fill: "var(--t3)" }}
+                tickLine={false} axisLine={false}
+                tickFormatter={d => new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+              />
+              <YAxis
+                tick={{ fontSize: 11, fill: "var(--t3)" }}
+                tickLine={false} axisLine={false}
+                tickFormatter={v => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`}
+              />
               <Tooltip
                 contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "10px", fontSize: "12px" }}
                 formatter={(val: any, name: any) => [`$${Number(val).toLocaleString()}`, name]}
                 labelFormatter={l => new Date(l).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
               />
-              <Legend wrapperStyle={{ fontSize: "12px", paddingTop: "12px" }} />
-              <Area type="monotone" dataKey="Google" stroke="#4285F4" strokeWidth={2} fill="url(#gGoogle)" dot={false} />
-              <Area type="monotone" dataKey="Meta"   stroke="#1877F2" strokeWidth={2} fill="url(#gMeta)"   dot={false} />
-            </AreaChart>
+              {/* Dim 1 — Google spend bar */}
+              <Bar dataKey="Google" name="Google" stackId="curr" fill="#4285F4" radius={[0,0,0,0]} />
+              {/* Dim 2 — Meta spend bar stacked on top */}
+              <Bar dataKey="Meta" name="Meta" stackId="curr" fill="#1877F2" radius={[3,3,0,0]} />
+              {/* Dim 3 — Prev period total as dashed line overlay */}
+              <Line
+                type="monotone"
+                dataKey="prevTotal"
+                name="Prev. period"
+                stroke="#888780"
+                strokeWidth={1.5}
+                strokeDasharray="5 4"
+                dot={false}
+                connectNulls
+                opacity={0.65}
+              />
+            </BarChart>
           </ResponsiveContainer>
         </div>
       )}
@@ -265,7 +350,7 @@ export default function DashboardPage() {
       {/* Bottom grid */}
       <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "16px", marginBottom: "24px" }}>
 
-        {/* Active Alerts — real data */}
+        {/* Active Alerts */}
         <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "16px", padding: "22px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -292,9 +377,7 @@ export default function DashboardPage() {
                 return (
                   <div key={a.id} style={{ padding: "14px 16px", borderRadius: "12px", background: "var(--bg)", borderLeft: `3px solid ${color}`, border: `1px solid ${isCrit ? "rgba(248,81,73,0.15)" : "rgba(210,153,34,0.15)"}` }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-                      <span style={{ fontSize: "13px", fontWeight: "600", color: "var(--t1)" }}>
-                        {a.rule?.metricKey?.toUpperCase() ?? "Alert"}
-                      </span>
+                      <span style={{ fontSize: "13px", fontWeight: "600", color: "var(--t1)" }}>{a.rule?.metricKey?.toUpperCase() ?? "Alert"}</span>
                       <span style={{ fontSize: "10px", fontWeight: "700", padding: "2px 7px", borderRadius: "5px", background: isCrit ? "rgba(248,81,73,0.12)" : "rgba(210,153,34,0.12)", color, border: `1px solid ${isCrit ? "rgba(248,81,73,0.25)" : "rgba(210,153,34,0.25)"}` }}>
                         {a.rule?.severity ?? "WARNING"}
                       </span>
@@ -390,9 +473,7 @@ export default function DashboardPage() {
                     onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(88,101,242,0.02)"; }}
                     onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
                     <td style={{ padding: "12px", color: "var(--t1)", fontWeight: "500" }}>{c.campaign || "—"}</td>
-                    <td style={{ padding: "12px", fontWeight: "600", color: c.platform === "GOOGLE" ? "#4285F4" : "#1877F2" }}>
-                      {c.platform === "GOOGLE" ? "Google" : "Meta"}
-                    </td>
+                    <td style={{ padding: "12px", fontWeight: "600", color: c.platform === "GOOGLE" ? "#4285F4" : "#1877F2" }}>{c.platform === "GOOGLE" ? "Google" : "Meta"}</td>
                     <td style={{ padding: "12px", color: "var(--t1)", fontVariantNumeric: "tabular-nums" }}>${Number(c.spend).toLocaleString()}</td>
                     <td style={{ padding: "12px", color: "var(--t2)" }}>{Number(c.clicks).toLocaleString()}</td>
                     <td style={{ padding: "12px", color: "var(--t2)" }}>{Number(c.conversions).toLocaleString()}</td>
@@ -409,14 +490,10 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ── Enhanced Analytics Sections ── */}
-      <DashboardEnhanced
-        brandId={activeBrand}
-        platform={platform}
-        dateFrom={dateFrom}
-        dateTo={dateTo}
-      />
+      {/* Enhanced Analytics */}
+      <DashboardEnhanced brandId={activeBrand} platform={platform} dateFrom={dateFrom} dateTo={dateTo} />
 
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
