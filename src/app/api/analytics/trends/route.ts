@@ -23,30 +23,17 @@ export async function GET(req: NextRequest) {
     if (!allowed)
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
 
+    // ── Base WHERE (current period) ──────────────────────────────────────────
     const conditions: string[] = [`"brandId" = '${brandId}'`];
     if (platform && ["GOOGLE", "META"].includes(platform))
       conditions.push(`platform = '${platform}'::"Platform"`);
     if (dateFrom) conditions.push(`date >= '${dateFrom}'::date`);
     if (dateTo)   conditions.push(`date <= '${dateTo}'::date`);
+    if (!dateFrom && !dateTo)
+      conditions.push(`date >= (CURRENT_DATE - INTERVAL '30 days')`);
     const where = conditions.join(" AND ");
 
-    // ── Metrics per day ─────────────────────────────────────────────────────
-    const metricsOverTime = await prisma.$queryRawUnsafe(`
-      SELECT
-        date::date                                            AS date,
-        COALESCE(AVG((metrics->>'roas')::numeric), 0)        AS roas,
-        COALESCE(AVG((metrics->>'ctr')::numeric),  0)        AS ctr,
-        COALESCE(AVG((metrics->>'cpc')::numeric),  0)        AS cpc,
-        COALESCE(SUM((metrics->>'spend')::numeric), 0)       AS spend,
-        COALESCE(SUM((metrics->>'clicks')::numeric), 0)      AS clicks,
-        COALESCE(SUM((metrics->>'conversions')::numeric), 0) AS conversions
-      FROM public."PerformanceFact"
-      WHERE ${where}
-      GROUP BY date::date
-      ORDER BY date::date ASC
-    `) as any[];
-
-    // ── Previous period conditions ───────────────────────────────────────────
+    // ── Previous period bounds ───────────────────────────────────────────────
     const prevConditions: string[] = [`"brandId" = '${brandId}'`];
     if (platform && ["GOOGLE", "META"].includes(platform))
       prevConditions.push(`platform = '${platform}'::"Platform"`);
@@ -62,36 +49,183 @@ export async function GET(req: NextRequest) {
     } else {
       prevConditions.push(`date >= (CURRENT_DATE - INTERVAL '60 days')`);
       prevConditions.push(`date <  (CURRENT_DATE - INTERVAL '30 days')`);
-      conditions.push(`date >= (CURRENT_DATE - INTERVAL '30 days')`);
     }
     const prevWhere = prevConditions.join(" AND ");
 
-    // ── Current period aggregate ─────────────────────────────────────────────
-    const currentRows = await prisma.$queryRawUnsafe(`
-      SELECT
-        COALESCE(AVG((metrics->>'roas')::numeric), 0)        AS "avgRoas",
-        COALESCE(AVG((metrics->>'ctr')::numeric),  0)        AS "avgCtr",
-        COALESCE(AVG((metrics->>'cpc')::numeric),  0)        AS "avgCpc",
-        COALESCE(SUM((metrics->>'spend')::numeric), 0)       AS "totalSpend",
-        COALESCE(SUM((metrics->>'conversions')::numeric), 0) AS "totalConversions"
-      FROM public."PerformanceFact"
-      WHERE ${where}
-    `) as any[];
+    // ── WHERE without platform filter (for platform-split query) ────────────
+    const baseConditions: string[] = [`"brandId" = '${brandId}'`];
+    if (dateFrom) baseConditions.push(`date >= '${dateFrom}'::date`);
+    if (dateTo)   baseConditions.push(`date <= '${dateTo}'::date`);
+    if (!dateFrom && !dateTo)
+      baseConditions.push(`date >= (CURRENT_DATE - INTERVAL '30 days')`);
+    const baseWhere = baseConditions.join(" AND ");
 
-    // ── Previous period aggregate ────────────────────────────────────────────
-    const previousRows = await prisma.$queryRawUnsafe(`
-      SELECT
-        COALESCE(AVG((metrics->>'roas')::numeric), 0)        AS "avgRoas",
-        COALESCE(AVG((metrics->>'ctr')::numeric),  0)        AS "avgCtr",
-        COALESCE(AVG((metrics->>'cpc')::numeric),  0)        AS "avgCpc",
-        COALESCE(SUM((metrics->>'spend')::numeric), 0)       AS "totalSpend",
-        COALESCE(SUM((metrics->>'conversions')::numeric), 0) AS "totalConversions"
-      FROM public."PerformanceFact"
-      WHERE ${prevWhere}
-    `) as any[];
+    // ════════════════════════════════════════════════════════════════════════
+    // Run all queries in parallel
+    // ════════════════════════════════════════════════════════════════════════
+    const [
+      metricsOverTime,
+      platformByDay,       // ← NEW: per-platform per-day rows
+      prevByDay,           // ← NEW: previous period per-day (for overlay)
+      currentRows,
+      previousRows,
+    ] = await Promise.all([
 
-    const cur  = currentRows[0]  ?? {};
-    const prev = previousRows[0] ?? {};
+      // ── 1. Overall metrics per day (existing) ──────────────────────────
+      prisma.$queryRawUnsafe(`
+        SELECT
+          date::date                                            AS date,
+          COALESCE(AVG((metrics->>'roas')::numeric), 0)        AS roas,
+          COALESCE(AVG((metrics->>'ctr')::numeric),  0)        AS ctr,
+          COALESCE(AVG((metrics->>'cpc')::numeric),  0)        AS cpc,
+          COALESCE(SUM((metrics->>'spend')::numeric), 0)       AS spend,
+          COALESCE(SUM((metrics->>'clicks')::numeric), 0)      AS clicks,
+          COALESCE(SUM((metrics->>'conversions')::numeric), 0) AS conversions
+        FROM public."PerformanceFact"
+        WHERE ${where}
+        GROUP BY date::date
+        ORDER BY date::date ASC
+      `) as Promise<any[]>,
+
+      // ── 2. NEW: per-platform breakdown per day ──────────────────────────
+      //    Returns rows: { date, platform, roas, ctr, cpc, spend, clicks, conversions }
+      //    Always uses baseWhere (no platform filter) so both platforms appear
+      prisma.$queryRawUnsafe(`
+        SELECT
+          date::date                                            AS date,
+          platform,
+          COALESCE(AVG((metrics->>'roas')::numeric), 0)        AS roas,
+          COALESCE(AVG((metrics->>'ctr')::numeric),  0)        AS ctr,
+          COALESCE(AVG((metrics->>'cpc')::numeric),  0)        AS cpc,
+          COALESCE(SUM((metrics->>'spend')::numeric), 0)       AS spend,
+          COALESCE(SUM((metrics->>'clicks')::numeric), 0)      AS clicks,
+          COALESCE(SUM((metrics->>'conversions')::numeric), 0) AS conversions
+        FROM public."PerformanceFact"
+        WHERE ${baseWhere}
+        GROUP BY date::date, platform
+        ORDER BY date::date ASC
+      `) as Promise<any[]>,
+
+      // ── 3. NEW: previous period per day (for overlay ghost line) ────────
+      prisma.$queryRawUnsafe(`
+        SELECT
+          date::date                                            AS date,
+          COALESCE(AVG((metrics->>'roas')::numeric), 0)        AS roas,
+          COALESCE(AVG((metrics->>'ctr')::numeric),  0)        AS ctr,
+          COALESCE(AVG((metrics->>'cpc')::numeric),  0)        AS cpc,
+          COALESCE(SUM((metrics->>'spend')::numeric), 0)       AS spend,
+          COALESCE(SUM((metrics->>'clicks')::numeric), 0)      AS clicks,
+          COALESCE(SUM((metrics->>'conversions')::numeric), 0) AS conversions
+        FROM public."PerformanceFact"
+        WHERE ${prevWhere}
+        GROUP BY date::date
+        ORDER BY date::date ASC
+      `) as Promise<any[]>,
+
+      // ── 4. Current period aggregate (existing) ──────────────────────────
+      prisma.$queryRawUnsafe(`
+        SELECT
+          COALESCE(AVG((metrics->>'roas')::numeric), 0)        AS "avgRoas",
+          COALESCE(AVG((metrics->>'ctr')::numeric),  0)        AS "avgCtr",
+          COALESCE(AVG((metrics->>'cpc')::numeric),  0)        AS "avgCpc",
+          COALESCE(SUM((metrics->>'spend')::numeric), 0)       AS "totalSpend",
+          COALESCE(SUM((metrics->>'conversions')::numeric), 0) AS "totalConversions"
+        FROM public."PerformanceFact"
+        WHERE ${where}
+      `) as Promise<any[]>,
+
+      // ── 5. Previous period aggregate (existing) ─────────────────────────
+      prisma.$queryRawUnsafe(`
+        SELECT
+          COALESCE(AVG((metrics->>'roas')::numeric), 0)        AS "avgRoas",
+          COALESCE(AVG((metrics->>'ctr')::numeric),  0)        AS "avgCtr",
+          COALESCE(AVG((metrics->>'cpc')::numeric),  0)        AS "avgCpc",
+          COALESCE(SUM((metrics->>'spend')::numeric), 0)       AS "totalSpend",
+          COALESCE(SUM((metrics->>'conversions')::numeric), 0) AS "totalConversions"
+        FROM public."PerformanceFact"
+        WHERE ${prevWhere}
+      `) as Promise<any[]>,
+    ]);
+
+    // ════════════════════════════════════════════════════════════════════════
+    // TRANSFORM: pivot platform rows into flat per-day objects
+    // { date, roas_google, roas_meta, ctr_google, ctr_meta, ... }
+    // ════════════════════════════════════════════════════════════════════════
+    const METRICS = ["roas", "ctr", "cpc", "spend", "clicks", "conversions"] as const;
+
+    // Build a map: date → { roas_google, roas_meta, ... }
+    const platformPivot: Record<string, Record<string, number>> = {};
+    for (const row of platformByDay) {
+      const d   = row.date instanceof Date
+        ? row.date.toISOString().split("T")[0]
+        : String(row.date).split("T")[0];
+      const plat = String(row.platform).toLowerCase(); // "google" | "meta"
+      if (!platformPivot[d]) platformPivot[d] = {};
+      for (const m of METRICS) {
+        platformPivot[d][`${m}_${plat}`] = Number(Number(row[m]).toFixed(2));
+      }
+    }
+
+    // Collect all unique dates from the overall query, merge pivot data
+    const serialisedMetrics = metricsOverTime.map((d: any) => {
+      const dateStr = d.date instanceof Date
+        ? d.date.toISOString().split("T")[0]
+        : String(d.date).split("T")[0];
+      const pivoted = platformPivot[dateStr] ?? {};
+      return {
+        date:              dateStr,
+        // overall (used for combined view / fallback)
+        roas:              Number(Number(d.roas).toFixed(2)),
+        ctr:               Number(Number(d.ctr).toFixed(2)),
+        cpc:               Number(Number(d.cpc).toFixed(2)),
+        spend:             Number(d.spend),
+        clicks:            Number(d.clicks),
+        conversions:       Number(d.conversions),
+        // platform-split (multidimensional)
+        roas_google:       pivoted.roas_google   ?? null,
+        roas_meta:         pivoted.roas_meta     ?? null,
+        ctr_google:        pivoted.ctr_google    ?? null,
+        ctr_meta:          pivoted.ctr_meta      ?? null,
+        cpc_google:        pivoted.cpc_google    ?? null,
+        cpc_meta:          pivoted.cpc_meta      ?? null,
+        spend_google:      pivoted.spend_google  ?? null,
+        spend_meta:        pivoted.spend_meta    ?? null,
+        clicks_google:     pivoted.clicks_google ?? null,
+        clicks_meta:       pivoted.clicks_meta   ?? null,
+        conversions_google:pivoted.conversions_google ?? null,
+        conversions_meta:  pivoted.conversions_meta   ?? null,
+      };
+    });
+
+    // ── Previous period series: re-index by position so it overlays ────────
+    // We align prev period onto the same x-axis positions as current period,
+    // using an index-based offset so dates don't need to match exactly.
+    const serialisedPrev = prevByDay.map((d: any) => ({
+      date:        d.date instanceof Date
+                     ? d.date.toISOString().split("T")[0]
+                     : String(d.date).split("T")[0],
+      roas_prev:   Number(Number(d.roas).toFixed(2)),
+      ctr_prev:    Number(Number(d.ctr).toFixed(2)),
+      cpc_prev:    Number(Number(d.cpc).toFixed(2)),
+      spend_prev:  Number(d.spend),
+      clicks_prev: Number(d.clicks),
+      conversions_prev: Number(d.conversions),
+    }));
+
+    // Merge prev onto current by position index
+    const mergedMetrics = serialisedMetrics.map((row, i) => ({
+      ...row,
+      roas_prev:        serialisedPrev[i]?.roas_prev        ?? null,
+      ctr_prev:         serialisedPrev[i]?.ctr_prev         ?? null,
+      cpc_prev:         serialisedPrev[i]?.cpc_prev         ?? null,
+      spend_prev:       serialisedPrev[i]?.spend_prev       ?? null,
+      clicks_prev:      serialisedPrev[i]?.clicks_prev      ?? null,
+      conversions_prev: serialisedPrev[i]?.conversions_prev ?? null,
+    }));
+
+    // ── Comparison aggregates (existing logic, unchanged) ────────────────
+    const cur  = (currentRows  as any[])[0] ?? {};
+    const prev = (previousRows as any[])[0] ?? {};
 
     function pctChange(curr: number, previous: number): number | null {
       if (!previous || previous === 0) return null;
@@ -99,23 +233,15 @@ export async function GET(req: NextRequest) {
     }
 
     const comparison = {
-      roas:        { current: Number(Number(cur.avgRoas).toFixed(2)),        previous: Number(Number(prev.avgRoas).toFixed(2)),        change: pctChange(Number(cur.avgRoas), Number(prev.avgRoas)) },
-      ctr:         { current: Number(Number(cur.avgCtr).toFixed(2)),         previous: Number(Number(prev.avgCtr).toFixed(2)),         change: pctChange(Number(cur.avgCtr), Number(prev.avgCtr)) },
-      cpc:         { current: Number(Number(cur.avgCpc).toFixed(2)),         previous: Number(Number(prev.avgCpc).toFixed(2)),         change: pctChange(Number(cur.avgCpc), Number(prev.avgCpc)) },
-      spend:       { current: Number(Number(cur.totalSpend).toFixed(2)),     previous: Number(Number(prev.totalSpend).toFixed(2)),     change: pctChange(Number(cur.totalSpend), Number(prev.totalSpend)) },
-      conversions: { current: Number(cur.totalConversions),                  previous: Number(prev.totalConversions),                  change: pctChange(Number(cur.totalConversions), Number(prev.totalConversions)) },
+      roas:        { current: Number(Number(cur.avgRoas).toFixed(2)),    previous: Number(Number(prev.avgRoas).toFixed(2)),    change: pctChange(Number(cur.avgRoas),    Number(prev.avgRoas))    },
+      ctr:         { current: Number(Number(cur.avgCtr).toFixed(2)),     previous: Number(Number(prev.avgCtr).toFixed(2)),     change: pctChange(Number(cur.avgCtr),     Number(prev.avgCtr))     },
+      cpc:         { current: Number(Number(cur.avgCpc).toFixed(2)),     previous: Number(Number(prev.avgCpc).toFixed(2)),     change: pctChange(Number(cur.avgCpc),     Number(prev.avgCpc))     },
+      spend:       { current: Number(Number(cur.totalSpend).toFixed(2)), previous: Number(Number(prev.totalSpend).toFixed(2)), change: pctChange(Number(cur.totalSpend), Number(prev.totalSpend)) },
+      conversions: { current: Number(cur.totalConversions),              previous: Number(prev.totalConversions),              change: pctChange(Number(cur.totalConversions), Number(prev.totalConversions)) },
     };
 
     return NextResponse.json({
-      metricsOverTime: metricsOverTime.map((d: any) => ({
-        date:        d.date instanceof Date ? d.date.toISOString().split('T')[0] : String(d.date).split('T')[0],
-        roas:        Number(Number(d.roas).toFixed(2)),
-        ctr:         Number(Number(d.ctr).toFixed(2)),
-        cpc:         Number(Number(d.cpc).toFixed(2)),
-        spend:       Number(d.spend),
-        clicks:      Number(d.clicks),
-        conversions: Number(d.conversions),
-      })),
+      metricsOverTime: mergedMetrics,   // now contains _google, _meta, _prev fields
       comparison,
     });
 
