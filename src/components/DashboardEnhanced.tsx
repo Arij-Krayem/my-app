@@ -123,9 +123,19 @@ function DonutChart({ data, valueKey, labelKey, colorKey, formatter }: {
   return (
     <ResponsiveContainer width="100%" height={220}>
       <PieChart>
-        <Pie data={data} dataKey={valueKey} nameKey={labelKey} cx="50%" cy="50%" innerRadius={60} outerRadius={90}
+        <Pie
+          data={data}
+          dataKey={valueKey}
+          nameKey={labelKey}
+          cx="50%"
+          cy="50%"
+          innerRadius={60}
+          outerRadius={90}
           shape={renderPieShape}
-          onMouseEnter={(_, i) => setActiveIndex(i)} onMouseLeave={() => setActiveIndex(null)} paddingAngle={2}>
+          onMouseEnter={(_, i) => setActiveIndex(i)}
+          onMouseLeave={() => setActiveIndex(null)}
+          paddingAngle={2}
+        >
           {data.map((entry, i) => <Cell key={i} fill={entry[colorKey]} stroke="transparent" />)}
         </Pie>
         <Tooltip contentStyle={tooltipStyle.contentStyle} formatter={(v: any) => [formatter(Number(v))]} />

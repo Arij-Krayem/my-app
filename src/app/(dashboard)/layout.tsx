@@ -121,7 +121,8 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
-  const [user] = useState<{ name: string; email: string; role: string } | null>(() => getStoredUser());
+  const [user, setUser] = useState<{ name: string; email: string; role: string } | null>(null);
+  const [userReady, setUserReady] = useState(false);
   const [brands, setBrands] = useState<{ id: string; name: string }[]>([]);
   const [selectedBrand, setSelectedBrand] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
@@ -154,6 +155,15 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    setUser(getStoredUser());
+    setUserReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!userReady) {
+      return;
+    }
+
     document.documentElement.removeAttribute("data-theme");
     localStorage.setItem("theme", "light");
 
@@ -184,7 +194,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     }, 0);
 
     return () => window.clearTimeout(timeout);
-  }, [fetchNotifications, router, user]);
+  }, [fetchNotifications, router, user, userReady]);
 
   useEffect(() => {
     const interval = setInterval(fetchNotifications, 30000);
@@ -268,11 +278,11 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           ))}
 
           {isAdmin && (
-            <>
-              {!collapsed ? (
-                <div className={styles.sectionLabel}>Admin</div>
-              ) : (
+            <div className={styles.adminSection}>
+              {collapsed ? (
                 <div className={styles.sectionDivider} />
+              ) : (
+                <div className={styles.sectionLabel}>Admin</div>
               )}
               {ADMIN_ITEMS.map((item) => (
                 <SidebarItem
@@ -283,7 +293,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                   onNavigate={() => setCollapsed(true)}
                 />
               ))}
-            </>
+            </div>
           )}
         </nav>
 
