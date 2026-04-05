@@ -23,55 +23,38 @@ const SVG = {
 
 const NAV_ITEMS = [
   { href: "/dashboard", icon: SVG.dashboard, label: "Dashboard" },
-  { href: "/uploads", icon: SVG.uploads, label: "Uploads" },
-  { href: "/alerts", icon: SVG.alerts, label: "Alerts" },
-  { href: "/guardrails", icon: SVG.guardrails, label: "Guardrails" },
+  { href: "/uploads",   icon: SVG.uploads,   label: "Uploads"   },
+  { href: "/alerts",    icon: SVG.alerts,    label: "Alerts"    },
+  { href: "/guardrails",icon: SVG.guardrails,label: "Guardrails"},
   { href: "/anomalies", icon: SVG.anomalies, label: "Anomalies" },
-  { href: "/settings", icon: SVG.settings, label: "Settings" },
+  { href: "/settings",  icon: SVG.settings,  label: "Settings"  },
 ];
 
 const ADMIN_ITEMS = [
-  { href: "/brands", icon: SVG.brands, label: "Brands" },
-  { href: "/users", icon: SVG.users, label: "Users" },
+  { href: "/brands",    icon: SVG.brands,    label: "Brands"    },
+  { href: "/users",     icon: SVG.users,     label: "Users"     },
   { href: "/detection", icon: SVG.detection, label: "Detection" },
 ];
 
 interface AlertNotif {
-  id: string;
-  message: string;
-  status: string;
-  createdAt: string;
+  id: string; message: string; status: string; createdAt: string;
   rule?: { metricKey: string; severity: string } | null;
   brand?: { name: string } | null;
 }
-
-interface NavItem {
-  href: string;
-  icon: ReactNode;
-  label: string;
-}
+interface NavItem { href: string; icon: ReactNode; label: string; }
 
 function getStoredUser() {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
+  if (typeof window === "undefined") return null;
   const raw = sessionStorage.getItem("user");
-  if (!raw) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(raw) as { name: string; email: string; role: string };
-  } catch {
-    return null;
-  }
+  if (!raw) return null;
+  try { return JSON.parse(raw) as { name: string; email: string; role: string }; }
+  catch { return null; }
 }
 
 function timeAgo(dateStr: string) {
   const diff = Date.now() - new Date(dateStr).getTime();
   const m = Math.floor(diff / 60000);
-  if (m < 1) return "just now";
+  if (m < 1)  return "just now";
   if (m < 60) return `${m}m ago`;
   const h = Math.floor(m / 60);
   if (h < 24) return `${h}h ago`;
@@ -84,116 +67,87 @@ function isActivePath(pathname: string | null, href: string) {
 }
 
 function SidebarItem({
-  item,
-  pathname,
-  collapsed,
-  onNavigate,
-}: {
-  item: NavItem;
-  pathname: string | null;
-  collapsed: boolean;
-  onNavigate: () => void;
-}) {
+  item, pathname, collapsed, onNavigate,
+}: { item: NavItem; pathname: string | null; collapsed: boolean; onNavigate: () => void; }) {
   const active = isActivePath(pathname, item.href);
   const link = (
-    <Link
-      href={item.href}
-      onClick={onNavigate}
-      className={`${styles.navItem} ${active ? styles.navItemActive : ""}`}
-    >
+    <Link href={item.href} onClick={onNavigate}
+      className={`${styles.navItem} ${active ? styles.navItemActive : ""}`}>
       <span className={styles.navIcon}>{item.icon}</span>
       {!collapsed && <span className={styles.navLabel}>{item.label}</span>}
     </Link>
   );
-
-  if (!collapsed) {
-    return link;
-  }
-
-  return (
-    <Tooltip placement="right" title={item.label}>
-      {link}
-    </Tooltip>
-  );
+  if (!collapsed) return link;
+  return <Tooltip placement="right" title={item.label}>{link}</Tooltip>;
 }
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
-  const router = useRouter();
+  const router   = useRouter();
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
-  const [user, setUser] = useState<{ name: string; email: string; role: string } | null>(null);
-  const [userReady, setUserReady] = useState(false);
-  const [brands, setBrands] = useState<{ id: string; name: string }[]>([]);
+  const [collapsed,     setCollapsed]     = useState(false);
+  const [user,          setUser]          = useState<{ name: string; email: string; role: string } | null>(null);
+  const [userReady,     setUserReady]     = useState(false);
+  const [brands,        setBrands]        = useState<{ id: string; name: string }[]>([]);
   const [selectedBrand, setSelectedBrand] = useState("");
-  const [showDropdown, setShowDropdown] = useState(false);
-  const [showBell, setShowBell] = useState(false);
+  const [showDropdown,  setShowDropdown]  = useState(false);
+  const [showBell,      setShowBell]      = useState(false);
   const [notifications, setNotifications] = useState<AlertNotif[]>([]);
-  const [notifCount, setNotifCount] = useState(0);
+  const [notifCount,    setNotifCount]    = useState(0);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const bellRef = useRef<HTMLDivElement>(null);
+  const bellRef     = useRef<HTMLDivElement>(null);
 
   const fetchNotifications = useCallback(async () => {
     const token = sessionStorage.getItem("access_token");
     if (!token) return;
-
     try {
       const res = await fetch("/api/alerts?status=OPEN", {
-        headers: { Authorization: `Bearer ${token}` },
-        credentials: "include",
+        headers: { Authorization: `Bearer ${token}` }, credentials: "include",
       });
-
       if (!res.ok) return;
-
       const data = await res.json();
       const items: AlertNotif[] = data.items ?? [];
       setNotifications(items.slice(0, 5));
       setNotifCount(items.length);
-    } catch {
-      // Keep the existing silent-failure behavior for notification polling.
-    }
+    } catch {}
   }, []);
 
-  useEffect(() => {
-    setUser(getStoredUser());
-    setUserReady(true);
-  }, []);
+  useEffect(() => { setUser(getStoredUser()); setUserReady(true); }, []);
 
   useEffect(() => {
-    if (!userReady) {
-      return;
-    }
-
+    if (!userReady) return;
     document.documentElement.removeAttribute("data-theme");
     localStorage.setItem("theme", "light");
-
     const token = sessionStorage.getItem("access_token");
-
-    if (!token || !user) {
-      router.push("/login");
-      return;
-    }
+    if (!token || !user) { router.push("/login"); return; }
 
     if (user.role === "AGENCY_ADMIN") {
-      fetch("/api/brands", {
-        headers: { Authorization: `Bearer ${token}` },
-        credentials: "include",
-      })
-        .then((response) => (response.ok ? response.json() : []))
-        .then((data) => {
+      fetch("/api/brands", { headers: { Authorization: `Bearer ${token}` }, credentials: "include" })
+        .then(r => r.ok ? r.json() : [])
+        .then(data => {
           const list = data.items ?? data;
           setBrands(list);
           if (list[0]) {
             setSelectedBrand(list[0].id);
+            // ── Fire initial brand event so dashboard loads the right brand ──
+            window.dispatchEvent(new CustomEvent("brand-change", { detail: { brandId: list[0].id } }));
           }
         });
     }
 
-    const timeout = window.setTimeout(() => {
-      void fetchNotifications();
-    }, 0);
+    const timeout = window.setTimeout(() => { void fetchNotifications(); }, 0);
 
-    return () => window.clearTimeout(timeout);
+    // Keep dropdown in sync when dashboard pill buttons are clicked
+    const syncHandler = (e: Event) => {
+      const brandId = (e as CustomEvent<{ brandId: string }>).detail.brandId;
+      if (brandId) setSelectedBrand(brandId);
+    };
+    window.addEventListener("brand-change-sync", syncHandler);
+
+    return () => {
+      window.clearTimeout(timeout);
+      window.removeEventListener("brand-change-sync", syncHandler);
+    };
   }, [fetchNotifications, router, user, userReady]);
 
   useEffect(() => {
@@ -203,28 +157,25 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (pathname === "/alerts") {
-      const timeout = window.setTimeout(() => {
-        void fetchNotifications();
-      }, 0);
-
+      const timeout = window.setTimeout(() => { void fetchNotifications(); }, 0);
       return () => window.clearTimeout(timeout);
     }
   }, [fetchNotifications, pathname]);
 
   useEffect(() => {
     const handler = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setShowDropdown(false);
-      }
-
-      if (bellRef.current && !bellRef.current.contains(event.target as Node)) {
-        setShowBell(false);
-      }
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) setShowDropdown(false);
+      if (bellRef.current     && !bellRef.current.contains(event.target as Node))     setShowBell(false);
     };
-
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  // ── Brand switcher handler — fires custom event consumed by dashboard ──────
+  const handleBrandChange = (brandId: string) => {
+    setSelectedBrand(brandId);
+    window.dispatchEvent(new CustomEvent("brand-change", { detail: { brandId } }));
+  };
 
   const handleLogout = async () => {
     try {
@@ -234,20 +185,15 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         headers: { Authorization: `Bearer ${token ?? ""}` },
         credentials: "include",
       });
-    } catch {
-      // Keep logout resilient even if the request fails.
-    }
-
+    } catch {}
     sessionStorage.removeItem("access_token");
     sessionStorage.removeItem("user");
     router.push("/login");
   };
 
-  const isAdmin = user?.role === "AGENCY_ADMIN";
+  const isAdmin        = user?.role === "AGENCY_ADMIN";
   const shellStateClass = collapsed ? styles.shellCollapsed : styles.shellExpanded;
-
-  const sevColor = (severity?: string) =>
-    severity === "CRITICAL" ? "#f85149" : "#d29922";
+  const sevColor = (severity?: string) => severity === "CRITICAL" ? "#f85149" : "#d29922";
 
   return (
     <div className={`${styles.shell} ${shellStateClass}`}>
@@ -257,9 +203,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             <div className={styles.logoIcon}>V</div>
             {!collapsed && (
               <div className={styles.logoText}>
-                <div className={styles.logoTitle}>
-                  VISIO<span>AD</span>
-                </div>
+                <div className={styles.logoTitle}>VISIO<span>AD</span></div>
                 <div className={styles.logoSubtitle}>Ads Monitor</div>
               </div>
             )}
@@ -267,31 +211,18 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         </div>
 
         <nav className={styles.sidebarNav}>
-          {NAV_ITEMS.map((item) => (
-            <SidebarItem
-              key={item.href}
-              item={item}
-              pathname={pathname}
-              collapsed={collapsed}
-              onNavigate={() => setCollapsed(true)}
-            />
+          {NAV_ITEMS.map(item => (
+            <SidebarItem key={item.href} item={item} pathname={pathname}
+              collapsed={collapsed} onNavigate={() => setCollapsed(true)} />
           ))}
-
           {isAdmin && (
             <div className={styles.adminSection}>
-              {collapsed ? (
-                <div className={styles.sectionDivider} />
-              ) : (
-                <div className={styles.sectionLabel}>Admin</div>
-              )}
-              {ADMIN_ITEMS.map((item) => (
-                <SidebarItem
-                  key={item.href}
-                  item={item}
-                  pathname={pathname}
-                  collapsed={collapsed}
-                  onNavigate={() => setCollapsed(true)}
-                />
+              {collapsed
+                ? <div className={styles.sectionDivider} />
+                : <div className={styles.sectionLabel}>Admin</div>}
+              {ADMIN_ITEMS.map(item => (
+                <SidebarItem key={item.href} item={item} pathname={pathname}
+                  collapsed={collapsed} onNavigate={() => setCollapsed(true)} />
               ))}
             </div>
           )}
@@ -300,9 +231,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         {!collapsed && user && (
           <div className={styles.sidebarFooter}>
             <div className={styles.userCard}>
-              <div className={styles.userAvatar}>
-                {(user.name || user.email)[0].toUpperCase()}
-              </div>
+              <div className={styles.userAvatar}>{(user.name || user.email)[0].toUpperCase()}</div>
               <div className={styles.userMeta}>
                 <div className={styles.userName}>{user.name || user.email}</div>
                 <div className={styles.userRole}>{user.role.replace("_", " ")}</div>
@@ -315,12 +244,8 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       <div className={styles.mainArea}>
         <header className={styles.topbar}>
           <div className={styles.topbarLeft}>
-            <button
-              type="button"
-              onClick={() => setCollapsed((value) => !value)}
-              className={styles.iconButton}
-              aria-label="Toggle sidebar"
-            >
+            <button type="button" onClick={() => setCollapsed(v => !v)}
+              className={styles.iconButton} aria-label="Toggle sidebar">
               {SVG.menu}
             </button>
           </div>
@@ -329,56 +254,35 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             {isAdmin && brands.length > 0 && (
               <select
                 value={selectedBrand}
-                onChange={(event) => setSelectedBrand(event.target.value)}
+                onChange={e => handleBrandChange(e.target.value)}  // ← FIXED
                 className={styles.brandSelect}
               >
-                {brands.map((brand) => (
-                  <option key={brand.id} value={brand.id}>
-                    {brand.name}
-                  </option>
+                {brands.map(brand => (
+                  <option key={brand.id} value={brand.id}>{brand.name}</option>
                 ))}
               </select>
             )}
 
+            {/* Notification Bell */}
             <div ref={bellRef} className={styles.popoverAnchor}>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowBell((value) => !value);
-                  if (!showBell) {
-                    fetchNotifications();
-                  }
-                }}
+              <button type="button"
+                onClick={() => { setShowBell(v => !v); if (!showBell) fetchNotifications(); }}
                 className={`${styles.iconButton} ${notifCount > 0 ? styles.iconButtonAlert : ""}`}
-                aria-label="Toggle notifications"
-              >
+                aria-label="Toggle notifications">
                 {SVG.bell}
               </button>
-
               {notifCount > 0 && (
-                <span className={styles.notificationBadge}>
-                  {notifCount > 99 ? "99+" : notifCount}
-                </span>
+                <span className={styles.notificationBadge}>{notifCount > 99 ? "99+" : notifCount}</span>
               )}
-
               {showBell && (
                 <div className={`${styles.dropdownPanel} ${styles.notificationsPanel}`}>
                   <div className={styles.dropdownHeader}>
                     <div className={styles.notificationsTitleWrap}>
                       <span className={styles.dropdownTitle}>Notifications</span>
-                      {notifCount > 0 && (
-                        <span className={styles.alertCountBadge}>{notifCount} open</span>
-                      )}
+                      {notifCount > 0 && <span className={styles.alertCountBadge}>{notifCount} open</span>}
                     </div>
-                    <Link
-                      href="/alerts"
-                      onClick={() => setShowBell(false)}
-                      className={styles.dropdownLink}
-                    >
-                      View all
-                    </Link>
+                    <Link href="/alerts" onClick={() => setShowBell(false)} className={styles.dropdownLink}>View all</Link>
                   </div>
-
                   <div className={styles.notificationList}>
                     {notifications.length === 0 ? (
                       <div className={styles.emptyState}>
@@ -386,58 +290,21 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                         <p className={styles.emptyStateText}>No open alerts</p>
                       </div>
                     ) : (
-                      notifications.map((notification, index) => {
-                        const severity =
-                          notification.rule?.severity ??
-                          (notification.message.toLowerCase().includes("critical")
-                            ? "CRITICAL"
-                            : "WARNING");
+                      notifications.map((notif, index) => {
+                        const severity = notif.rule?.severity ?? (notif.message.toLowerCase().includes("critical") ? "CRITICAL" : "WARNING");
                         const color = sevColor(severity);
-
                         return (
-                          <Link
-                            key={notification.id}
-                            href="/alerts"
-                            onClick={() => setShowBell(false)}
-                            className={styles.notificationLink}
-                          >
-                            <div
-                              className={styles.notificationItem}
-                              style={{
-                                borderLeftColor: color,
-                                borderBottom:
-                                  index < notifications.length - 1
-                                    ? "1px solid var(--border)"
-                                    : "none",
-                              }}
-                            >
-                              <div
-                                className={styles.notificationDot}
-                                style={{
-                                  backgroundColor: color,
-                                  boxShadow: `0 0 6px ${color}`,
-                                }}
-                              />
+                          <Link key={notif.id} href="/alerts" onClick={() => setShowBell(false)} className={styles.notificationLink}>
+                            <div className={styles.notificationItem}
+                              style={{ borderLeftColor: color, borderBottom: index < notifications.length - 1 ? "1px solid var(--border)" : "none" }}>
+                              <div className={styles.notificationDot} style={{ backgroundColor: color, boxShadow: `0 0 6px ${color}` }} />
                               <div className={styles.notificationBody}>
                                 <div className={styles.notificationTopRow}>
-                                  <span
-                                    className={styles.notificationMetric}
-                                    style={{ color }}
-                                  >
-                                    {notification.rule?.metricKey ?? "Alert"}
-                                  </span>
-                                  <span className={styles.notificationTime}>
-                                    {timeAgo(notification.createdAt)}
-                                  </span>
+                                  <span className={styles.notificationMetric} style={{ color }}>{notif.rule?.metricKey ?? "Alert"}</span>
+                                  <span className={styles.notificationTime}>{timeAgo(notif.createdAt)}</span>
                                 </div>
-                                <p className={styles.notificationMessage}>
-                                  {notification.message}
-                                </p>
-                                {notification.brand?.name && (
-                                  <span className={styles.notificationBrand}>
-                                    {notification.brand.name}
-                                  </span>
-                                )}
+                                <p className={styles.notificationMessage}>{notif.message}</p>
+                                {notif.brand?.name && <span className={styles.notificationBrand}>{notif.brand.name}</span>}
                               </div>
                             </div>
                           </Link>
@@ -445,14 +312,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                       })
                     )}
                   </div>
-
                   {notifCount > 5 && (
                     <div className={styles.dropdownFooter}>
-                      <Link
-                        href="/alerts"
-                        onClick={() => setShowBell(false)}
-                        className={styles.dropdownLink}
-                      >
+                      <Link href="/alerts" onClick={() => setShowBell(false)} className={styles.dropdownLink}>
                         View {notifCount - 5} more alerts
                       </Link>
                     </div>
@@ -461,33 +323,22 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               )}
             </div>
 
+            {/* User menu */}
             {user && (
               <div ref={dropdownRef} className={styles.popoverAnchor}>
-                <button
-                  type="button"
-                  onClick={() => setShowDropdown((value) => !value)}
-                  className={styles.avatarButton}
-                  aria-label="Toggle user menu"
-                >
+                <button type="button" onClick={() => setShowDropdown(v => !v)}
+                  className={styles.avatarButton} aria-label="Toggle user menu">
                   {(user.name || user.email)[0].toUpperCase()}
                 </button>
-
                 {showDropdown && (
                   <div className={`${styles.dropdownPanel} ${styles.userMenuPanel}`}>
                     <div className={styles.userMenuHeader}>
                       <div className={styles.userMenuName}>{user.name}</div>
                       <div className={styles.userMenuEmail}>{user.email}</div>
-                      <div className={styles.userMenuRole}>
-                        {user.role.replace("_", " ")}
-                      </div>
+                      <div className={styles.userMenuRole}>{user.role.replace("_", " ")}</div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={handleLogout}
-                      className={styles.logoutButton}
-                    >
-                      {SVG.logout}
-                      Sign out
+                    <button type="button" onClick={handleLogout} className={styles.logoutButton}>
+                      {SVG.logout} Sign out
                     </button>
                   </div>
                 )}

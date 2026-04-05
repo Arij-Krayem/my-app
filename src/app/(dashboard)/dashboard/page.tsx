@@ -7,7 +7,6 @@ import {
 } from "recharts";
 import DashboardEnhanced from "@/components/DashboardEnhanced";
 
-// ─── KPI card meta ─────────────────────────────────────────────────────────────
 const KPI_META = [
   { label: "Total Spend", key: "totalSpend", prefix: "$", suffix: "",  grad: "linear-gradient(135deg,#10b981,#34d399)", glow: "rgba(16,185,129,0.2)",  icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> },
   { label: "Avg ROAS",    key: "avgRoas",    prefix: "",  suffix: "x", grad: "linear-gradient(135deg,#5865f2,#818cf8)", glow: "rgba(88,101,242,0.2)",  icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg> },
@@ -35,10 +34,7 @@ function SpendLegendPill({ color, label, dashed = false }: { color: string; labe
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// GLOBAL STATUS WIDGET — truly multidimensional
-// Dim 1: Alert status  (Resolved / Open / Unresolved)
-// Dim 2: Severity      (Critical / Warning)
-// Dim 3: Brand         (each brand as a grouped row)
+// GLOBAL STATUS WIDGET
 // ══════════════════════════════════════════════════════════════════════════════
 
 interface BrandRow {
@@ -95,32 +91,24 @@ function GlobalStatusWidget() {
   if (!data || data.totals.total === 0) return null;
 
   const { totals, byBrand, meta } = data;
-
-  // Donut data — Dim 1 (status)
   const donutData = [
     { name: "Resolved",   value: totals.resolved,   color: STATUS_COLORS.resolved   },
     { name: "Open",       value: totals.open,        color: STATUS_COLORS.open       },
     { name: "Unresolved", value: totals.unresolved,  color: STATUS_COLORS.unresolved },
   ].filter(d => d.value > 0);
 
-  // Bar chart tooltip formatter
   const barTooltip = {
     contentStyle: { background: "var(--card)", border: "1px solid var(--border)", borderRadius: "10px", fontSize: "12px" },
   };
 
   return (
     <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "16px", padding: "22px", marginBottom: "24px" }}>
-
-      {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "18px" }}>
         <div>
           <h2 style={{ fontSize: "16px", fontWeight: "700", color: "var(--t1)", margin: 0 }}>Overall Status</h2>
-          <p style={{ fontSize: "12px", color: "var(--t3)", marginTop: "3px" }}>
-            3-dimensional view — status × severity × brand · all {meta.brands} brands
-          </p>
+          <p style={{ fontSize: "12px", color: "var(--t3)", marginTop: "3px" }}>3-dimensional view — status × severity × brand · all {meta.brands} brands</p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          {/* dimension toggle */}
           <div style={{ display: "flex", borderRadius: "8px", border: "1px solid var(--border)", overflow: "hidden" }}>
             {(["status", "severity"] as const).map(d => (
               <button key={d} onClick={() => setBarDim(d)}
@@ -129,19 +117,13 @@ function GlobalStatusWidget() {
               </button>
             ))}
           </div>
-          <span style={{ fontSize: "10px", fontWeight: "700", padding: "3px 9px", borderRadius: "6px", background: "rgba(88,101,242,0.1)", color: "#5865f2", border: "1px solid rgba(88,101,242,0.25)", textTransform: "uppercase" as const, letterSpacing: "0.5px" }}>
-            Admin
-          </span>
+          <span style={{ fontSize: "10px", fontWeight: "700", padding: "3px 9px", borderRadius: "6px", background: "rgba(88,101,242,0.1)", color: "#5865f2", border: "1px solid rgba(88,101,242,0.25)", textTransform: "uppercase" as const, letterSpacing: "0.5px" }}>Admin</span>
         </div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: "24px", alignItems: "flex-start" }}>
-
-        {/* LEFT — Donut (Dim 1: status totals) */}
         <div>
           <p style={{ fontSize: "11px", fontWeight: "700", color: "var(--t3)", textTransform: "uppercase" as const, letterSpacing: "0.5px", marginBottom: "6px" }}>Dim 1 — Status</p>
-
-          {/* legend */}
           <div style={{ display: "flex", gap: "12px", justifyContent: "center", marginBottom: "4px", flexWrap: "wrap" }}>
             {donutData.map(d => (
               <div key={d.name} style={{ display: "flex", alignItems: "center", gap: "4px" }}>
@@ -150,39 +132,24 @@ function GlobalStatusWidget() {
               </div>
             ))}
           </div>
-
           <div style={{ position: "relative" }}>
             <ResponsiveContainer width="100%" height={210}>
               <PieChart>
-                <Pie
-                  data={donutData}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={58}
-                  outerRadius={90}
-                  paddingAngle={3}
-                  shape={(props: any) =>
-                    props.index === activeSlice ? <ActiveDonutShape {...props} /> : <Sector {...props} />
-                  }
-                  onMouseEnter={(_, i) => setActiveSlice(i)}
-                  onMouseLeave={() => setActiveSlice(null)}
-                >
+                <Pie data={donutData} dataKey="value" nameKey="name" cx="50%" cy="50%"
+                  innerRadius={58} outerRadius={90} paddingAngle={3}
+                  shape={(props: any) => props.index === activeSlice ? <ActiveDonutShape {...props} /> : <Sector {...props} />}
+                  onMouseEnter={(_, i) => setActiveSlice(i)} onMouseLeave={() => setActiveSlice(null)}>
                   {donutData.map((e, i) => <Cell key={i} fill={e.color} stroke="transparent" />)}
                 </Pie>
                 <Tooltip contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "10px", fontSize: "12px" }}
                   formatter={(v: any, name: any) => [Number(v).toLocaleString(), name]} />
               </PieChart>
             </ResponsiveContainer>
-            {/* centre total */}
             <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", textAlign: "center", pointerEvents: "none" }}>
               <div style={{ fontSize: "10px", color: "var(--t3)", fontWeight: "700", textTransform: "uppercase" as const, letterSpacing: "0.5px" }}>Total</div>
               <div style={{ fontSize: "20px", fontWeight: "700", color: "var(--t1)", lineHeight: 1.1 }}>{totals.total.toLocaleString()}</div>
             </div>
           </div>
-
-          {/* mini counts */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "6px", marginTop: "8px" }}>
             {[{ label: "Brands", value: meta.brands }, { label: "Users", value: meta.users }, { label: "Uploads", value: meta.uploads }].map(m => (
               <div key={m.label} style={{ textAlign: "center", padding: "7px 4px", borderRadius: "8px", background: "var(--bg)", border: "1px solid var(--border)" }}>
@@ -193,37 +160,27 @@ function GlobalStatusWidget() {
           </div>
         </div>
 
-        {/* RIGHT — Grouped bar (Dim 2 × Dim 3: severity or status × brand) */}
         <div>
           <p style={{ fontSize: "11px", fontWeight: "700", color: "var(--t3)", textTransform: "uppercase" as const, letterSpacing: "0.5px", marginBottom: "10px" }}>
             {barDim === "status" ? "Dim 2 × Dim 3 — Status per brand" : "Dim 2 × Dim 3 — Severity per brand"}
           </p>
-
           {byBrand.length > 0 ? (
             <ResponsiveContainer width="100%" height={barDim === "status" ? 220 : 180}>
-              <BarChart
-                data={byBrand}
-                margin={{ top: 4, right: 8, left: 0, bottom: 0 }}
-                barCategoryGap="28%"
-                barGap={3}
-              >
+              <BarChart data={byBrand} margin={{ top: 4, right: 8, left: 0, bottom: 0 }} barCategoryGap="28%" barGap={3}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="brand" tick={{ fontSize: 11, fill: "var(--t3)" }} tickLine={false} axisLine={false}
                   tickFormatter={v => v.length > 12 ? v.slice(0, 12) + "…" : v} />
                 <YAxis tick={{ fontSize: 11, fill: "var(--t3)" }} tickLine={false} axisLine={false} allowDecimals={false} />
                 <Tooltip {...barTooltip} />
                 <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }} />
-
                 {barDim === "status" ? (
                   <>
-                    {/* Dim 1 (status) stacked per brand (Dim 3) */}
                     <Bar dataKey="resolved"   name="Resolved"   stackId="s" fill={STATUS_COLORS.resolved}   radius={[0,0,0,0]} />
                     <Bar dataKey="open"       name="Open"       stackId="s" fill={STATUS_COLORS.open}       radius={[0,0,0,0]} />
                     <Bar dataKey="unresolved" name="Unresolved" stackId="s" fill={STATUS_COLORS.unresolved} radius={[3,3,0,0]} />
                   </>
                 ) : (
                   <>
-                    {/* Dim 2 (severity) grouped per brand (Dim 3) */}
                     <Bar dataKey="critical" name="Critical" fill={SEV_COLORS.critical} radius={[3,3,0,0]} />
                     <Bar dataKey="warning"  name="Warning"  fill={SEV_COLORS.warning}  radius={[3,3,0,0]} />
                   </>
@@ -235,13 +192,11 @@ function GlobalStatusWidget() {
               <p style={{ fontSize: "13px", color: "var(--t3)" }}>No brand data yet</p>
             </div>
           )}
-
-          {/* Inline dimension explanation */}
           <div style={{ marginTop: "10px", padding: "10px 12px", borderRadius: "10px", background: "var(--bg)", border: "1px solid var(--border)", display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
             {[
-              { dim: "Dim 1", label: "Status", desc: "Resolved / Open / Unresolved", color: "#3fb950" },
-              { dim: "Dim 2", label: "Severity", desc: "Critical / Warning", color: "#f85149" },
-              { dim: "Dim 3", label: "Brand", desc: "Each bar = 1 brand", color: "#5865f2" },
+              { dim: "Dim 1", label: "Status",   desc: "Resolved / Open / Unresolved", color: "#3fb950" },
+              { dim: "Dim 2", label: "Severity", desc: "Critical / Warning",            color: "#f85149" },
+              { dim: "Dim 3", label: "Brand",    desc: "Each bar = 1 brand",            color: "#5865f2" },
             ].map(d => (
               <div key={d.dim} style={{ textAlign: "center" }}>
                 <div style={{ fontSize: "10px", fontWeight: "700", color: d.color, textTransform: "uppercase" as const, letterSpacing: "0.4px" }}>{d.dim}</div>
@@ -270,8 +225,7 @@ export default function DashboardPage() {
   const [dateFrom,    setDateFrom]    = useState("");
   const [dateTo,      setDateTo]      = useState("");
   const [realAlerts,  setRealAlerts]  = useState<Alert[]>([]);
-  const [userRole,  setUserRole]  = useState<string>("");
-  const [authToken, setAuthToken] = useState<string>("");
+  const [userRole,    setUserRole]    = useState<string>("");
   const [prevSpend,   setPrevSpend]   = useState<{ date: string; Google: number; Meta: number }[]>([]);
 
   function getPrevBounds(from: string, to: string) {
@@ -331,9 +285,9 @@ export default function DashboardPage() {
       .then(d => setRealAlerts((d.items ?? []).slice(0, 3))).catch(() => {});
   };
 
+  // ── Initial load ───────────────────────────────────────────────────────────
   useEffect(() => {
     const token = sessionStorage.getItem("access_token") ?? "";
-    setAuthToken(token);
     if (!token) return;
     const headers = { Authorization: `Bearer ${token}` };
     fetch("/api/users/me", { headers, credentials: "include" })
@@ -350,11 +304,29 @@ export default function DashboardPage() {
       .then(d => setUploads(Array.isArray(d.items) ? d.items : [])).catch(() => {});
   }, []);
 
+  // ── Listen for brand-change events fired by layout.tsx top-bar dropdown ───
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const brandId = (e as CustomEvent<{ brandId: string }>).detail?.brandId;
+      if (!brandId) return;
+      setActiveBrand(brandId);
+      setPlatform(""); setDateFrom(""); setDateTo("");
+      fetchAnalytics(brandId, "", "", "");
+      fetchAlerts(brandId);
+    };
+    window.addEventListener("brand-change", handler);
+    return () => window.removeEventListener("brand-change", handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const applyFilters = () => fetchAnalytics(activeBrand, platform, dateFrom, dateTo);
   const resetFilters = () => { setPlatform(""); setDateFrom(""); setDateTo(""); fetchAnalytics(activeBrand, "", "", ""); };
+
+  // ── Pill button click — also syncs the layout dropdown via reverse event ──
   const handleBrandSwitch = (brandId: string) => {
     setActiveBrand(brandId); setPlatform(""); setDateFrom(""); setDateTo("");
     fetchAnalytics(brandId, "", "", ""); fetchAlerts(brandId);
+    window.dispatchEvent(new CustomEvent("brand-change-sync", { detail: { brandId } }));
   };
 
   const fmt = (val: number, prefix = "", suffix = "") => {
@@ -414,6 +386,7 @@ export default function DashboardPage() {
         </Link>
       </div>
 
+      {/* Brand pill switcher */}
       {brands.length > 1 && (
         <div style={{ display: "flex", gap: "8px", marginBottom: "16px", flexWrap: "wrap" }}>
           {brands.map(b => (
@@ -425,6 +398,7 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* Filter Bar */}
       <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "14px", padding: "14px 18px", marginBottom: "24px", display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
         <span style={{ fontSize: "12px", fontWeight: "700", color: "var(--t3)", letterSpacing: "0.8px", textTransform: "uppercase" as const }}>{activeBrandName} · Filters</span>
         <select value={platform} onChange={e => setPlatform(e.target.value)} style={inputSt}>
@@ -477,10 +451,10 @@ export default function DashboardPage() {
         })}
       </div>
 
-      {/* ── GLOBAL STATUS (admin only) ────────────────────────────────── */}
+      {/* Global Status Widget — self-gates to admin via 403 */}
       <GlobalStatusWidget />
 
-      {/* ── SPEND OVER TIME — multidimensional ───────────────────────── */}
+      {/* Spend Over Time — multidimensional */}
       {mergedChartData.length > 0 && (
         <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "16px", padding: "22px", marginBottom: "24px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
