@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { apiFetch } from "@/lib/apiFetch";
 import {
   cardStyle,
   emptyIconWrapStyle,
@@ -90,8 +91,6 @@ export default function DetectionPage() {
   const [groupAlerts, setGroup] = useState(false);
   const [activeTab, setTab] = useState("");
 
-  const token = () => sessionStorage.getItem("access_token") ?? "";
-
   useEffect(() => {
     const raw = sessionStorage.getItem("user");
     if (raw && JSON.parse(raw).role !== "AGENCY_ADMIN") {
@@ -103,12 +102,7 @@ export default function DetectionPage() {
     setLoading(true);
     setError("");
     try {
-      const brandsRes = await fetch("/api/brands", {
-        headers: { Authorization: `Bearer ${token()}` },
-        credentials: "include",
-      });
-      if (!brandsRes.ok) throw new Error("Failed to load brands");
-      const brandsData = await brandsRes.json();
+      const brandsData = await apiFetch<{ items?: { id: string; name: string }[] }>("/api/brands");
       const brandList = (brandsData.items ?? []).map((brand: { id: string; name: string }, index: number) => ({
         id: brand.id,
         name: brand.name,
@@ -121,27 +115,21 @@ export default function DetectionPage() {
       await Promise.all(
         brandList.map(async (brand: Brand) => {
           try {
-            const res = await fetch(`/api/detection/accuracy?brandId=${brand.id}`, {
-              headers: { Authorization: `Bearer ${token()}` },
-              credentials: "include",
-            });
-            if (res.ok) {
-              const data = await res.json();
-              settingsMap[brand.id] = {
-                sensitivity: data.sensitivity ?? 0.7,
-                threshold: data.threshold ?? 0.8,
-              };
-            } else {
-              settingsMap[brand.id] = { sensitivity: 0.7, threshold: 0.8 };
-            }
-          } catch {
+            const data = await apiFetch<{ sensitivity?: number; threshold?: number }>(`/api/detection/accuracy?brandId=${brand.id}`);
+            settingsMap[brand.id] = {
+              sensitivity: data.sensitivity ?? 0.7,
+              threshold: data.threshold ?? 0.8,
+            };
+          } catch (fetchError) {
+            console.error(`[detection] Failed to load settings for ${brand.id}`, fetchError);
             settingsMap[brand.id] = { sensitivity: 0.7, threshold: 0.8 };
           }
         }),
       );
       setSettings(settingsMap);
-    } catch {
-      setError("Could not load detection settings.");
+    } catch (fetchError) {
+      console.error("[detection] Failed to load detection settings", fetchError);
+      setError(fetchError instanceof Error ? fetchError.message : "Could not load detection settings.");
     } finally {
       setLoading(false);
     }
@@ -157,21 +145,19 @@ export default function DetectionPage() {
   const save = async (brandId: string) => {
     setSaving(brandId);
     try {
-      const res = await fetch("/api/detection/accuracy", {
+      await apiFetch("/api/detection/accuracy", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
-        credentials: "include",
         body: JSON.stringify({
           brandId,
           sensitivity: settings[brandId].sensitivity,
           threshold: settings[brandId].threshold,
         }),
       });
-      if (!res.ok) throw new Error("Failed to save");
       setSaved(brandId);
       setTimeout(() => setSaved(null), 2500);
-    } catch {
-      setError("Failed to save settings. Please try again.");
+    } catch (fetchError) {
+      console.error("[detection] Failed to save settings", fetchError);
+      setError(fetchError instanceof Error ? fetchError.message : "Failed to save settings. Please try again.");
       setTimeout(() => setError(""), 3000);
     } finally {
       setSaving(null);

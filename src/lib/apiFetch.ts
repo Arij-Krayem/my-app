@@ -9,9 +9,27 @@
 let _accessToken: string | null = null;
 let _onUnauthenticated: (() => void) | null = null;
 
+function getStoredAccessToken() {
+  if (_accessToken) return _accessToken;
+  if (typeof window === "undefined") return null;
+
+  const token = window.sessionStorage.getItem("access_token");
+  if (token) {
+    _accessToken = token;
+  }
+  return token;
+}
+
 /** Called by AuthProvider on login / after a successful refresh */
 export function setAccessToken(token: string | null) {
   _accessToken = token;
+  if (typeof window !== "undefined") {
+    if (token) {
+      window.sessionStorage.setItem("access_token", token);
+    } else {
+      window.sessionStorage.removeItem("access_token");
+    }
+  }
 }
 
 /** Called by AuthProvider so apiFetch can trigger a logout/redirect */
@@ -52,10 +70,11 @@ export async function apiFetch<T = unknown>(
     return headers;
   };
 
+  const initialToken = getStoredAccessToken();
   let res = await fetch(url, {
     ...options,
     credentials: "include",
-    headers: buildHeaders(_accessToken),
+    headers: buildHeaders(initialToken),
   });
 
   if (res.status === 401) {
@@ -79,8 +98,14 @@ export async function apiFetch<T = unknown>(
   }
 
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body?.error ?? `Request failed: ${res.status}`);
+    const contentType = res.headers.get("content-type") ?? "";
+    if (contentType.includes("application/json")) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body?.error ?? `Request failed: ${res.status}`);
+    }
+
+    const text = await res.text().catch(() => "");
+    throw new Error(text || `Request failed: ${res.status}`);
   }
 
   return res.json() as Promise<T>;

@@ -63,11 +63,27 @@ export default function UploadsPage() {
   const router = useRouter();
   const [uploads, setUploads] = useState<UploadItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     apiFetch<{ items?: UploadItem[] }>("/api/uploads")
-      .then((data) => setUploads(Array.isArray(data?.items) ? data.items : []))
-      .catch(() => {})
+      .then((data) => {
+        console.log("[uploads] response", data);
+        setUploads(
+          Array.isArray(data?.items)
+            ? data.items.map((item) => ({
+                ...item,
+                brand: typeof (item as UploadItem & { brand?: { name?: string } }).brand === "object"
+                  ? (item as UploadItem & { brand?: { name?: string } }).brand?.name ?? null
+                  : item.brand ?? null,
+              }))
+            : [],
+        );
+      })
+      .catch((fetchError) => {
+        console.error("[uploads] Failed to load uploads", fetchError);
+        setError(fetchError instanceof Error ? fetchError.message : "Failed to load uploads");
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -157,6 +173,22 @@ export default function UploadsPage() {
           padding: 18,
         }}
       >
+        {error ? (
+          <div
+            style={{
+              marginBottom: 16,
+              padding: "12px 14px",
+              borderRadius: 12,
+              border: "1px solid rgba(239,68,68,0.2)",
+              background: "rgba(239,68,68,0.06)",
+              color: "#dc2626",
+              fontSize: 13,
+              fontWeight: 600,
+            }}
+          >
+            {error}
+          </div>
+        ) : null}
         {uploads.length === 0 ? (
           <div
             style={{

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { apiFetch } from "@/lib/apiFetch";
 import {
   cardStyle,
   emptyIconWrapStyle,
@@ -48,22 +49,17 @@ export default function AnomaliesPage() {
   const [severityFilter, setSeverity] = useState("All Severity");
   const [expanded, setExpanded] = useState<string | null>(null);
 
-  const token = () => sessionStorage.getItem("access_token") ?? "";
-
   const loadAnomalies = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/anomalies", {
-        headers: { Authorization: `Bearer ${token()}` },
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to load anomalies");
-      const data = await res.json();
+      const data = await apiFetch<{ items?: Anomaly[]; engine?: string }>("/api/anomalies");
+      console.log("[anomalies] response", data);
       setAnomalies(data.items ?? []);
       setEngine(data.engine ?? "");
-    } catch {
-      setError("Could not load anomalies. Please refresh.");
+    } catch (fetchError) {
+      console.error("[anomalies] Failed to load anomalies", fetchError);
+      setError(fetchError instanceof Error ? fetchError.message : "Could not load anomalies. Please refresh.");
     } finally {
       setLoading(false);
     }

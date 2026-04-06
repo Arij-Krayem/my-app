@@ -1,3 +1,4 @@
+import "dotenv/config";
 import jwt, { type SignOptions } from "jsonwebtoken";
 import crypto from "crypto";
 import type { NextRequest } from "next/server";

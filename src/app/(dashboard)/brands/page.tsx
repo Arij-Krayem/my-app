@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader } from "@/components/ui/dialog";
+import { apiFetch } from "@/lib/apiFetch";
 import {
   cardStyle,
   emptyIconWrapStyle,
@@ -57,54 +58,46 @@ export default function BrandsPage() {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
 
-  const token = () => sessionStorage.getItem("access_token") ?? "";
-
   const loadBrands = useCallback(async () => {
     setLoading(true);
     try {
-      const headers = { Authorization: `Bearer ${token()}` };
-      const res = await fetch("/api/brands", { headers, credentials: "include" });
-      if (!res.ok) throw new Error("Failed to load brands");
-      const data = await res.json();
+      const data = await apiFetch<{ items?: Brand[] }>("/api/brands");
       const list: Brand[] = data.items ?? [];
+      console.log("[brands] brands response", data);
 
       const enriched = await Promise.all(
         list.map(async (brand) => {
           try {
-            const [kpisRes, membersRes, uploadsRes, alertsRes] = await Promise.all([
-              fetch(`/api/analytics/kpis?brandId=${brand.id}`, { headers, credentials: "include" }),
-              fetch(`/api/brands/${brand.id}/members`, { headers, credentials: "include" }),
-              fetch(`/api/uploads?brandId=${brand.id}&pageSize=1`, { headers, credentials: "include" }),
-              fetch(`/api/alerts?brandId=${brand.id}&status=OPEN`, { headers, credentials: "include" }),
+            const [kpis, members, uploads, alerts] = await Promise.all([
+              apiFetch<{ kpis?: { avgRoas?: number; totalSpend?: number } }>(`/api/analytics/kpis?brandId=${brand.id}`),
+              apiFetch<{ totalItems?: number }>(`/api/brands/${brand.id}/members`),
+              apiFetch<{ totalItems?: number }>(`/api/uploads?brandId=${brand.id}&pageSize=1`),
+              apiFetch<{ totalItems?: number }>(`/api/alerts?brandId=${brand.id}&status=OPEN`),
             ]);
-
-            const kpis = kpisRes.ok ? (await kpisRes.json()).kpis : null;
-            const members = membersRes.ok ? (await membersRes.json()).totalItems : 0;
-            const uploads = uploadsRes.ok ? (await uploadsRes.json()).totalItems : 0;
-            const alerts = alertsRes.ok ? (await alertsRes.json()).totalItems : 0;
-
-            const roas = kpis ? Number(kpis.avgRoas) : 0;
-            const spend = kpis ? Number(kpis.totalSpend) : 0;
-            const openAlerts = Number(alerts) || 0;
+            const roas = Number(kpis.kpis?.avgRoas ?? 0);
+            const spend = Number(kpis.kpis?.totalSpend ?? 0);
+            const openAlerts = Number(alerts.totalItems ?? 0);
 
             return {
               ...brand,
-              members: Number(members) || 0,
-              uploads: Number(uploads) || 0,
+              members: Number(members.totalItems ?? 0) || 0,
+              uploads: Number(uploads.totalItems ?? 0) || 0,
               roas,
               spend,
               openAlerts,
               health: deriveHealth(roas, openAlerts),
             };
-          } catch {
+          } catch (fetchError) {
+            console.error(`[brands] Failed to enrich brand ${brand.id}`, fetchError);
             return { ...brand, members: 0, uploads: 0, roas: 0, spend: 0, openAlerts: 0, health: "HEALTHY" as const };
           }
         }),
       );
 
       setBrands(enriched);
-    } catch {
-      setMsg("Error: Failed to load brands");
+    } catch (fetchError) {
+      console.error("[brands] Failed to load brands", fetchError);
+      setMsg(`Error: ${fetchError instanceof Error ? fetchError.message : "Failed to load brands"}`);
       setTimeout(() => setMsg(""), 3000);
     } finally {
       setLoading(false);
@@ -119,13 +112,10 @@ export default function BrandsPage() {
     if (!name.trim()) return;
     setSaving(true);
     try {
-      const res = await fetch("/api/brands", {
+      await apiFetch("/api/brands", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
-        credentials: "include",
         body: JSON.stringify({ name: name.trim() }),
       });
-      if (!res.ok) throw new Error((await res.json()).error ?? "Failed");
       setOpen(false);
       setName("");
       setMsg("Brand created successfully");

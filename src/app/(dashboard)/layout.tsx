@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Tooltip } from "antd";
 import { usePathname, useRouter } from "next/navigation";
 import styles from "./layout.module.css";
+import { apiFetch } from "@/lib/apiFetch";
 
 const SVG = {
   dashboard: <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /></svg>,
@@ -134,22 +135,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const bellRef = useRef<HTMLDivElement>(null);
 
   const fetchNotifications = useCallback(async () => {
-    const token = sessionStorage.getItem("access_token");
-    if (!token) return;
-
     try {
-      const res = await fetch("/api/alerts?status=OPEN", {
-        headers: { Authorization: `Bearer ${token}` },
-        credentials: "include",
-      });
-
-      if (!res.ok) return;
-
-      const data = await res.json();
+      const data = await apiFetch<{ items?: AlertNotif[] }>("/api/alerts?status=OPEN");
       const items: AlertNotif[] = data.items ?? [];
       setNotifications(items.slice(0, 5));
       setNotifCount(items.length);
-    } catch {
+    } catch (error) {
+      console.error("[layout] Failed to fetch notifications", error);
       // Keep the existing silent-failure behavior for notification polling.
     }
   }, []);
@@ -166,17 +158,16 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     }
 
     if (user.role === "AGENCY_ADMIN") {
-      fetch("/api/brands", {
-        headers: { Authorization: `Bearer ${token}` },
-        credentials: "include",
-      })
-        .then((response) => (response.ok ? response.json() : []))
+      apiFetch<{ items?: { id: string; name: string }[] }>("/api/brands")
         .then((data) => {
           const list = data.items ?? data;
           setBrands(list);
           if (list[0]) {
             setSelectedBrand(list[0].id);
           }
+        })
+        .catch((error) => {
+          console.error("[layout] Failed to load brands", error);
         });
     }
 
@@ -234,11 +225,8 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   const handleLogout = async () => {
     try {
-      const token = sessionStorage.getItem("access_token");
-      await fetch("/api/auth/logout", {
+      await apiFetch("/api/auth/logout", {
         method: "POST",
-        headers: { Authorization: `Bearer ${token ?? ""}` },
-        credentials: "include",
       });
     } catch {
       // Keep logout resilient even if the request fails.

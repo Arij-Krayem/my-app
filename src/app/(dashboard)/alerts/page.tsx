@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { apiFetch } from "@/lib/apiFetch";
 import {
   cardStyle,
   emptyIconWrapStyle,
@@ -78,21 +79,16 @@ export default function AlertsPage() {
   const [tab, setTab] = useState<"ALL" | Status>("ALL");
   const [updating, setUpdating] = useState<string | null>(null);
 
-  const token = () => sessionStorage.getItem("access_token") ?? "";
-
   const loadAlerts = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/alerts", {
-        headers: { Authorization: `Bearer ${token()}` },
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to load alerts");
-      const data = await res.json();
+      const data = await apiFetch<{ items?: Alert[] }>("/api/alerts");
+      console.log("[alerts] response", data);
       setAlerts(data.items ?? []);
-    } catch {
-      setError("Could not load alerts. Please refresh.");
+    } catch (fetchError) {
+      console.error("[alerts] Failed to load alerts", fetchError);
+      setError(fetchError instanceof Error ? fetchError.message : "Could not load alerts. Please refresh.");
     } finally {
       setLoading(false);
     }
@@ -105,19 +101,14 @@ export default function AlertsPage() {
   async function updateStatus(id: string, status: Status) {
     setUpdating(id);
     try {
-      const res = await fetch(`/api/alerts/${id}`, {
+      await apiFetch(`/api/alerts/${id}`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token()}`,
-        },
-        credentials: "include",
         body: JSON.stringify({ status }),
       });
-      if (!res.ok) throw new Error("Failed to update");
       setAlerts((previous) => previous.map((item) => (item.id === id ? { ...item, status } : item)));
-    } catch {
-      setError("Failed to update alert status.");
+    } catch (fetchError) {
+      console.error("[alerts] Failed to update alert", fetchError);
+      setError(fetchError instanceof Error ? fetchError.message : "Failed to update alert status.");
       setTimeout(() => setError(""), 3000);
     } finally {
       setUpdating(null);

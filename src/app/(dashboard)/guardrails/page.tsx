@@ -41,6 +41,23 @@ type Rule = {
 const METRICS = ["spend", "roas", "ctr", "cpc", "cpa", "impressions", "clicks", "conversions"];
 const OPERATORS = [">", "<", ">=", "<=", "=="];
 
+async function readErrorResponse(res: Response) {
+  const contentType = res.headers.get("content-type") ?? "";
+
+  if (contentType.includes("application/json")) {
+    const data = await res.json().catch(() => null);
+    const message = data && typeof data.error === "string" ? data.error : `Request failed (${res.status})`;
+    return { message, body: data };
+  }
+
+  const text = await res.text().catch(() => "");
+  const message = text.trim()
+    ? `Request failed (${res.status}): ${text.slice(0, 180)}`
+    : `Request failed (${res.status})`;
+
+  return { message, body: text };
+}
+
 const ShieldIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
@@ -85,11 +102,31 @@ export default function GuardrailsPage() {
         headers: { Authorization: `Bearer ${token()}` },
         credentials: "include",
       });
-      if (!res.ok) throw new Error();
+
+      if (!res.ok) {
+        const error = await readErrorResponse(res);
+        console.error("[guardrails] Failed to load rules", {
+          url: "/api/alerts/rules",
+          status: res.status,
+          error,
+        });
+        throw new Error(error.message);
+      }
+
       const data = await res.json();
-      setRules(data.items ?? []);
-    } catch {
-      setMsg("Failed to load rules");
+      const items = Array.isArray(data.items) ? data.items : [];
+
+      console.log("[guardrails] Loaded rules", {
+        url: "/api/alerts/rules",
+        count: items.length,
+        items,
+      });
+
+      setRules(items);
+      setMsg("");
+    } catch (error) {
+      console.error("[guardrails] loadRules error", error);
+      setMsg(error instanceof Error ? error.message : "Failed to load rules");
     } finally {
       setLoading(false);
     }
@@ -101,12 +138,24 @@ export default function GuardrailsPage() {
         headers: { Authorization: `Bearer ${token()}` },
         credentials: "include",
       });
-      if (!res.ok) return;
+
+      if (!res.ok) {
+        const error = await readErrorResponse(res);
+        console.error("[guardrails] Failed to load brands", {
+          url: "/api/brands",
+          status: res.status,
+          error,
+        });
+        return;
+      }
+
       const data = await res.json();
       const list = data.items ?? [];
       setBrands(list);
       if (list.length > 0) setForm((current) => ({ ...current, brandId: list[0].id }));
-    } catch {}
+    } catch (error) {
+      console.error("[guardrails] loadBrands error", error);
+    }
   }, []);
 
   useEffect(() => {
@@ -151,13 +200,24 @@ export default function GuardrailsPage() {
           severity: form.severity,
         }),
       });
-      if (!res.ok) throw new Error();
+
+      if (!res.ok) {
+        const error = await readErrorResponse(res);
+        console.error("[guardrails] Failed to save rule", {
+          url: "/api/alerts/rules",
+          status: res.status,
+          error,
+        });
+        throw new Error(error.message);
+      }
+
       setOpen(false);
       setMsg(editRule ? "Rule updated" : "Rule created");
       setTimeout(() => setMsg(""), 2500);
       await loadRules();
-    } catch {
-      setMsg("Failed to save rule");
+    } catch (error) {
+      console.error("[guardrails] handleSave error", error);
+      setMsg(error instanceof Error ? error.message : "Failed to save rule");
       setTimeout(() => setMsg(""), 2500);
     } finally {
       setSaving(false);

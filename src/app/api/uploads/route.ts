@@ -211,11 +211,23 @@ export async function GET(req: NextRequest) {
         skip:    (page - 1) * pageSize,
         take:    pageSize,
         include: {
+          brand: { select: { name: true } },
           _count: { select: { columns: true, mappings: true } },
         },
       }),
       prisma.upload.count({ where }),
     ]);
+
+    console.log("[uploads][GET] result", {
+      userId: payload.userId,
+      role: payload.role,
+      totalItems,
+      brandId: brandId || null,
+      platform: platform || "ALL",
+      status: status || "ALL",
+      page,
+      pageSize,
+    });
 
     return NextResponse.json({
       totalItems,

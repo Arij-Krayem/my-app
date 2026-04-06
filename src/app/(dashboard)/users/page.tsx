@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader } from "@/components/ui/dialog";
+import { apiFetch } from "@/lib/apiFetch";
 import {
   cardStyle,
   emptyIconWrapStyle,
@@ -69,18 +70,21 @@ export default function UsersPage() {
   const [inviteForm, setInviteForm] = useState(emptyForm);
   const [editForm, setEditForm] = useState(emptyForm);
 
-  const token = () => sessionStorage.getItem("access_token") ?? "";
-
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const headers = { Authorization: `Bearer ${token()}` };
-      const [usersRes, brandsRes] = await Promise.all([
-        fetch("/api/users?pageSize=100", { headers, credentials: "include" }),
-        fetch("/api/brands", { headers, credentials: "include" }),
+      const [usersData, brandsData] = await Promise.all([
+        apiFetch<{ items?: User[] }>("/api/users?pageSize=100"),
+        apiFetch<{ items?: Brand[] }>("/api/brands"),
       ]);
-      if (usersRes.ok) setUsers((await usersRes.json()).items ?? []);
-      if (brandsRes.ok) setBrands((await brandsRes.json()).items ?? []);
+      console.log("[users] users response", usersData);
+      console.log("[users] brands response", brandsData);
+      setUsers(usersData.items ?? []);
+      setBrands(brandsData.items ?? []);
+    } catch (fetchError) {
+      console.error("[users] Failed to load users page data", fetchError);
+      setMsg(`Error: ${fetchError instanceof Error ? fetchError.message : "Failed to load users"}`);
+      setTimeout(() => setMsg(""), 3000);
     } finally {
       setLoading(false);
     }
@@ -112,14 +116,10 @@ export default function UsersPage() {
     if (!inviteForm.name || !inviteForm.email || !inviteForm.password) return;
     setSaving(true);
     try {
-      const res = await fetch("/api/users", {
+      await apiFetch("/api/users", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
-        credentials: "include",
         body: JSON.stringify(inviteForm),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed");
       setInviteOpen(false);
       setInviteForm(emptyForm);
       setMsg("User created successfully");
@@ -138,13 +138,10 @@ export default function UsersPage() {
     if (!editUser) return;
     setSaving(true);
     try {
-      const res = await fetch(`/api/users?id=${editUser.id}`, {
+      await apiFetch(`/api/users?id=${editUser.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
-        credentials: "include",
         body: JSON.stringify({ name: editForm.name, role: editForm.role, brandIds: editForm.brandIds }),
       });
-      if (!res.ok) throw new Error("Failed to update");
       setEditOpen(false);
       setMsg("User updated");
       setTimeout(() => setMsg(""), 2500);
@@ -161,12 +158,9 @@ export default function UsersPage() {
   async function handleDelete() {
     if (!delId) return;
     try {
-      const res = await fetch(`/api/users?id=${delId}`, {
+      await apiFetch(`/api/users?id=${delId}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token()}` },
-        credentials: "include",
       });
-      if (!res.ok) throw new Error("Failed to delete");
       setDelId(null);
       setMsg("User removed");
       setTimeout(() => setMsg(""), 2500);

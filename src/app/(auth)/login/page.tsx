@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { setAccessToken } from "@/lib/apiFetch";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -48,6 +49,7 @@ export default function LoginPage() {
       if (!res.ok) throw new Error(await readErrorMessage(res));
 
       const data = await res.json();
+      setAccessToken(data.accessToken);
       sessionStorage.setItem("access_token", data.accessToken);
       sessionStorage.setItem("user", JSON.stringify(data.user));
       router.push("/dashboard");

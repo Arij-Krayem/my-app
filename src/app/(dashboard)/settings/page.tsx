@@ -4,6 +4,7 @@ import type { CSSProperties, FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { apiFetch } from "@/lib/apiFetch";
 
 type UserRecord = {
   name?: string;
@@ -131,8 +132,6 @@ export default function SettingsPage() {
   const [passwordMsg, setPasswordMsg] = useState("");
   const [showLogout, setShowLogout] = useState(false);
 
-  const token = () => sessionStorage.getItem("access_token") ?? "";
-
   useEffect(() => {
     document.documentElement.removeAttribute("data-theme");
     const raw = sessionStorage.getItem("user");
@@ -143,12 +142,9 @@ export default function SettingsPage() {
       setEmail(storedUser.email || "");
     }
 
-    fetch("/api/users/me", {
-      headers: { Authorization: `Bearer ${token()}` },
-      credentials: "include",
-    })
-      .then((response) => (response.ok ? response.json() : null))
+    apiFetch<{ user?: UserRecord }>("/api/users/me")
       .then((data) => {
+        console.log("[settings] profile response", data);
         if (data?.user) {
           setUser(data.user);
           setName(data.user.name || "");
@@ -156,7 +152,9 @@ export default function SettingsPage() {
           sessionStorage.setItem("user", JSON.stringify(data.user));
         }
       })
-      .catch(() => {});
+      .catch((fetchError) => {
+        console.error("[settings] Failed to load profile", fetchError);
+      });
   }, []);
 
   const saveProfile = async (event: FormEvent) => {
@@ -165,19 +163,10 @@ export default function SettingsPage() {
     setProfileMsg("");
 
     try {
-      const response = await fetch("/api/users/me", {
+      const data = await apiFetch<{ user: UserRecord }>("/api/users/me", {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token()}`,
-        },
-        credentials: "include",
         body: JSON.stringify({ name, email }),
       });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error ?? "Failed to update profile");
-      }
 
       const updatedUser = { ...user, name: data.user.name, email: data.user.email };
       setUser(updatedUser);
@@ -209,19 +198,10 @@ export default function SettingsPage() {
 
     setPasswordLoading(true);
     try {
-      const response = await fetch("/api/users/me/password", {
+      await apiFetch("/api/users/me/password", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token()}`,
-        },
-        credentials: "include",
         body: JSON.stringify({ currentPassword: currentPw, newPassword: newPw }),
       });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error ?? "Failed to change password");
-      }
 
       setPasswordMsg("success");
       setCurrentPw("");
@@ -239,10 +219,8 @@ export default function SettingsPage() {
 
   const logout = async () => {
     try {
-      await fetch("/api/auth/logout", {
+      await apiFetch("/api/auth/logout", {
         method: "POST",
-        headers: { Authorization: `Bearer ${token()}` },
-        credentials: "include",
       });
     } catch {}
 

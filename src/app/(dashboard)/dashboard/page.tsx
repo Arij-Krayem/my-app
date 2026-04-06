@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { apiFetch } from "@/lib/apiFetch";
 import {
   Area,
   AreaChart,
@@ -104,74 +105,68 @@ function CalendarIcon() {
 
 export default function DashboardPage() {
   const [brands, setBrands] = useState<BrandRecord[]>([]);
-  const [activeBrand, setActiveBrand] = useState("brand_visioad_001");
+  const [activeBrand, setActiveBrand] = useState("");
   const [platform, setPlatform] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [analytics, setAnalytics] = useState<AnalyticsResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [, setAlerts] = useState<AlertRecord[]>([]);
 
-  const fetchAnalytics = (brandId: string, selectedPlatform: string, from: string, to: string) => {
-    const token = sessionStorage.getItem("access_token");
-    if (!token) {
-      return;
-    }
-
+  const fetchAnalytics = async (brandId: string, selectedPlatform: string, from: string, to: string) => {
     setLoading(true);
-    const params = new URLSearchParams({ brandId });
+    setError("");
+    const params = new URLSearchParams();
+    if (brandId) params.set("brandId", brandId);
     if (selectedPlatform) params.set("platform", selectedPlatform);
     if (from) params.set("dateFrom", from);
     if (to) params.set("dateTo", to);
 
-    fetch(`/api/analytics/kpis?${params.toString()}`, {
-      headers: { Authorization: `Bearer ${token}` },
-      credentials: "include",
-    })
-      .then((response) => (response.ok ? response.json() : null))
-      .then((data) => setAnalytics(data))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    try {
+      const data = await apiFetch<AnalyticsResponse>(`/api/analytics/kpis?${params.toString()}`);
+      console.log("[dashboard] analytics response", data);
+      setAnalytics(data);
+    } catch (fetchError) {
+      console.error("[dashboard] Failed to load analytics", fetchError);
+      setAnalytics(null);
+      setError(fetchError instanceof Error ? fetchError.message : "Failed to load dashboard data");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const fetchAlerts = (brandId: string) => {
-    const token = sessionStorage.getItem("access_token");
-    if (!token) {
-      return;
+  const fetchAlerts = async (brandId: string) => {
+    try {
+      const data = await apiFetch<{ items?: AlertRecord[] }>(`/api/alerts?status=OPEN&brandId=${brandId}`);
+      console.log("[dashboard] alerts response", data);
+      setAlerts(data.items ?? []);
+    } catch (fetchError) {
+      console.error("[dashboard] Failed to load alerts", fetchError);
+      setAlerts([]);
     }
-
-    fetch(`/api/alerts?status=OPEN&brandId=${brandId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-      credentials: "include",
-    })
-      .then((response) => (response.ok ? response.json() : { items: [] }))
-      .then((data) => setAlerts(data.items ?? []))
-      .catch(() => {});
   };
 
   useEffect(() => {
-    const token = sessionStorage.getItem("access_token");
-    if (!token) {
-      return;
-    }
-
-    fetch("/api/brands", {
-      headers: { Authorization: `Bearer ${token}` },
-      credentials: "include",
-    })
-      .then((response) => (response.ok ? response.json() : { items: [] }))
-      .then((data) => {
+    (async () => {
+      try {
+        const data = await apiFetch<{ items?: BrandRecord[] }>("/api/brands");
         const list: BrandRecord[] = data.items ?? [];
+        console.log("[dashboard] brands response", data);
         setBrands(list);
-        const firstBrand = list[0]?.id ?? "brand_visioad_001";
+        const firstBrand = list[0]?.id ?? "";
         setActiveBrand(firstBrand);
-        fetchAnalytics(firstBrand, "", "", "");
-        fetchAlerts(firstBrand);
-      })
-      .catch(() => {
-        fetchAnalytics("brand_visioad_001", "", "", "");
-        fetchAlerts("brand_visioad_001");
-      });
+        if (firstBrand) {
+          await Promise.all([fetchAnalytics(firstBrand, "", "", ""), fetchAlerts(firstBrand)]);
+        } else {
+          await fetchAnalytics("", "", "", "");
+        }
+      } catch (fetchError) {
+        console.error("[dashboard] Failed to load brands", fetchError);
+        setError(fetchError instanceof Error ? fetchError.message : "Failed to load brands");
+        setLoading(false);
+      }
+    })();
   }, []);
 
   const handleBrandChange = (brandId: string) => {
@@ -201,13 +196,13 @@ export default function DashboardPage() {
   }, [analytics?.spendOverTime]);
 
   const activeBrandName =
-    brands.find((brand) => brand.id === activeBrand)?.name ?? "Visioad Main";
+    brands.find((brand) => brand.id === activeBrand)?.name ?? "No brand selected";
 
   const kpiValues = {
-    totalSpend: analytics?.kpis?.totalSpend ?? 144400,
-    avgRoas: analytics?.kpis?.avgRoas ?? 3.66,
-    avgCtr: analytics?.kpis?.avgCtr ?? 1.98,
-    avgCpc: analytics?.kpis?.avgCpc ?? 0.93,
+    totalSpend: analytics?.kpis?.totalSpend ?? 0,
+    avgRoas: analytics?.kpis?.avgRoas ?? 0,
+    avgCtr: analytics?.kpis?.avgCtr ?? 0,
+    avgCpc: analytics?.kpis?.avgCpc ?? 0,
   };
 
   return (
@@ -484,6 +479,22 @@ export default function DashboardPage() {
           marginBottom: 22,
         }}
       >
+        {error ? (
+          <div
+            style={{
+              gridColumn: "1 / -1",
+              padding: "12px 14px",
+              borderRadius: 12,
+              border: "1px solid rgba(239,68,68,0.2)",
+              background: "rgba(239,68,68,0.06)",
+              color: "#dc2626",
+              fontSize: 13,
+              fontWeight: 600,
+            }}
+          >
+            {error}
+          </div>
+        ) : null}
         {KPI_META.map((kpi) => (
           <div
             key={kpi.label}
