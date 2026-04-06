@@ -8,10 +8,10 @@ import {
 import DashboardEnhanced from "@/components/DashboardEnhanced";
 
 const KPI_META = [
-  { label: "Total Spend", key: "totalSpend", prefix: "$", suffix: "",  grad: "linear-gradient(135deg,#10b981,#34d399)", glow: "rgba(16,185,129,0.2)",  icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> },
-  { label: "Avg ROAS",    key: "avgRoas",    prefix: "",  suffix: "x", grad: "linear-gradient(135deg,#5865f2,#818cf8)", glow: "rgba(88,101,242,0.2)",  icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg> },
-  { label: "Avg CTR",     key: "avgCtr",     prefix: "",  suffix: "%", grad: "linear-gradient(135deg,#8b5cf6,#a78bfa)", glow: "rgba(139,92,246,0.2)", icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> },
-  { label: "Avg CPC",     key: "avgCpc",     prefix: "$", suffix: "",  grad: "linear-gradient(135deg,#f59e0b,#fbbf24)", glow: "rgba(245,158,11,0.2)",  icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg> },
+  { label: "Total Spend", key: "totalSpend", prefix: "$", suffix: "", iconBg: "#e7f8ef", iconColor: "#16a34a", icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> },
+  { label: "Avg ROAS", key: "avgRoas", prefix: "", suffix: "x", iconBg: "#eef2ff", iconColor: "#5865f2", icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg> },
+  { label: "Avg CTR", key: "avgCtr", prefix: "", suffix: "%", iconBg: "#ecfeff", iconColor: "#0f766e", icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg> },
+  { label: "Avg CPC", key: "avgCpc", prefix: "$", suffix: "", iconBg: "#fff7e6", iconColor: "#b7791f", icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/></svg> },
 ];
 
 const inputSt: React.CSSProperties = {
@@ -380,10 +380,19 @@ export default function DashboardPage() {
     <div className="dashboard-page">
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
-      <div className="dashboard-toolbar dashboard-toolbar-end">
-        <Link href="/uploads/new" style={{ padding: "10px 18px", background: "linear-gradient(135deg,#5865f2,#818cf8)", borderRadius: "10px", color: "white", fontWeight: "600", fontSize: "13px", textDecoration: "none", boxShadow: "0 4px 14px rgba(88,101,242,0.35)", display: "flex", alignItems: "center", gap: "6px" }}>
-          + New Upload
-        </Link>
+      <div className="dashboard-header">
+        <div className="dashboard-header-copy">
+          <div className="dashboard-eyebrow">DASHBOARD</div>
+          <h1 className="dashboard-title">Brand performance overview</h1>
+          <div style={{ marginTop: "20px" }}>
+            <button type="button" style={{ border: "none", background: "transparent", padding: 0, borderBottom: "2px solid var(--t1)", color: "var(--t1)", fontSize: "18px", fontWeight: "800", cursor: "default" }}>
+              {activeBrandName.toUpperCase()}
+            </button>
+          </div>
+        </div>
+        <div className="dashboard-toolbar dashboard-toolbar-end">
+          <Link href="/uploads/new" className="btn-primary">+ New Upload</Link>
+        </div>
       </div>
 
       {/* Brand pill switcher */}
@@ -434,18 +443,18 @@ export default function DashboardPage() {
         {KPI_META.map(k => {
           const val = kpis ? fmt(Number(kpis[k.key]), k.prefix, k.suffix) : "—";
           return (
-            <div key={k.label} style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "16px", padding: "20px", position: "relative", overflow: "hidden", transition: "transform 0.15s, box-shadow 0.15s" }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = "translateY(-3px)"; (e.currentTarget as HTMLElement).style.boxShadow = `0 12px 32px ${k.glow}`; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = "translateY(0)"; (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}>
-              <div style={{ position: "absolute", top: "-20px", right: "-20px", width: "80px", height: "80px", borderRadius: "50%", background: k.glow, filter: "blur(20px)", pointerEvents: "none" }} />
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "14px", position: "relative" }}>
-                <div style={{ width: "40px", height: "40px", borderRadius: "11px", background: k.grad, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: `0 4px 12px ${k.glow}` }}>{k.icon}</div>
+            <div key={k.label} className="dashboard-card" style={{ padding: "20px" }}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: "14px" }}>
+                <div style={{ width: "44px", height: "44px", borderRadius: "12px", background: k.iconBg, color: k.iconColor, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{k.icon}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: "13px", color: "var(--t2)", fontWeight: "700", marginBottom: "12px" }}>{k.label}</div>
+                  <div style={{ fontSize: "28px", fontWeight: "800", color: "var(--t1)", marginBottom: "6px", fontVariantNumeric: "tabular-nums" }}>
+                    {kpiLoading ? <span style={{ fontSize: "16px", color: "var(--t3)" }}>Loading...</span> : val}
+                  </div>
+                  <div style={{ fontSize: "12px", color: "var(--t3)" }}>Live summary for the selected filters</div>
+                </div>
                 {kpiLoading && <div style={{ width: "14px", height: "14px", borderRadius: "50%", border: "2px solid var(--border)", borderTopColor: "#5865f2", animation: "spin 0.8s linear infinite" }} />}
               </div>
-              <div style={{ fontSize: "28px", fontWeight: "700", color: "var(--t1)", marginBottom: "3px", fontVariantNumeric: "tabular-nums", position: "relative" }}>
-                {kpiLoading ? <span style={{ fontSize: "16px", color: "var(--t3)" }}>Loading...</span> : val}
-              </div>
-              <div style={{ fontSize: "13px", color: "var(--t2)", position: "relative" }}>{k.label}</div>
             </div>
           );
         })}
@@ -458,7 +467,10 @@ export default function DashboardPage() {
       {mergedChartData.length > 0 && (
         <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "16px", padding: "22px", marginBottom: "24px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-            <h2 style={{ fontSize: "16px", fontWeight: "600", color: "var(--t1)" }}>Spend Over Time</h2>
+            <div>
+              <div className="dashboard-section-label">SPEND OVER TIME</div>
+              <h2 style={{ fontSize: "16px", fontWeight: "800", color: "var(--t1)", marginTop: "6px" }}>Media spend trend</h2>
+            </div>
             <span style={{ fontSize: "12px", color: "var(--t2)" }}>{mergedChartData.length} days</span>
           </div>
           <div style={{ display: "flex", gap: "16px", marginBottom: "14px", flexWrap: "wrap" }}>

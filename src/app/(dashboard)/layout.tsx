@@ -213,16 +213,16 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         <nav className={styles.sidebarNav}>
           {NAV_ITEMS.map(item => (
             <SidebarItem key={item.href} item={item} pathname={pathname}
-              collapsed={collapsed} onNavigate={() => setCollapsed(true)} />
+              collapsed={collapsed} onNavigate={() => {}} />
           ))}
           {isAdmin && (
             <div className={styles.adminSection}>
               {collapsed
                 ? <div className={styles.sectionDivider} />
-                : <div className={styles.sectionLabel}>Admin</div>}
+                : <div className={styles.sectionLabel}>ADMIN</div>}
               {ADMIN_ITEMS.map(item => (
                 <SidebarItem key={item.href} item={item} pathname={pathname}
-                  collapsed={collapsed} onNavigate={() => setCollapsed(true)} />
+                  collapsed={collapsed} onNavigate={() => {}} />
               ))}
             </div>
           )}

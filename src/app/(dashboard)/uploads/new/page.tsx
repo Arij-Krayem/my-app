@@ -125,34 +125,39 @@ export default function NewUploadPage() {
 
   const sectionCardStyle: CSSProperties = {
     background: "var(--card)",
-    border: "1px solid rgba(15, 23, 42, 0.06)",
-    borderRadius: "24px",
-    boxShadow: "0 10px 28px rgba(15, 23, 42, 0.06)",
+    border: "1px solid var(--border)",
+    borderRadius: "12px",
+    boxShadow: "0 1px 2px rgba(15,23,42,.04)",
     padding: "28px 30px",
   };
 
   const sectionBadgeStyle: CSSProperties = {
-    width: "28px",
-    height: "28px",
-    borderRadius: "10px",
-    background: "linear-gradient(135deg,#5865f2,#818cf8)",
+    width: "30px",
+    height: "30px",
+    borderRadius: "999px",
+    background: "#5865f2",
     color: "#fff",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
     fontSize: "13px",
-    fontWeight: 700,
-    boxShadow: "0 8px 16px rgba(88,101,242,0.22)",
+    fontWeight: 800,
+    boxShadow: "0 10px 20px rgba(88,101,242,.18)",
     flexShrink: 0,
   };
 
   return (
-    <div className="dashboard-page dashboard-page--narrow">
-      <form onSubmit={handleSubmit} className="space-y-5">
+    <div className="dashboard-page">
+      <form onSubmit={handleSubmit} style={{ maxWidth: "800px", width: "100%", margin: "0 auto", display: "flex", flexDirection: "column", gap: "20px" }}>
+        <div style={{ textAlign: "left" }}>
+          <h1 className="dashboard-title" style={{ marginTop: 0 }}>New Upload</h1>
+          <p className="dashboard-subtitle" style={{ marginTop: "6px" }}>Upload your Google Ads or Meta CSV data to start monitoring</p>
+        </div>
+
         <div style={sectionCardStyle}>
           <div className="flex items-center gap-3" style={{ marginBottom: "22px" }}>
             <span style={sectionBadgeStyle}>1</span>
-            <h2 className="text-lg font-semibold" style={{ color: "var(--t1)" }}>
+            <h2 className="text-lg font-semibold" style={{ color: "var(--t1)", fontSize: "18px", fontWeight: 800 }}>
               Upload CSV File
             </h2>
           </div>
@@ -161,12 +166,12 @@ export default function NewUploadPage() {
             className="text-center transition-all"
             style={{
               border: "2px dashed",
-              borderColor: isDragging ? "rgba(88,101,242,0.45)" : "rgba(148,163,184,0.18)",
+              borderColor: isDragging ? "rgba(88,101,242,0.45)" : "rgba(148,163,184,0.22)",
               borderRadius: "18px",
               padding: "56px 24px",
               width: "100%",
               minHeight: "292px",
-              background: isDragging ? "rgba(88,101,242,0.06)" : "#f6f7fc",
+              background: isDragging ? "rgba(88,101,242,0.04)" : "#f8fafc",
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
@@ -176,18 +181,18 @@ export default function NewUploadPage() {
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
           >
-            <div style={{ marginBottom: "18px" }}>
+            <div style={{ marginBottom: "18px", color: "#a6afc5" }}>
               <svg width="56" height="56" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path
                   d="M12 16V4M12 4L7.5 8.5M12 4l4.5 4.5M5 14.5v3a2.5 2.5 0 0 0 2.5 2.5h9a2.5 2.5 0 0 0 2.5-2.5v-3"
-                  stroke="#a6afc5"
+                  stroke="currentColor"
                   strokeWidth="1.8"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
               </svg>
             </div>
-            <h3 className="text-xl font-semibold mb-2" style={{ color: "var(--t1)", letterSpacing: "-0.02em" }}>
+            <h3 className="text-xl font-semibold mb-2" style={{ color: "var(--t1)", letterSpacing: "-0.02em", fontWeight: 800 }}>
               Drop your CSV file here
             </h3>
             <p style={{ color: "var(--t2)", fontSize: "15px" }} className="mb-6">
@@ -212,7 +217,7 @@ export default function NewUploadPage() {
           {selectedFile && (
             <div
               className="mt-5 p-4 rounded-2xl"
-              style={{ background: "#f6f7fc", border: "1px solid rgba(148,163,184,0.14)" }}
+              style={{ background: "#f8fafc", border: "1px solid rgba(148,163,184,0.14)" }}
             >
               <div className="flex items-center justify-between gap-4">
                 <div>
@@ -227,7 +232,7 @@ export default function NewUploadPage() {
                   type="button"
                   onClick={() => setSelectedFile(null)}
                   className="text-sm"
-                  style={{ color: "var(--danger)", fontWeight: 600 }}
+                  style={{ color: "var(--danger)", fontWeight: 700 }}
                 >
                   Remove
                 </button>
@@ -239,7 +244,7 @@ export default function NewUploadPage() {
         <div style={sectionCardStyle}>
           <div className="flex items-center gap-3" style={{ marginBottom: "18px" }}>
             <span style={sectionBadgeStyle}>2</span>
-            <h2 className="text-lg font-semibold" style={{ color: "var(--t1)" }}>
+            <h2 className="text-lg font-semibold" style={{ color: "var(--t1)", fontSize: "18px", fontWeight: 800 }}>
               Select Platform
             </h2>
           </div>
@@ -249,10 +254,10 @@ export default function NewUploadPage() {
               className="cursor-pointer transition-all"
               style={{
                 padding: "20px",
-                borderRadius: "18px",
+                borderRadius: "16px",
                 border: "2px solid",
                 borderColor: platform === "Google Ads" ? "var(--accent)" : "rgba(148,163,184,0.18)",
-                background: platform === "Google Ads" ? "rgba(88,101,242,0.08)" : "#f6f7fc",
+                background: platform === "Google Ads" ? "rgba(88,101,242,0.08)" : "#f8fafc",
                 boxShadow: platform === "Google Ads" ? "0 10px 20px rgba(88,101,242,0.12)" : "none",
               }}
             >
@@ -283,7 +288,7 @@ export default function NewUploadPage() {
                     </svg>
                   </span>
                   <div>
-                    <div className="font-semibold" style={{ color: "var(--t1)" }}>
+                    <div className="font-semibold" style={{ color: "var(--t1)", fontSize: "18px" }}>
                       Google Ads
                     </div>
                     <div style={{ color: "var(--t2)", fontSize: "13px" }}>
@@ -309,10 +314,10 @@ export default function NewUploadPage() {
               className="cursor-pointer transition-all"
               style={{
                 padding: "20px",
-                borderRadius: "18px",
+                borderRadius: "16px",
                 border: "2px solid",
                 borderColor: platform === "Meta Ads" ? "var(--accent)" : "rgba(148,163,184,0.18)",
-                background: platform === "Meta Ads" ? "rgba(88,101,242,0.08)" : "#f6f7fc",
+                background: platform === "Meta Ads" ? "rgba(88,101,242,0.08)" : "#f8fafc",
                 boxShadow: platform === "Meta Ads" ? "0 10px 20px rgba(88,101,242,0.12)" : "none",
               }}
             >
@@ -348,7 +353,7 @@ export default function NewUploadPage() {
                     </svg>
                   </span>
                   <div>
-                    <div className="font-semibold" style={{ color: "var(--t1)" }}>
+                    <div className="font-semibold" style={{ color: "var(--t1)", fontSize: "18px" }}>
                       Meta Ads
                     </div>
                     <div style={{ color: "var(--t2)", fontSize: "13px" }}>
@@ -376,7 +381,7 @@ export default function NewUploadPage() {
           <div style={sectionCardStyle}>
             <div className="flex items-center gap-3" style={{ marginBottom: "18px" }}>
               <span style={sectionBadgeStyle}>3</span>
-              <h2 className="text-lg font-semibold" style={{ color: "var(--t1)" }}>
+              <h2 className="text-lg font-semibold" style={{ color: "var(--t1)", fontSize: "18px", fontWeight: 800 }}>
                 Select Brand
               </h2>
             </div>
@@ -387,7 +392,7 @@ export default function NewUploadPage() {
               style={{
                 minHeight: "52px",
                 borderRadius: "14px",
-                background: "#f6f7fc",
+                background: "#f8fafc",
               }}
               required
             >
