@@ -119,6 +119,7 @@ model Upload {
   columns  UploadColumn[]
   mappings ColumnMapping[]
   facts    PerformanceFact[]
+  anomalies Anomaly[]
 
   @@index([brandId, createdAt])
   @@index([status])
@@ -189,23 +190,23 @@ model PerformanceFact {
 }
 
 model Anomaly {
-  id           String     @id @default(cuid())
-  brandId      String
-  entityType   EntityType
-  entityId     String
-  metricKey    String
-  anomalyScore Float
-  severity     String
-  reason       String
-  dateStart    DateTime
-  dateEnd      DateTime
-  createdAt    DateTime   @default(now())
+  id         String   @id @default(cuid())
+  brandId    String
+  uploadId   String?
+  metricKey  String
+  campaign   String?
+  platform   String?
+  value      Float
+  zScore     Float
+  pctChange  Float?
+  severity   String
+  method     String   @default("python")
+  date       DateTime
+  createdAt  DateTime @default(now())
 
   brand  Brand   @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  upload Upload? @relation(fields: [uploadId], references: [id], onDelete: SetNull)
   alerts Alert[]
-
-  @@index([brandId, createdAt])
-  @@index([brandId, entityType, entityId])
 }
 
 model AlertRule {

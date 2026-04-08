@@ -4,6 +4,7 @@ import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link";
 import { Tooltip } from "antd";
 import { usePathname, useRouter } from "next/navigation";
+import AnomalyToast from "@/components/AnomalyToast";
 import styles from "./layout.module.css";
 
 const SVG = {
@@ -351,6 +352,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           <div className={styles.pageInner}>{children}</div>
         </main>
       </div>
+      <AnomalyToast />
     </div>
   );
 }

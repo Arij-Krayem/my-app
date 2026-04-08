@@ -220,15 +220,16 @@ export async function GET(req: NextRequest) {
           if (!allEmails.length) continue;
 
           await sendAnomalyEmail({
-            brandName:      brandData?.name ?? anomalyBrandId,
-            campaign:       anomaly.campaign,
-            metric:         anomaly.metric,
-            score:          anomaly.score,
-            description:    anomaly.description,
-            dateRange:      `Last 30 days (detected: ${anomaly.date})`,
-            platform:       anomaly.platform,
-            recommendation: anomaly.recommendation,
-            recipients:     allEmails,
+            brandName: brandData?.name ?? anomalyBrandId,
+            anomalies: [{
+              metric: anomaly.metric,
+              severity: anomaly.severity,
+              z_score: anomaly.z_score,
+              campaign: anomaly.campaign,
+              platform: anomaly.platform,
+              value: anomaly.value,
+            }],
+            recipients: allEmails,
           });
 
           // Record notification

@@ -4,6 +4,7 @@ import { requireAuth, AuthError } from "@/lib/auth-guard";
 import { parse } from "csv-parse/sync";
 import { EntityType, Prisma } from "@prisma/client";
 import { sendAlertEmail } from "@/lib/notification-mailer";
+import { runAnomalyCheck } from "@/lib/anomaly-engine"; // ← NEW
 
 function cleanNumber(val: string): number {
   if (!val) return 0;
@@ -40,15 +41,8 @@ function inferEntityType(mapped: Record<string, string>): EntityType {
 
 function inferEntityId(mapped: Record<string, string>): string | null {
   const candidates = [
-    "entity_id",
-    "ad_id",
-    "adset_id",
-    "campaign_id",
-    "account_id",
-    "ad_name",
-    "adset_name",
-    "campaign_name",
-    "account_name",
+    "entity_id", "ad_id", "adset_id", "campaign_id", "account_id",
+    "ad_name", "adset_name", "campaign_name", "account_name",
   ];
   for (const key of candidates) {
     const value = mapped[key]?.trim();
@@ -70,28 +64,17 @@ function evaluate(value: number, operator: string, threshold: number): boolean {
 
 async function runAlertCheck(brandId: string) {
   try {
-    // Get active rules
-    const rules = await prisma.alertRule.findMany({
-      where: { brandId, isActive: true },
-    });
+    const rules = await prisma.alertRule.findMany({ where: { brandId, isActive: true } });
     if (rules.length === 0) return;
 
-    // Get brand name
-    const brand = await prisma.brand.findUnique({
-      where: { id: brandId },
-      select: { name: true },
-    });
+    const brand = await prisma.brand.findUnique({ where: { id: brandId }, select: { name: true } });
 
-    // Get last 30 days of facts
     const since = new Date();
     since.setDate(since.getDate() - 30);
 
-    const facts = await prisma.performanceFact.findMany({
-      where: { brandId, date: { gte: since } },
-    });
+    const facts = await prisma.performanceFact.findMany({ where: { brandId, date: { gte: since } } });
     if (facts.length === 0) return;
 
-    // Aggregate metrics
     const totals: Record<string, number[]> = {};
     for (const fact of facts) {
       const metrics = fact.metrics as Record<string, number>;
@@ -113,21 +96,14 @@ async function runAlertCheck(brandId: string) {
       }
     }
 
-    // Get recipients
     const [brandMembers, admins] = await Promise.all([
-      prisma.brandMember.findMany({
-        where: { brandId },
-        include: { user: { select: { email: true } } },
-      }),
-      prisma.user.findMany({
-        where: { role: "AGENCY_ADMIN" },
-        select: { email: true },
-      }),
+      prisma.brandMember.findMany({ where: { brandId }, include: { user: { select: { email: true } } } }),
+      prisma.user.findMany({ where: { role: "AGENCY_ADMIN" }, select: { email: true } }),
     ]);
 
     const allEmails = Array.from(new Set([
-      ...brandMembers.map(m => m.user.email),
-      ...admins.map(a => a.email),
+      ...brandMembers.map((m: any) => m.user.email),
+      ...admins.map((a: any) => a.email),
     ]));
 
     const todayStart = new Date();
@@ -138,13 +114,9 @@ async function runAlertCheck(brandId: string) {
       if (value === undefined) continue;
 
       if (evaluate(value, rule.operator, rule.threshold)) {
-        // Skip if OPEN alert already exists
-        const existing = await prisma.alert.findFirst({
-          where: { ruleId: rule.id, status: "OPEN" },
-        });
+        const existing = await prisma.alert.findFirst({ where: { ruleId: rule.id, status: "OPEN" } });
         if (existing) continue;
 
-        // Create alert
         const alert = await prisma.alert.create({
           data: {
             brandId,
@@ -154,14 +126,8 @@ async function runAlertCheck(brandId: string) {
           },
         });
 
-        // Once-per-day email dedup
         const sentToday = await prisma.notification.findFirst({
-          where: {
-            brandId,
-            type:      "THRESHOLD",
-            createdAt: { gte: todayStart },
-            message:   { contains: rule.metricKey },
-          },
+          where: { brandId, type: "THRESHOLD", createdAt: { gte: todayStart }, message: { contains: rule.metricKey } },
         });
 
         if (!sentToday && allEmails.length > 0) {
@@ -192,10 +158,7 @@ async function runAlertCheck(brandId: string) {
             });
 
             await prisma.notificationRecipient.createMany({
-              data: recipientUsers.map(u => ({
-                notificationId: notification.id,
-                userId:         u.id,
-              })),
+              data: recipientUsers.map((u: any) => ({ notificationId: notification.id, userId: u.id })),
               skipDuplicates: true,
             });
           } catch (emailErr) {
@@ -218,20 +181,14 @@ export async function POST(
     const payload          = requireAuth(req);
     const { id: uploadId } = await params;
 
-    // Load upload with mappings
-    const upload = await prisma.upload.findUnique({
-      where:   { id: uploadId },
-      include: { mappings: true },
-    });
+    const upload = await prisma.upload.findUnique({ where: { id: uploadId }, include: { mappings: true } });
 
     if (!upload)
       return NextResponse.json({ error: "Upload not found" }, { status: 404 });
 
-    // Auth check
     if (payload.role !== "AGENCY_ADMIN" && upload.userId !== payload.userId)
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    // Must be MAPPED before ingesting
     if (upload.status === "IMPORTED")
       return NextResponse.json({ error: "This upload has already been ingested" }, { status: 400 });
 
@@ -244,50 +201,34 @@ export async function POST(
     if (upload.mappings.length === 0)
       return NextResponse.json({ error: "No column mappings found — please map columns first" }, { status: 400 });
 
-    // Parse raw CSV
     const records: Record<string, string>[] = parse(upload.rawCsv, {
-      columns:          true,
-      skip_empty_lines: true,
-      trim:             true,
+      columns: true, skip_empty_lines: true, trim: true,
     });
 
     if (records.length === 0)
       return NextResponse.json({ error: "CSV has no data rows" }, { status: 400 });
 
-    // Build reverse map: sourceColumn → targetKey
     const colMap: Record<string, string> = {};
-    for (const m of upload.mappings) {
-      colMap[m.sourceColumn] = m.targetKey;
-    }
+    for (const m of upload.mappings) colMap[m.sourceColumn] = m.targetKey;
 
-    // Transform each row into a PerformanceFact
     const facts: Prisma.PerformanceFactCreateManyInput[] = [];
     const errors: string[] = [];
 
     for (let i = 0; i < records.length; i++) {
-      const row = records[i];
-
-      // Remap row keys using column mappings
+      const row    = records[i];
       const mapped: Record<string, string> = {};
       for (const [sourceCol, val] of Object.entries(row)) {
         const targetKey = colMap[sourceCol];
         if (targetKey) mapped[targetKey] = val;
       }
 
-      // Parse date — required field
       const rawDate = mapped["date"];
       const date    = rawDate ? cleanDate(rawDate) : null;
-      if (!date) {
-        errors.push(`Row ${i + 2}: invalid or missing date "${rawDate}" — skipped`);
-        continue;
-      }
+      if (!date) { errors.push(`Row ${i + 2}: invalid or missing date "${rawDate}" — skipped`); continue; }
 
       const entityType = inferEntityType(mapped);
       const entityId   = inferEntityId(mapped);
-      if (!entityId) {
-        errors.push(`Row ${i + 2}: missing entity identifier - skipped`);
-        continue;
-      }
+      if (!entityId) { errors.push(`Row ${i + 2}: missing entity identifier - skipped`); continue; }
 
       const metrics = {
         impressions:     cleanNumber(mapped["impressions"]      ?? ""),
@@ -303,45 +244,30 @@ export async function POST(
       const dimensions = Object.fromEntries(
         Object.entries(mapped).filter(([key, value]) => {
           if (!value) return false;
-          return ![
-            "date", "entity_type", "entity_id",
-            "ad_id", "adset_id", "campaign_id", "account_id",
-            "impressions", "clicks", "spend", "conversions",
-            "conversion_value", "ctr", "cpc", "roas",
-          ].includes(key);
+          return !["date","entity_type","entity_id","ad_id","adset_id","campaign_id","account_id",
+                   "impressions","clicks","spend","conversions","conversion_value","ctr","cpc","roas"].includes(key);
         })
       );
 
-      facts.push({
-        uploadId: upload.id,
-        brandId:  upload.brandId,
-        platform: upload.platform,
-        date,
-        entityType,
-        entityId,
-        dimensions,
-        metrics,
-      });
+      facts.push({ uploadId: upload.id, brandId: upload.brandId, platform: upload.platform, date, entityType, entityId, dimensions, metrics });
     }
 
     if (facts.length === 0)
       return NextResponse.json({ error: "No valid rows to ingest", errors }, { status: 400 });
 
-    // Delete any existing facts for this upload (re-ingest safety)
     await prisma.performanceFact.deleteMany({ where: { uploadId } });
-
-    // Batch insert facts
     await prisma.performanceFact.createMany({ data: facts });
+    await prisma.upload.update({ where: { id: uploadId }, data: { status: "IMPORTED" } });
 
-    // Mark upload as IMPORTED
-    await prisma.upload.update({
-      where: { id: uploadId },
-      data:  { status: "IMPORTED" },
-    });
-
-    // ✅ Auto-trigger alert check after successful ingest (non-blocking)
+    // ── Trigger alert check (existing) — non-blocking ────────────────────
     runAlertCheck(upload.brandId).catch(err =>
       console.error("[ingest] Alert check failed silently:", err)
+    );
+
+    // ── NEW: Trigger anomaly detection — non-blocking ─────────────────────
+    // Runs Python Z-Score+IQR → saves to DB → sends email → emits Socket.io
+    runAnomalyCheck(upload.brandId, uploadId).catch(err =>
+      console.error("[ingest] Anomaly check failed silently:", err)
     );
 
     return NextResponse.json({
