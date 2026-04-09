@@ -31,33 +31,38 @@ export default function AnomalyToast() {
 
   useEffect(() => {
     const socket = getSocket();
-
-    // Join brand rooms for all brands the user has access to
-    const raw = sessionStorage.getItem("user");
     let brandIds: string[] = [];
-    try {
-      const user = raw ? JSON.parse(raw) : null;
-      // For admin, we'll join via the brands fetched separately
-      if (user?.role === "AGENCY_ADMIN") {
-        // Fetch brands and join all rooms
-        const token = sessionStorage.getItem("access_token");
-        if (token) {
-          fetch("/api/brands", {
-            headers: { Authorization: `Bearer ${token}` },
-            credentials: "include",
-          })
-            .then(r => r.ok ? r.json() : { items: [] })
-            .then(d => {
-              const list = d.items ?? [];
-              list.forEach((b: { id: string }) => {
-                socket.emit("join:brand", b.id);
-                brandIds.push(b.id);
-              });
-            })
-            .catch(() => {});
-        }
+
+    const joinAccessibleBrands = async () => {
+      const token = sessionStorage.getItem("access_token");
+      if (!token) return;
+
+      try {
+        const response = await fetch("/api/brands", {
+          headers: { Authorization: `Bearer ${token}` },
+          credentials: "include",
+        });
+        if (!response.ok) return;
+
+        const data = await response.json();
+        const list = (data.items ?? []) as { id: string }[];
+        brandIds = list.map((brand) => brand.id);
+        brandIds.forEach((id) => socket.emit("join:brand", id));
+      } catch (error) {
+        console.warn("[AnomalyToast] Failed to join brand rooms:", error);
       }
-    } catch {}
+    };
+
+    const handleConnect = () => {
+      console.log("[AnomalyToast] Socket connected:", socket.id);
+      void joinAccessibleBrands();
+    };
+
+    socket.on("connect", handleConnect);
+
+    if (socket.connected) {
+      void joinAccessibleBrands();
+    }
 
     // Listen for anomaly detection events
     socket.on("anomalies:detected", (event: AnomalyEvent) => {
@@ -72,6 +77,7 @@ export default function AnomalyToast() {
     });
 
     return () => {
+      socket.off("connect", handleConnect);
       socket.off("anomalies:detected");
       brandIds.forEach(id => socket.emit("leave:brand", id));
     };
