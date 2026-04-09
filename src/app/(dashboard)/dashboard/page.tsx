@@ -417,11 +417,13 @@ export default function DashboardPage() {
         </select>
         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
           <span style={{ fontSize: "12px", color: "var(--t3)" }}>From</span>
-          <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={inputSt} />
+          <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={inputSt}
+            max={new Date().toISOString().split("T")[0]} />
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
           <span style={{ fontSize: "12px", color: "var(--t3)" }}>To</span>
-          <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={inputSt} />
+          <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={inputSt}
+            max={new Date().toISOString().split("T")[0]} />
         </div>
         <div style={{ display: "flex", gap: "8px", marginLeft: "auto" }}>
           {hasFilters && <button onClick={resetFilters} style={{ padding: "8px 14px", borderRadius: "9px", border: "1px solid var(--border)", background: "transparent", color: "var(--t2)", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "inherit" }}>Reset</button>}
