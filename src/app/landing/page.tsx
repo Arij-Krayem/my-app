@@ -66,16 +66,6 @@ export default function LandingPage() {
         <div style={{ position: "absolute", bottom: "10%", right: "5%", width: "400px", height: "400px", borderRadius: "50%", background: "radial-gradient(circle, rgba(139,92,246,0.1) 0%, transparent 65%)", pointerEvents: "none", filter: "blur(40px)" }} />
 
         <div style={{ position: "relative", zIndex: 1, maxWidth: "800px", animation: "fadeUp 0.6s ease both" }}>
-          {/* Badge */}
-          <div style={{
-            display: "inline-flex", alignItems: "center", gap: "8px",
-            padding: "6px 16px", borderRadius: "20px", marginBottom: "28px",
-            background: "rgba(88,101,242,0.1)", border: "1px solid rgba(88,101,242,0.3)",
-            fontSize: "13px", color: "#818cf8", fontWeight: "600",
-          }}>
-            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#3fb950", display: "inline-block" }} />
-            Python-powered Anomaly Detection Engine
-          </div>
 
           <h1 style={{
             fontSize: "clamp(42px, 7vw, 76px)", fontWeight: "800",
@@ -95,8 +85,8 @@ export default function LandingPage() {
             Stop budget-bleeding campaigns before they impact your bottom line.
           </p>
 
-          {/* CTAs */}
-          <div style={{ display: "flex", gap: "14px", justifyContent: "center", flexWrap: "wrap", marginBottom: "64px" }}>
+          {/* Single centered CTA */}
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: "64px" }}>
             <Link href="/register" style={{
               padding: "14px 32px", borderRadius: "12px",
               background: "linear-gradient(135deg, #5865f2, #818cf8)",
@@ -108,17 +98,6 @@ export default function LandingPage() {
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = "translateY(0)"; (e.currentTarget as HTMLElement).style.boxShadow = "0 6px 20px rgba(88,101,242,0.4)"; }}
             >
               Get Started Free →
-            </Link>
-            <Link href="/login" style={{
-              padding: "14px 32px", borderRadius: "12px",
-              border: "1px solid var(--border)", color: "var(--t1)",
-              fontWeight: "600", fontSize: "16px", textDecoration: "none",
-              transition: "all 0.15s", background: "var(--card)",
-            }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "#5865f2"; (e.currentTarget as HTMLElement).style.color = "#5865f2"; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLElement).style.color = "var(--t1)"; }}
-            >
-              Sign In
             </Link>
           </div>
 
@@ -223,7 +202,6 @@ export default function LandingPage() {
           <h2 style={{ fontSize: "clamp(28px, 4vw, 42px)", fontWeight: "800", color: "var(--t1)", marginBottom: "60px" }}>How it works</h2>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "32px", position: "relative" }}>
-            {/* Connecting line */}
             <div style={{ position: "absolute", top: "28px", left: "calc(16.67% + 16px)", right: "calc(16.67% + 16px)", height: "2px", background: "linear-gradient(90deg, #5865f2, #818cf8)", opacity: 0.3, zIndex: 0 }} />
 
             {[
