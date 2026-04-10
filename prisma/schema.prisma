@@ -167,7 +167,7 @@ model MetricDefinition {
   @@index([brandId])
 }
 
-// ✅ Dynamic table: store ANY metrics/dimensions without altering schema
+//  Dynamic table: store ANY metrics/dimensions without altering schema
 model PerformanceFact {
   id         String     @id @default(cuid())
   brandId    String

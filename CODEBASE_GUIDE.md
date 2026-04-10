@@ -1744,3 +1744,812 @@ This is a monolithic Next.js 16 App Router application with client-heavy dashboa
 8. [`src/app/api/analytics/kpis/route.ts`](/c:/Users/Asus/my-app/src/app/api/analytics/kpis/route.ts)
 9. [`src/lib/anomaly-engine.ts`](/c:/Users/Asus/my-app/src/lib/anomaly-engine.ts)
 10. [`src/app/(dashboard)/dashboard/page.tsx`](/c:/Users/Asus/my-app/src/app/(dashboard)/dashboard/page.tsx)
+
+## Appendix A: Dashboard Page Deep Dive
+
+This appendix goes page by page through the dashboard area.
+
+### [`src/app/(dashboard)/layout.tsx`](/c:/Users/Asus/my-app/src/app/(dashboard)/layout.tsx)
+
+This is the most important frontend wrapper in the app.
+
+What it does:
+
+- reads the logged-in user from `sessionStorage`
+- redirects to `/login` if there is no session
+- fetches brands for admins
+- keeps track of the currently selected brand
+- fetches open alerts for the notification bell
+- mounts the global anomaly toast listener
+- provides the sidebar/topbar used by all dashboard pages
+
+Important functions inside:
+
+- `getStoredUser()`
+  - reads and parses the `user` object from `sessionStorage`
+
+- `timeAgo(dateStr)`
+  - converts alert timestamps into strings like `5m ago`
+
+- `fetchNotifications()`
+  - calls `/api/alerts?status=OPEN`
+  - updates notification dropdown data
+
+- `handleBrandChange(brandId)`
+  - updates local selected brand state
+  - dispatches a `brand-change` custom event so pages like the dashboard can react
+
+- `handleLogout()`
+  - calls `/api/auth/logout`
+  - clears browser session storage
+  - redirects to login
+
+Important notes:
+
+- This layout acts like the current authentication shell.
+- It is doing work that some projects would put into a global auth provider or middleware.
+
+### [`src/app/(dashboard)/dashboard/page.tsx`](/c:/Users/Asus/my-app/src/app/(dashboard)/dashboard/page.tsx)
+
+This is the main business dashboard page.
+
+What it renders:
+
+- dashboard title and active brand name
+- filter bar
+- KPI cards
+- admin-only global status widget
+- spend-over-time chart
+- active alerts preview
+- platform split widget
+- recent uploads preview
+- top campaigns table
+- advanced analytics section through `DashboardEnhanced`
+
+What it fetches:
+
+- `/api/brands`
+- `/api/uploads`
+- `/api/analytics/kpis`
+- `/api/alerts`
+
+Important state:
+
+- `uploads`
+- `analytics`
+- `brands`
+- `activeBrand`
+- `platform`
+- `dateFrom`
+- `dateTo`
+- `realAlerts`
+- `userRole`
+- `prevSpend`
+
+Important functions:
+
+- `getPrevBounds(from, to)`
+  - computes the previous comparison period for charts
+
+- `fetchPrevSpend(brandId, plat, from, to)`
+  - loads previous-period spend so the spend chart can show an overlay line
+
+- `fetchAnalytics(brandId, plat, from, to)`
+  - loads main KPI response from `/api/analytics/kpis`
+
+- `fetchAlerts(brandId)`
+  - loads current open alerts for the selected brand
+
+- `handleBrandSwitch(brandId)`
+  - changes the active brand and refreshes related data
+
+- `applyFilters()`
+  - refreshes analytics using current filters
+
+- `resetFilters()`
+  - clears selected filters and reloads the default view
+
+How it fits into the app:
+
+- This page is the “summary homepage” after login.
+- It combines quick operational info with analytics and hands off deeper charting to `DashboardEnhanced`.
+
+### [`src/components/DashboardEnhanced.tsx`](/c:/Users/Asus/my-app/src/components/DashboardEnhanced.tsx)
+
+This is the “advanced analytics” engine for the dashboard UI.
+
+What it renders:
+
+- comparison badges
+- platform donut
+- campaign donut
+- funnel view
+- conversion trend
+- geo/country performance table
+- metric trend charts for ROAS, CTR, CPC
+- alert trend chart
+- metric breakdown table
+
+What it fetches:
+
+- `/api/analytics/trends`
+- `/api/analytics/alert-trends`
+- `/api/analytics/bi-summary`
+
+Important state:
+
+- `trends`
+- `comparison`
+- `alertDays`
+- `alertSummary`
+- `funnel`
+- `platformDonut`
+- `campaignDonut`
+- `geo`
+- `convTrend`
+- loading states
+
+Important functions:
+
+- `fetchTrends()`
+  - loads time-series and alert trend data
+
+- `fetchBI()`
+  - loads BI summary data such as funnel/platform/campaign/geo sections
+
+Why it matters:
+
+- If you want to understand how the dashboard gets its richer charts, this is one of the best files to study.
+
+### [`src/app/(dashboard)/uploads/page.tsx`](/c:/Users/Asus/my-app/src/app/(dashboard)/uploads/page.tsx)
+
+Purpose:
+
+- shows upload history and lets the user continue mapping when an upload is still pending or mapped
+
+What it fetches:
+
+- `/api/uploads`
+
+Important behavior:
+
+- pulls `items` from the API response
+- displays file name, platform, brand, status, and date
+- clicking a pending/mapped upload opens the mapping page
+
+### [`src/app/(dashboard)/uploads/new/page.tsx`](/c:/Users/Asus/my-app/src/app/(dashboard)/uploads/new/page.tsx)
+
+Purpose:
+
+- collects the file, platform, and brand before upload
+
+What it fetches:
+
+- `/api/brands`
+
+What it submits:
+
+- `POST /api/uploads` using `FormData`
+
+Important behavior:
+
+- normalizes platform text like `Google Ads` to `GOOGLE`
+- sends multipart form data
+- redirects to the mapping page after successful upload
+
+### [`src/app/(dashboard)/uploads/[id]/mapping/page.tsx`](/c:/Users/Asus/my-app/src/app/(dashboard)/uploads/[id]/mapping/page.tsx)
+
+Purpose:
+
+- review columns found in the CSV
+- save field mappings
+- ingest the upload
+
+What it fetches:
+
+- `/api/uploads/[id]`
+
+What it submits:
+
+- `PATCH /api/uploads/[id]`
+- fallback `POST /api/uploads/[id]/mapping`
+- `POST /api/uploads/[id]/ingest`
+
+Important functions:
+
+- `fetchUpload()`
+  - loads column info and existing saved mappings
+
+- `autoMap()`
+  - uses column-name heuristics to auto-assign common keys
+
+- `handleSave()`
+  - saves mappings and updates upload status to `MAPPED`
+
+- `handleIngest()`
+  - starts final import into analytics tables
+
+### [`src/app/(dashboard)/alerts/page.tsx`](/c:/Users/Asus/my-app/src/app/(dashboard)/alerts/page.tsx)
+
+Purpose:
+
+- central alert inbox
+
+What it fetches:
+
+- `/api/alerts`
+
+What it submits:
+
+- `PATCH /api/alerts/[id]`
+
+Important behavior:
+
+- can filter visually by `ALL`, `OPEN`, `ACK`, `RESOLVED`
+- lets user acknowledge or resolve alerts
+
+### [`src/app/(dashboard)/guardrails/page.tsx`](/c:/Users/Asus/my-app/src/app/(dashboard)/guardrails/page.tsx)
+
+Purpose:
+
+- create and manage threshold rules
+
+What it fetches:
+
+- `/api/alerts/rules`
+- `/api/brands`
+
+What it submits:
+
+- `POST /api/alerts/rules`
+
+Important note:
+
+- The UI supports edit/delete/toggle interactions locally, but the backend currently only exposes `GET` and `POST` for rules.
+- That means some of the edit/delete/toggle UI behavior is not fully backed by matching route handlers yet.
+
+### [`src/app/(dashboard)/anomalies/page.tsx`](/c:/Users/Asus/my-app/src/app/(dashboard)/anomalies/page.tsx)
+
+Purpose:
+
+- review anomaly detection results
+
+What it fetches:
+
+- `/api/anomalies`
+
+Important behavior:
+
+- filters by metric and severity
+- expands rows to show z-score, change %, detection method, and recommendation
+
+### [`src/app/(dashboard)/brands/page.tsx`](/c:/Users/Asus/my-app/src/app/(dashboard)/brands/page.tsx)
+
+Purpose:
+
+- admin-only brand overview and creation page
+
+What it fetches:
+
+- `/api/brands`
+- `/api/analytics/kpis?brandId=...`
+- `/api/brands/[id]/members`
+- `/api/uploads?brandId=...`
+- `/api/alerts?brandId=...&status=OPEN`
+
+What it submits:
+
+- `POST /api/brands`
+
+Important behavior:
+
+- “enriches” each brand by making multiple API calls per brand
+- computes a health badge using ROAS and open alert count
+
+### [`src/app/(dashboard)/brands/[id]/page.tsx`](/c:/Users/Asus/my-app/src/app/(dashboard)/brands/[id]/page.tsx)
+
+Purpose:
+
+- intended brand detail page
+
+Actual current behavior:
+
+- checks for admin role
+- loads mock brand data inside the component
+- does not call a real brand-detail API
+
+This page should be treated as incomplete or placeholder code.
+
+### [`src/app/(dashboard)/users/page.tsx`](/c:/Users/Asus/my-app/src/app/(dashboard)/users/page.tsx)
+
+Purpose:
+
+- admin-only user management page
+
+What it fetches:
+
+- `/api/users?pageSize=100`
+- `/api/brands`
+
+What it submits:
+
+- `POST /api/users`
+- `PATCH /api/users?id=...`
+- `DELETE /api/users?id=...`
+
+Important behavior:
+
+- lets admin assign brands to users
+- supports invite, edit, and delete dialogs
+
+### [`src/app/(dashboard)/settings/page.tsx`](/c:/Users/Asus/my-app/src/app/(dashboard)/settings/page.tsx)
+
+Purpose:
+
+- current-user profile and password management
+
+What it fetches:
+
+- `/api/users/me`
+
+What it submits:
+
+- `PATCH /api/users/me`
+- `POST /api/users/me/password`
+- `POST /api/auth/logout`
+
+Important behavior:
+
+- keeps the `user` value in `sessionStorage` in sync after profile changes
+
+### [`src/app/(dashboard)/detection/page.tsx`](/c:/Users/Asus/my-app/src/app/(dashboard)/detection/page.tsx)
+
+Purpose:
+
+- admin-only detection tuning page per brand
+
+What it fetches:
+
+- `/api/brands`
+- `/api/detection/accuracy?brandId=...`
+
+What it submits:
+
+- `POST /api/detection/accuracy`
+
+Important behavior:
+
+- stores `sensitivity` and `threshold` for each brand
+- includes a local-only “group alerts” toggle that currently does not persist to backend storage
+
+## Appendix B: API Route Deep Dive
+
+This appendix explains each route file in practical terms.
+
+### Auth routes
+
+#### [`src/app/api/auth/login/route.ts`](/c:/Users/Asus/my-app/src/app/api/auth/login/route.ts)
+
+Purpose:
+
+- validate credentials and start a session
+
+Main steps:
+
+1. validate body with Zod
+2. find user by email
+3. compare password with bcrypt
+4. create access token
+5. create refresh token
+6. hash and store refresh token
+7. set refresh cookie
+8. return access token + user summary
+
+#### [`src/app/api/auth/register/route.ts`](/c:/Users/Asus/my-app/src/app/api/auth/register/route.ts)
+
+Purpose:
+
+- create a new account
+
+Main steps:
+
+1. validate body
+2. reject duplicate email
+3. hash password
+4. create user
+
+Important note:
+
+- even if `role` is provided in input, the route currently forces new users to `MARKETER`
+
+#### [`src/app/api/auth/refresh/route.ts`](/c:/Users/Asus/my-app/src/app/api/auth/refresh/route.ts)
+
+Purpose:
+
+- rotate refresh token and issue a new access token
+
+Main steps:
+
+1. read refresh cookie
+2. verify refresh JWT
+3. find hashed token row
+4. ensure not revoked or expired
+5. revoke old row
+6. create new refresh token row
+7. issue fresh access token
+8. set new cookie
+
+#### [`src/app/api/auth/me/route.ts`](/c:/Users/Asus/my-app/src/app/api/auth/me/route.ts)
+
+Purpose:
+
+- return the current authenticated user
+
+#### [`src/app/api/auth/logout/route.ts`](/c:/Users/Asus/my-app/src/app/api/auth/logout/route.ts)
+
+Purpose:
+
+- revoke current refresh token and clear cookie
+
+#### [`src/app/api/auth/forgot-password/route.ts`](/c:/Users/Asus/my-app/src/app/api/auth/forgot-password/route.ts)
+
+Purpose:
+
+- create password reset token and send reset email
+
+Important behavior:
+
+- always returns success-style messaging even if user does not exist
+- this is good from a security perspective because it avoids confirming which emails are registered
+
+#### [`src/app/api/auth/reset-password/route.ts`](/c:/Users/Asus/my-app/src/app/api/auth/reset-password/route.ts)
+
+Purpose:
+
+- validate reset token and save a new password
+
+Important behavior:
+
+- marks token as used
+- revokes all refresh tokens for that user
+
+### User routes
+
+#### [`src/app/api/users/route.ts`](/c:/Users/Asus/my-app/src/app/api/users/route.ts)
+
+Purpose:
+
+- admin user management list/create/update/delete entry
+
+Handlers:
+
+- `GET`
+  - paginated user listing for admins
+
+- `POST`
+  - create user and optional brand memberships
+
+- `PATCH`
+  - update user name/role and reset brand memberships
+
+- `DELETE`
+  - delete user by query-string id
+  - prevents self-delete
+
+#### [`src/app/api/users/[id]/route.ts`](/c:/Users/Asus/my-app/src/app/api/users/[id]/route.ts)
+
+Purpose:
+
+- alternative per-user read/update/delete route
+
+Important note:
+
+- This duplicates some capability from `/api/users?id=...`
+- The project currently has both patterns in the codebase
+
+#### [`src/app/api/users/me/route.ts`](/c:/Users/Asus/my-app/src/app/api/users/me/route.ts)
+
+Purpose:
+
+- current user profile read/update
+
+Important behavior:
+
+- checks email uniqueness before updating email
+
+#### [`src/app/api/users/me/password/route.ts`](/c:/Users/Asus/my-app/src/app/api/users/me/password/route.ts)
+
+Purpose:
+
+- change current user password
+
+Main steps:
+
+1. validate body
+2. load current user hash
+3. compare current password
+4. hash new password
+5. save new hash
+
+### Brand routes
+
+#### [`src/app/api/brands/route.ts`](/c:/Users/Asus/my-app/src/app/api/brands/route.ts)
+
+Purpose:
+
+- list brands user can access
+- create new brand for admins
+
+Important behavior:
+
+- admins see all brands
+- marketers only see brands connected through `BrandMember`
+- creating a brand also:
+  - adds the admin as a member
+  - creates a default `Accuracy` row
+
+#### [`src/app/api/brands/[id]/members/route.ts`](/c:/Users/Asus/my-app/src/app/api/brands/[id]/members/route.ts)
+
+Purpose:
+
+- list members of a brand
+
+Important behavior:
+
+- marketers can only call it for brands they belong to
+
+### Upload routes
+
+#### [`src/app/api/uploads/route.ts`](/c:/Users/Asus/my-app/src/app/api/uploads/route.ts)
+
+Purpose:
+
+- `POST`: upload CSV and build upload metadata
+- `GET`: list uploads
+
+Important `POST` details:
+
+- validates file, brand, and platform
+- parses CSV using `csv-parse`
+- detects likely platform
+- infers column types
+- stores raw CSV in `Upload.rawCsv`
+- stores discovered columns in `UploadColumn`
+- stores suggested mappings in `ColumnMapping`
+
+Important `GET` details:
+
+- supports filters like brand/platform/status/page/pageSize
+- marketers only see their own uploads
+
+#### [`src/app/api/uploads/[id]/route.ts`](/c:/Users/Asus/my-app/src/app/api/uploads/[id]/route.ts)
+
+Purpose:
+
+- get one upload
+- save mappings
+- delete upload
+
+Important `GET` details:
+
+- returns columns plus mapping progress summary
+
+Important `PATCH` details:
+
+- upserts mappings
+- marks upload as `MAPPED`
+
+#### [`src/app/api/uploads/[id]/mapping/route.ts`](/c:/Users/Asus/my-app/src/app/api/uploads/[id]/mapping/route.ts)
+
+Purpose:
+
+- alternate mapping save endpoint
+
+Important note:
+
+- The frontend tries `/api/uploads/[id]` first, then falls back to this route.
+- This suggests the codebase was adapted to support two possible backend styles.
+
+#### [`src/app/api/uploads/[id]/ingest/route.ts`](/c:/Users/Asus/my-app/src/app/api/uploads/[id]/ingest/route.ts)
+
+Purpose:
+
+- convert mapped CSV rows into analytics facts
+
+Main steps:
+
+1. authenticate and authorize access to upload
+2. reject invalid upload states
+3. parse `rawCsv`
+4. convert source columns to mapped target keys
+5. infer date, entity type, and entity id
+6. build `metrics` and `dimensions` objects
+7. insert rows into `PerformanceFact`
+8. mark upload `IMPORTED`
+9. run threshold alert check
+10. run anomaly detection
+
+This is one of the most important backend files in the whole repo.
+
+### Analytics routes
+
+#### [`src/app/api/analytics/kpis/route.ts`](/c:/Users/Asus/my-app/src/app/api/analytics/kpis/route.ts)
+
+Purpose:
+
+- return main KPI summary for dashboard
+
+Returns:
+
+- totals
+- platform breakdown
+- spend over time
+- top campaigns
+
+Important implementation detail:
+
+- uses raw SQL against `PerformanceFact`
+
+#### [`src/app/api/analytics/trends/route.ts`](/c:/Users/Asus/my-app/src/app/api/analytics/trends/route.ts)
+
+Purpose:
+
+- return trend series for charts
+
+Returns:
+
+- overall metric series
+- platform-split per-day data
+- previous-period overlay data
+- comparison summary
+
+Important implementation detail:
+
+- does a manual “pivot” step in JavaScript after querying SQL rows
+
+#### [`src/app/api/analytics/bi-summary/route.ts`](/c:/Users/Asus/my-app/src/app/api/analytics/bi-summary/route.ts)
+
+Purpose:
+
+- return dashboard BI widgets in one payload
+
+Returns:
+
+- funnel
+- platform donut
+- campaign donut
+- geo summary
+- conversion trend
+
+Important implementation detail:
+
+- follows an ETL-style pattern:
+  - extract
+  - transform
+  - load into response JSON
+
+#### [`src/app/api/analytics/alert-trends/route.ts`](/c:/Users/Asus/my-app/src/app/api/analytics/alert-trends/route.ts)
+
+Purpose:
+
+- return alert counts per day and summary stats
+
+#### [`src/app/api/analytics/global-status/route.ts`](/c:/Users/Asus/my-app/src/app/api/analytics/global-status/route.ts)
+
+Purpose:
+
+- admin-only alert status matrix by brand/status/severity
+
+Used by:
+
+- global status widget on dashboard
+
+#### [`src/app/api/analytics/python-anomalies/route.ts`](/c:/Users/Asus/my-app/src/app/api/analytics/python-anomalies/route.ts)
+
+Purpose:
+
+- send one metric series to Python and get anomaly output back
+
+This looks like a focused utility route, separate from the main anomaly pipeline.
+
+### Alerts and anomalies routes
+
+#### [`src/app/api/alerts/route.ts`](/c:/Users/Asus/my-app/src/app/api/alerts/route.ts)
+
+Purpose:
+
+- list accessible alerts, optionally filtered by brand and status
+
+Important behavior:
+
+- admins get all brands
+- marketers only get their accessible brands
+
+#### [`src/app/api/alerts/[id]/route.ts`](/c:/Users/Asus/my-app/src/app/api/alerts/[id]/route.ts)
+
+Purpose:
+
+- update one alert status
+
+#### [`src/app/api/alerts/rules/route.ts`](/c:/Users/Asus/my-app/src/app/api/alerts/rules/route.ts)
+
+Purpose:
+
+- list and create alert rules
+
+Important note:
+
+- there is no backend `PATCH`/`DELETE` here yet, even though the guardrails page suggests richer rule management UI
+
+#### [`src/app/api/alerts/check/route.ts`](/c:/Users/Asus/my-app/src/app/api/alerts/check/route.ts)
+
+Purpose:
+
+- manually evaluate active rules for a brand against recent facts
+
+Important side effects:
+
+- may create `Alert`
+- may send alert email
+- may create `Notification` and `NotificationRecipient`
+
+#### [`src/app/api/anomalies/route.ts`](/c:/Users/Asus/my-app/src/app/api/anomalies/route.ts)
+
+Purpose:
+
+- generate anomaly review data from recent facts
+
+Important behavior:
+
+- tries Python first
+- falls back to JS if Python fails
+- may send HIGH anomaly emails
+- returns anomaly list with summary counts and engine name
+
+### Detection, metrics, datasets, leads, admin
+
+#### [`src/app/api/detection/accuracy/route.ts`](/c:/Users/Asus/my-app/src/app/api/detection/accuracy/route.ts)
+
+Purpose:
+
+- read/write per-brand detection tuning
+
+#### [`src/app/api/metrics/overview/route.ts`](/c:/Users/Asus/my-app/src/app/api/metrics/overview/route.ts)
+
+Purpose:
+
+- older summary endpoint for daily spend and totals
+
+Important note:
+
+- This route uses a slightly different auth helper style than many newer routes.
+
+#### [`src/app/api/datasets/bulk/route.ts`](/c:/Users/Asus/my-app/src/app/api/datasets/bulk/route.ts)
+
+Purpose:
+
+- bulk insert facts from already-normalized rows
+
+This looks like a utility route rather than the main upload flow.
+
+#### [`src/app/api/leads/route.ts`](/c:/Users/Asus/my-app/src/app/api/leads/route.ts)
+
+Purpose:
+
+- lead listing and creation
+
+Important note:
+
+- I did not find a matching visible leads dashboard page in the current route list, so this backend may be unused or intended for future use.
+
+#### [`src/app/api/leads/[id]/route.ts`](/c:/Users/Asus/my-app/src/app/api/leads/[id]/route.ts)
+
+Purpose:
+
+- update/delete one lead
+
+#### [`src/app/api/admin/ping/route.ts`](/c:/Users/Asus/my-app/src/app/api/admin/ping/route.ts)
+
+Purpose:
+
+- simple admin-only test endpoint
