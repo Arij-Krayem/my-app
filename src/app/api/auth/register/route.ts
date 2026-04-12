@@ -1,7 +1,8 @@
+// src/app/api/auth/register/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
-import bcrypt from "bcryptjs";
-import { prisma } from "@/lib/prisma";
+import { z }                         from "zod";
+import bcrypt                        from "bcryptjs";
+import { prisma }                    from "@/lib/prisma";
 
 const Body = z.object({
   email:    z.string().email(),
@@ -27,11 +28,19 @@ export async function POST(req: NextRequest) {
         name:         data.name,
         role:         "MARKETER",
         passwordHash,
+        // ── NEW: all self-registered users start pending approval ──────────
+        isApproved:   false,
+        isActive:     false,
       },
       select: { id: true, email: true, role: true, name: true, createdAt: true },
     });
 
-    return NextResponse.json({ user }, { status: 201 });
+    return NextResponse.json({
+      user,
+      // ── Tell the frontend to show the "awaiting approval" screen ──────────
+      pendingApproval: true,
+      message: "Account created. Please wait for admin approval before logging in.",
+    }, { status: 201 });
 
   } catch (err: unknown) {
     if (err instanceof z.ZodError) {

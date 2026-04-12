@@ -10,6 +10,7 @@ export default function LoginPage() {
   const [showPw, setShowPw]     = useState(false);
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState("");
+  const [pendingApproval, setPendingApproval] = useState(false);
 
   useEffect(() => {
     document.documentElement.removeAttribute("data-theme");
@@ -19,21 +20,43 @@ export default function LoginPage() {
   }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault(); setError(""); setLoading(true);
+    e.preventDefault();
+    setError("");
+    setLoading(true);
     try {
       const res  = await fetch("/api/auth/login", {
-        method: "POST", credentials: "include",
+        method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Invalid credentials");
+
+      if (res.status === 403 && data.pendingApproval) {
+        setPendingApproval(true);
+        setLoading(false);
+        return;
+      }
+
+      if (res.status === 403 && data.error === "account_inactive") {
+        setError("Your account has been deactivated. Please contact your administrator.");
+        setLoading(false);
+        return;
+      }
+
+      if (!res.ok) {
+        setError(data.error ?? data.message ?? "Invalid credentials");
+        setLoading(false);
+        return;
+      }
+
       sessionStorage.setItem("access_token", data.accessToken);
       sessionStorage.setItem("user", JSON.stringify(data.user));
       router.push("/dashboard");
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Login failed");
-    } finally { setLoading(false); }
+      setError(err instanceof Error ? err.message : "Network error. Please try again.");
+      setLoading(false);
+    }
   };
 
   const isSuccess = error.startsWith("__success__");
@@ -62,6 +85,45 @@ export default function LoginPage() {
     e.target.style.borderColor = "var(--border)";
     e.target.style.boxShadow   = "none";
   };
+
+  if (pendingApproval) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)", padding: "24px", fontFamily: "'Outfit', sans-serif" }}>
+        <div style={{ maxWidth: 440, width: "100%", background: "var(--card)", borderRadius: 20, padding: "48px 40px", textAlign: "center", border: "1px solid var(--border)", boxShadow: "0 8px 32px rgba(0,0,0,0.08)" }}>
+          <div style={{ width: 72, height: 72, borderRadius: "50%", background: "rgba(245,158,11,0.12)", border: "2px solid rgba(245,158,11,0.3)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px", animation: "pulse 2s ease-in-out infinite" }}>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          </div>
+
+          <h2 style={{ fontSize: 22, fontWeight: 800, color: "var(--t1)", marginBottom: 12 }}>
+            Awaiting Approval
+          </h2>
+          <p style={{ fontSize: 14, color: "var(--t2)", lineHeight: 1.7, marginBottom: 28 }}>
+            Your account has been created and is currently <strong>pending admin approval</strong>.
+            You will receive an email notification once your account is activated.
+          </p>
+
+          <div style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)", borderRadius: 12, padding: "14px 18px", marginBottom: 28 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#92400e", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>What happens next?</div>
+            {["The admin reviews your registration request", "You receive an approval email", "Click the link in the email to log in"].map((step, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: i < 2 ? 8 : 0 }}>
+                <div style={{ width: 20, height: 20, borderRadius: "50%", background: "rgba(217,119,6,0.15)", color: "#d97706", fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{i + 1}</div>
+                <span style={{ fontSize: 13, color: "#78350f" }}>{step}</span>
+              </div>
+            ))}
+          </div>
+
+          <button onClick={() => setPendingApproval(false)} style={{ fontSize: 14, color: "var(--t2)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
+            Back to login
+          </button>
+
+          <style>{`@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.7;transform:scale(1.05)} }`}</style>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px", position: "relative", overflow: "hidden", fontFamily: "'Outfit', sans-serif" }}>

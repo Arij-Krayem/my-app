@@ -188,3 +188,89 @@ export async function sendAnomalyEmail(data: AnomalyEmailData) {
     html,
   });
 }
+
+export async function sendApprovalEmail({
+  recipientEmail,
+  recipientName,
+  loginUrl,
+}: {
+  recipientEmail: string;
+  recipientName: string;
+  loginUrl: string;
+}) {
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="utf-8"></head>
+    <body style="margin:0;padding:0;background:#f3f4f6;font-family:'Segoe UI',Arial,sans-serif;">
+      <div style="max-width:560px;margin:40px auto;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e5e7eb;">
+
+        <div style="background:linear-gradient(135deg,#5865f2,#818cf8);padding:32px 40px;text-align:center;">
+          <div style="width:48px;height:48px;background:rgba(255,255,255,0.2);border-radius:12px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;">
+            <span style="color:white;font-weight:800;font-size:20px;">V</span>
+          </div>
+          <h1 style="color:white;margin:0;font-size:22px;font-weight:700;">Account Approved!</h1>
+          <p style="color:rgba(255,255,255,0.8);margin:8px 0 0;font-size:14px;">VisioAd Ads Monitor</p>
+        </div>
+
+        <div style="padding:40px;">
+          <p style="font-size:16px;color:#111827;margin:0 0 8px;font-weight:600;">Hello ${recipientName},</p>
+          <p style="font-size:14px;color:#6b7280;line-height:1.7;margin:0 0 24px;">
+            Great news! Your VisioAd account has been reviewed and <strong style="color:#16a34a;">approved</strong> by an administrator.
+            You can now log in and access the platform.
+          </p>
+
+          <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px 18px;margin-bottom:28px;display:flex;align-items:center;gap:10px;">
+            <div style="width:10px;height:10px;background:#16a34a;border-radius:50%;flex-shrink:0;"></div>
+            <span style="font-size:13px;color:#15803d;font-weight:600;">Your account is now active and ready to use</span>
+          </div>
+
+          <div style="text-align:center;margin-bottom:28px;">
+            <a href="${loginUrl}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#5865f2,#818cf8);color:white;text-decoration:none;border-radius:12px;font-weight:700;font-size:15px;letter-spacing:0.01em;">
+              Log In to VisioAd ->
+            </a>
+          </div>
+
+          <div style="background:#f8fafc;border-radius:10px;padding:18px;margin-bottom:24px;">
+            <p style="font-size:12px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.1em;margin:0 0 12px;">What you can access</p>
+            ${[
+              "Performance dashboards for your assigned brands",
+              "Upload and manage Google Ads & Meta Ads CSV data",
+              "View alerts and anomaly detection results",
+              "Monitor campaign metrics in real time",
+            ].map(item => `
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                <div style="width:6px;height:6px;background:#5865f2;border-radius:50%;flex-shrink:0;"></div>
+                <span style="font-size:13px;color:#374151;">${item}</span>
+              </div>
+            `).join("")}
+          </div>
+
+          <p style="font-size:12px;color:#9ca3af;text-align:center;margin:0;">
+            If you did not create an account on VisioAd, please ignore this email.
+          </p>
+        </div>
+
+        <div style="border-top:1px solid #e5e7eb;padding:20px 40px;text-align:center;">
+          <p style="font-size:12px;color:#9ca3af;margin:0;">© 2026 VisioAd · Full-Service Brand Advertising Agency</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  await transporter.sendMail({
+    from: `"VisioAd" <${process.env.EMAIL_USER}>`,
+    to: recipientEmail,
+    subject: "✅ Your VisioAd account has been approved",
+    html,
+  });
+}

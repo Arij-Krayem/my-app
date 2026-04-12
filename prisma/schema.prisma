@@ -55,6 +55,9 @@ model User {
   refreshTokens RefreshToken[]
   passwordResetTokens PasswordResetToken[]
   
+  isApproved  Boolean  @default(false)
+  isActive    Boolean  @default(false)
+
   brandMembers  BrandMember[]
   notifications NotificationRecipient[]
   uploads       Upload[]

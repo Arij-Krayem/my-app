@@ -54,10 +54,8 @@ export default function DetectionPage() {
 
   const token = () => sessionStorage.getItem("access_token") ?? "";
 
-  useEffect(() => {
-    const raw = sessionStorage.getItem("user");
-    if (raw && JSON.parse(raw).role !== "AGENCY_ADMIN") router.push("/dashboard");
-  }, [router]);
+  // ── REMOVED: role check that was redirecting marketers to dashboard ────────
+  // Marketers are allowed here — the API filters data to their assigned brands.
 
   const loadData = useCallback(async () => {
     setLoading(true);

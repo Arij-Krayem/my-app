@@ -1,60 +1,37 @@
+// src/app/api/users/route.ts
+// ─── User CRUD — admin only ────────────────────────────────────────────────────
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { requireAuth, AuthError } from "@/lib/auth-guard";
-import { z } from "zod";
-import bcrypt from "bcryptjs";
+import { requireAuth, AuthError }    from "@/lib/auth-guard";
+import { prisma }                    from "@/lib/prisma";
+import bcrypt                        from "bcryptjs";
 
-const CreateUserBody = z.object({
-  email:    z.string().min(1, "Email is required").email("Invalid email"),
-  name:     z.string().min(1, "Name is required"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  role:     z.enum(["MARKETER", "AGENCY_ADMIN"]).default("MARKETER"),
-  brandIds: z.array(z.string()).optional(),
-});
+const USER_SELECT = {
+  id:           true,
+  name:         true,
+  email:        true,
+  role:         true,
+  isApproved:   true,
+  isActive:     true,
+  createdAt:    true,
+  brandMembers: { select: { brand: { select: { id: true, name: true } } } },
+} as const;
 
-const UpdateUserBody = z.object({
-  name:     z.string().min(1).optional(),
-  role:     z.enum(["MARKETER", "AGENCY_ADMIN"]).optional(),
-  brandIds: z.array(z.string()).optional(),
-});
-
-// ─── GET /api/users ──────────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
   try {
     const payload = requireAuth(req);
     if (payload.role !== "AGENCY_ADMIN")
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
 
     const { searchParams } = new URL(req.url);
-    const q        = searchParams.get("q")        ?? "";
-    const role     = searchParams.get("role")     ?? "";
-    const page     = Math.max(1, Number(searchParams.get("page") ?? "1"));
-    const pageSize = Math.min(100, Math.max(1, Number(searchParams.get("pageSize") ?? "50")));
+    const pageSize = parseInt(searchParams.get("pageSize") ?? "100");
 
-    const where: any = {};
-    if (q) {
-      where.OR = [
-        { name:  { contains: q, mode: "insensitive" } },
-        { email: { contains: q, mode: "insensitive" } },
-      ];
-    }
-    if (role && ["MARKETER", "AGENCY_ADMIN"].includes(role)) where.role = role;
+    const users = await prisma.user.findMany({
+      select:  USER_SELECT,
+      orderBy: { createdAt: "desc" },
+      take:    pageSize,
+    });
 
-    const [items, totalItems] = await Promise.all([
-      prisma.user.findMany({
-        where,
-        select: {
-          id: true, email: true, name: true, role: true, createdAt: true,
-          brandMembers: { include: { brand: { select: { id: true, name: true } } } },
-        },
-        orderBy: { createdAt: "desc" },
-        skip:    (page - 1) * pageSize,
-        take:    pageSize,
-      }),
-      prisma.user.count({ where }),
-    ]);
-
-    return NextResponse.json({ items, totalItems, totalPages: Math.ceil(totalItems / pageSize) });
+    return NextResponse.json({ items: users });
   } catch (err) {
     if (err instanceof AuthError)
       return NextResponse.json({ error: err.message }, { status: err.status });
@@ -62,34 +39,38 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// ─── POST /api/users — create user ───────────────────────────────────────────
 export async function POST(req: NextRequest) {
   try {
     const payload = requireAuth(req);
     if (payload.role !== "AGENCY_ADMIN")
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
 
-    const data = CreateUserBody.parse(await req.json());
+    const { name, email, password, role, brandIds } = await req.json();
+    if (!email || !password)
+      return NextResponse.json({ error: "Email and password required" }, { status: 400 });
 
-    const existing = await prisma.user.findUnique({ where: { email: data.email } });
-    if (existing)
-      return NextResponse.json({ error: "Email already in use" }, { status: 409 });
+    const exists = await prisma.user.findUnique({ where: { email } });
+    if (exists)
+      return NextResponse.json({ error: "Email already used" }, { status: 409 });
 
-    const passwordHash = await bcrypt.hash(data.password, 10);
+    const passwordHash = await bcrypt.hash(password, 10);
 
+    // Users created by admin are immediately approved + active
     const user = await prisma.user.create({
       data: {
-        email: data.email,
-        name:  data.name,
-        role:  data.role,
+        name,
+        email,
+        role:         role ?? "MARKETER",
         passwordHash,
-        ...(data.brandIds?.length ? {
+        isApproved:   true,
+        isActive:     true,
+        ...(brandIds?.length > 0 && {
           brandMembers: {
-            create: data.brandIds.map(brandId => ({ brandId })),
+            create: brandIds.map((id: string) => ({ brandId: id })),
           },
-        } : {}),
+        }),
       },
-      select: { id: true, email: true, name: true, role: true, createdAt: true },
+      select: USER_SELECT,
     });
 
     return NextResponse.json({ user }, { status: 201 });
@@ -100,38 +81,41 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// ─── PATCH /api/users?id=xxx — update user ───────────────────────────────────
 export async function PATCH(req: NextRequest) {
   try {
     const payload = requireAuth(req);
     if (payload.role !== "AGENCY_ADMIN")
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
 
-    const id   = req.nextUrl.searchParams.get("id");
-    if (!id) return NextResponse.json({ error: "User id required" }, { status: 400 });
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+    if (!id)
+      return NextResponse.json({ error: "User id required" }, { status: 400 });
 
-    const data = UpdateUserBody.parse(await req.json());
+    const { name, role, brandIds, isActive } = await req.json();
 
-    // Update user fields
-    const user = await prisma.user.update({
-      where: { id },
-      data: {
-        ...(data.name ? { name: data.name } : {}),
-        ...(data.role ? { role: data.role } : {}),
-      },
-      select: { id: true, email: true, name: true, role: true, createdAt: true },
-    });
-
-    // Update brand memberships if provided
-    if (data.brandIds !== undefined) {
+    // ── Update brand assignments ───────────────────────────────────────────
+    if (brandIds !== undefined) {
       await prisma.brandMember.deleteMany({ where: { userId: id } });
-      if (data.brandIds.length > 0) {
+      if (brandIds.length > 0) {
         await prisma.brandMember.createMany({
-          data: data.brandIds.map(brandId => ({ userId: id, brandId })),
+          data:           brandIds.map((bid: string) => ({ userId: id, brandId: bid })),
           skipDuplicates: true,
         });
       }
     }
+
+    // ── Update user fields ─────────────────────────────────────────────────
+    const updateData: Record<string, unknown> = {};
+    if (name     !== undefined) updateData.name     = name;
+    if (role     !== undefined) updateData.role     = role;
+    if (isActive !== undefined) updateData.isActive = isActive;  // ← active/inactive toggle
+
+    const user = await prisma.user.update({
+      where:  { id },
+      data:   updateData,
+      select: USER_SELECT,
+    });
 
     return NextResponse.json({ user });
   } catch (err) {
@@ -141,22 +125,25 @@ export async function PATCH(req: NextRequest) {
   }
 }
 
-// ─── DELETE /api/users?id=xxx ────────────────────────────────────────────────
 export async function DELETE(req: NextRequest) {
   try {
     const payload = requireAuth(req);
     if (payload.role !== "AGENCY_ADMIN")
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
 
-    const id = req.nextUrl.searchParams.get("id");
-    if (!id) return NextResponse.json({ error: "User id required" }, { status: 400 });
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+    if (!id)
+      return NextResponse.json({ error: "User id required" }, { status: 400 });
 
-    // Prevent self-deletion
+    // Prevent admin from deleting themselves
     if (id === payload.userId)
       return NextResponse.json({ error: "Cannot delete your own account" }, { status: 400 });
 
+    await prisma.brandMember.deleteMany({ where: { userId: id } });
     await prisma.user.delete({ where: { id } });
-    return NextResponse.json({ message: "User deleted" });
+
+    return NextResponse.json({ success: true });
   } catch (err) {
     if (err instanceof AuthError)
       return NextResponse.json({ error: err.message }, { status: err.status });

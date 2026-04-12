@@ -4,7 +4,6 @@ import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link";
 import { Tooltip } from "antd";
 import { usePathname, useRouter } from "next/navigation";
-import AnomalyToast from "@/components/AnomalyToast";
 import styles from "./layout.module.css";
 
 const SVG = {
@@ -29,12 +28,14 @@ const NAV_ITEMS = [
   { href: "/guardrails",icon: SVG.guardrails,label: "Guardrails"},
   { href: "/anomalies", icon: SVG.anomalies, label: "Anomalies" },
   { href: "/settings",  icon: SVG.settings,  label: "Settings"  },
+  // ── Visible to all roles — data filtered server-side per brand access ─────
+  { href: "/brands",    icon: SVG.brands,    label: "Brands"    },
+  { href: "/detection", icon: SVG.detection, label: "Detection" },
 ];
 
 const ADMIN_ITEMS = [
-  { href: "/brands",    icon: SVG.brands,    label: "Brands"    },
+  // ── Users management — admin only ─────────────────────────────────────────
   { href: "/users",     icon: SVG.users,     label: "Users"     },
-  { href: "/detection", icon: SVG.detection, label: "Detection" },
 ];
 
 interface AlertNotif {
@@ -214,16 +215,16 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         <nav className={styles.sidebarNav}>
           {NAV_ITEMS.map(item => (
             <SidebarItem key={item.href} item={item} pathname={pathname}
-              collapsed={collapsed} onNavigate={() => {}} />
+              collapsed={collapsed} onNavigate={() => setCollapsed(true)} />
           ))}
           {isAdmin && (
             <div className={styles.adminSection}>
               {collapsed
                 ? <div className={styles.sectionDivider} />
-                : <div className={styles.sectionLabel}>ADMIN</div>}
+                : <div className={styles.sectionLabel}>Admin</div>}
               {ADMIN_ITEMS.map(item => (
                 <SidebarItem key={item.href} item={item} pathname={pathname}
-                  collapsed={collapsed} onNavigate={() => {}} />
+                  collapsed={collapsed} onNavigate={() => setCollapsed(true)} />
               ))}
             </div>
           )}
@@ -352,7 +353,6 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           <div className={styles.pageInner}>{children}</div>
         </main>
       </div>
-      <AnomalyToast />
     </div>
   );
 }
