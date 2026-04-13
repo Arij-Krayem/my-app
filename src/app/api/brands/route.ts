@@ -1,32 +1,45 @@
-import { prisma } from "@/lib/prisma";
-import { requireAuth, AuthError } from "@/lib/auth-guard";
+// src/app/api/brands/route.ts
+// ─── Brands CRUD — updated to support logoUrl ─────────────────────────────────
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
+import { requireAuth, AuthError }    from "@/lib/auth-guard";
+import { prisma }                    from "@/lib/prisma";
 
-const Body = z.object({ name: z.string().min(1) });
+async function canAccessBrand(userId: string, role: string, brandId: string): Promise<boolean> {
+  if (role === "AGENCY_ADMIN") return true;
+  const member = await prisma.brandMember.findUnique({
+    where: { userId_brandId: { userId, brandId } },
+  });
+  return !!member;
+}
 
 export async function GET(req: NextRequest) {
   try {
     const payload = requireAuth(req);
+    const { searchParams } = new URL(req.url);
+    const brandId = searchParams.get("brandId");
 
+    // Single brand lookup
+    if (brandId) {
+      const allowed = await canAccessBrand(payload.userId, payload.role, brandId);
+      if (!allowed) return NextResponse.json({ error: "Access denied" }, { status: 403 });
+      const brand = await prisma.brand.findUnique({ where: { id: brandId } });
+      if (!brand) return NextResponse.json({ error: "Brand not found" }, { status: 404 });
+      return NextResponse.json(brand);
+    }
+
+    // List all accessible brands
     let brands;
-
     if (payload.role === "AGENCY_ADMIN") {
-      // Admin sees all brands
-      brands = await prisma.brand.findMany({
-        orderBy: { name: "asc" },
-        select: { id: true, name: true, createdAt: true },
-      });
+      brands = await prisma.brand.findMany({ orderBy: { createdAt: "desc" } });
     } else {
-      // Marketer sees only their assigned brands
       const memberships = await prisma.brandMember.findMany({
-        where: { userId: payload.userId },
-        include: { brand: { select: { id: true, name: true, createdAt: true } } },
+        where:   { userId: payload.userId },
+        include: { brand: true },
       });
       brands = memberships.map(m => m.brand);
     }
 
-    return NextResponse.json({ items: brands, totalItems: brands.length });
+    return NextResponse.json({ items: brands });
   } catch (err) {
     if (err instanceof AuthError)
       return NextResponse.json({ error: err.message }, { status: err.status });
@@ -37,23 +50,56 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const payload = requireAuth(req);
+    if (payload.role !== "AGENCY_ADMIN")
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
 
-    // Only admins can create brands
-    if (payload.role !== "AGENCY_ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const { name, logoUrl } = await req.json();
 
-    const data  = Body.parse(await req.json());
+    if (!name?.trim())
+      return NextResponse.json({ error: "Brand name is required" }, { status: 400 });
+
     const brand = await prisma.brand.create({
       data: {
-        name: data.name,
-        members:  { create: { userId: payload.userId } },
-        accuracy: { create: { sensitivity: 0.7, threshold: 0.8 } },
+        name:    name.trim(),
+        logoUrl: logoUrl ?? null,   // ← NEW: save logo URL
       },
-      select: { id: true, name: true },
     });
 
-    return NextResponse.json({ brand });
+    return NextResponse.json(brand, { status: 201 });
+  } catch (err) {
+    if (err instanceof AuthError)
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const payload = requireAuth(req);
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+
+    // Also support /api/brands/[id] style via body
+    const body = await req.json();
+    const brandId = id ?? body.id;
+
+    if (!brandId)
+      return NextResponse.json({ error: "Brand id required" }, { status: 400 });
+
+    const allowed = await canAccessBrand(payload.userId, payload.role, brandId);
+    if (!allowed)
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
+
+    const updateData: Record<string, unknown> = {};
+    if (body.name    !== undefined) updateData.name    = body.name.trim();
+    if (body.logoUrl !== undefined) updateData.logoUrl = body.logoUrl; // null = remove logo
+
+    const brand = await prisma.brand.update({
+      where: { id: brandId },
+      data:  updateData,
+    });
+
+    return NextResponse.json(brand);
   } catch (err) {
     if (err instanceof AuthError)
       return NextResponse.json({ error: err.message }, { status: err.status });

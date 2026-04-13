@@ -69,7 +69,7 @@ model Brand {
   id        String   @id @default(cuid())
   name      String
   createdAt DateTime @default(now())
-
+  logoUrl  String? 
   members  BrandMember[]
   uploads  Upload[]
   accuracy Accuracy?
