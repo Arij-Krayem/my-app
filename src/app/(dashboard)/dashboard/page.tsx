@@ -19,11 +19,6 @@ const inputSt: React.CSSProperties = {
   borderRadius: "9px", color: "var(--t1)", fontSize: "13px", fontFamily: "inherit", outline: "none",
 };
 
-interface Alert {
-  id: string; message: string; status: string; createdAt: string;
-  rule?: { metricKey: string; severity: string } | null;
-}
-
 function SpendLegendPill({ color, label, dashed = false }: { color: string; label: string; dashed?: boolean }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
@@ -216,7 +211,6 @@ function GlobalStatusWidget() {
 // ══════════════════════════════════════════════════════════════════════════════
 
 export default function DashboardPage() {
-  const [uploads,     setUploads]     = useState<any[]>([]);
   const [analytics,   setAnalytics]   = useState<any>(null);
   const [kpiLoading,  setKpiLoading]  = useState(true);
   const [brands,      setBrands]      = useState<{ id: string; name: string }[]>([]);
@@ -224,7 +218,6 @@ export default function DashboardPage() {
   const [platform,    setPlatform]    = useState("");
   const [dateFrom,    setDateFrom]    = useState("");
   const [dateTo,      setDateTo]      = useState("");
-  const [realAlerts,  setRealAlerts]  = useState<Alert[]>([]);
   const [userRole,    setUserRole]    = useState<string>("");
   const [prevSpend,   setPrevSpend]   = useState<{ date: string; Google: number; Meta: number }[]>([]);
 
@@ -278,13 +271,6 @@ export default function DashboardPage() {
     fetchPrevSpend(brandId, plat, from, to);
   };
 
-  const fetchAlerts = (brandId: string) => {
-    const token = sessionStorage.getItem("access_token"); if (!token) return;
-    fetch(`/api/alerts?status=OPEN&brandId=${brandId}`, { headers: { Authorization: `Bearer ${token}` }, credentials: "include" })
-      .then(r => r.ok ? r.json() : { items: [] })
-      .then(d => setRealAlerts((d.items ?? []).slice(0, 3))).catch(() => {});
-  };
-
   // ── Initial load ───────────────────────────────────────────────────────────
   useEffect(() => {
     const token = sessionStorage.getItem("access_token") ?? "";
@@ -297,11 +283,8 @@ export default function DashboardPage() {
       .then(d => {
         const list = d.items ?? []; setBrands(list);
         const first = list.length > 0 ? list[0].id : "brand_visioad_001";
-        setActiveBrand(first); fetchAnalytics(first, "", "", ""); fetchAlerts(first);
-      }).catch(() => { fetchAnalytics("brand_visioad_001", "", "", ""); fetchAlerts("brand_visioad_001"); });
-    fetch("/api/uploads?pageSize=4", { headers, credentials: "include" })
-      .then(r => r.ok ? r.json() : { items: [] })
-      .then(d => setUploads(Array.isArray(d.items) ? d.items : [])).catch(() => {});
+        setActiveBrand(first); fetchAnalytics(first, "", "", "");
+      }).catch(() => { fetchAnalytics("brand_visioad_001", "", "", ""); });
   }, []);
 
   // ── Listen for brand-change events fired by layout.tsx top-bar dropdown ───
@@ -312,7 +295,6 @@ export default function DashboardPage() {
       setActiveBrand(brandId);
       setPlatform(""); setDateFrom(""); setDateTo("");
       fetchAnalytics(brandId, "", "", "");
-      fetchAlerts(brandId);
     };
     window.addEventListener("brand-change", handler);
     return () => window.removeEventListener("brand-change", handler);
@@ -322,10 +304,9 @@ export default function DashboardPage() {
   const applyFilters = () => fetchAnalytics(activeBrand, platform, dateFrom, dateTo);
   const resetFilters = () => { setPlatform(""); setDateFrom(""); setDateTo(""); fetchAnalytics(activeBrand, "", "", ""); };
 
-  // ── Pill button click — also syncs the layout dropdown via reverse event ──
   const handleBrandSwitch = (brandId: string) => {
     setActiveBrand(brandId); setPlatform(""); setDateFrom(""); setDateTo("");
-    fetchAnalytics(brandId, "", "", ""); fetchAlerts(brandId);
+    fetchAnalytics(brandId, "", "", "");
     window.dispatchEvent(new CustomEvent("brand-change-sync", { detail: { brandId } }));
   };
 
@@ -341,7 +322,6 @@ export default function DashboardPage() {
   const topCampaigns      = analytics?.topCampaigns      ?? [];
   const totalSpend        = platformBreakdown.reduce((s: number, p: any) => s + Number(p.spend), 0);
   const activeBrandName   = brands.find(b => b.id === activeBrand)?.name ?? "Visioad Main";
-  const isAdmin           = userRole === "AGENCY_ADMIN";
 
   const chartData = Object.values(
     spendOverTime.reduce((acc: any, row: any) => {
@@ -358,23 +338,7 @@ export default function DashboardPage() {
     prevTotal: prevSpend[i] != null ? (prevSpend[i].Google + prevSpend[i].Meta) : null,
   }));
 
-  const statusCfg = (s: string) => ({
-    IMPORTED: { color: "#3fb950", bg: "rgba(63,185,80,0.1)",  border: "rgba(63,185,80,0.25)"  },
-    MAPPED:   { color: "#5865f2", bg: "rgba(88,101,242,0.1)", border: "rgba(88,101,242,0.25)" },
-    PENDING:  { color: "#d29922", bg: "rgba(210,153,34,0.1)", border: "rgba(210,153,34,0.25)" },
-    FAILED:   { color: "#f85149", bg: "rgba(248,81,73,0.1)",  border: "rgba(248,81,73,0.25)"  },
-  }[s] || { color: "#d29922", bg: "rgba(210,153,34,0.1)", border: "rgba(210,153,34,0.25)" });
-
-  const hasFilters     = platform || dateFrom || dateTo;
-  const criticalAlerts = realAlerts.filter(a => a.rule?.severity === "CRITICAL").length;
-
-  function timeAgo(dateStr: string) {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const m = Math.floor(diff / 60000);
-    if (m < 1) return "just now"; if (m < 60) return `${m}m ago`;
-    const h = Math.floor(m / 60);
-    if (h < 24) return `${h}h ago`; return `${Math.floor(h / 24)}d ago`;
-  }
+  const hasFilters = platform || dateFrom || dateTo;
 
   return (
     <div className="dashboard-page">
@@ -465,7 +429,7 @@ export default function DashboardPage() {
       {/* Global Status Widget — self-gates to admin via 403 */}
       <GlobalStatusWidget />
 
-      {/* Spend Over Time — multidimensional */}
+      {/* Spend Over Time */}
       {mergedChartData.length > 0 && (
         <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "16px", padding: "22px", marginBottom: "24px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
@@ -492,100 +456,38 @@ export default function DashboardPage() {
                 formatter={(val: any, name: any) => [`$${Number(val).toLocaleString()}`, name]}
                 labelFormatter={l => new Date(l).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
               />
-              <Bar dataKey="Google"   name="Google"      stackId="curr" fill="#4285F4" radius={[0,0,0,0]} />
-              <Bar dataKey="Meta"     name="Meta"        stackId="curr" fill="#1877F2" radius={[3,3,0,0]} />
+              <Bar dataKey="Google" name="Google" stackId="curr" fill="#4285F4" radius={[0,0,0,0]} />
+              <Bar dataKey="Meta"   name="Meta"   stackId="curr" fill="#1877F2" radius={[3,3,0,0]} />
               <Line type="monotone" dataKey="prevTotal" name="Prev. period" stroke="#888780" strokeWidth={1.5} strokeDasharray="5 4" dot={false} connectNulls opacity={0.65} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       )}
 
-      {/* Bottom grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "16px", marginBottom: "24px" }}>
-        <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "16px", padding: "22px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <h2 style={{ fontSize: "16px", fontWeight: "600", color: "var(--t1)" }}>Active Alerts</h2>
-              {criticalAlerts > 0 && <span style={{ fontSize: "11px", fontWeight: "700", padding: "2px 8px", borderRadius: "5px", background: "rgba(248,81,73,0.12)", color: "#f85149", border: "1px solid rgba(248,81,73,0.25)" }}>{criticalAlerts} critical</span>}
-            </div>
-            <Link href="/alerts" style={{ fontSize: "12px", color: "#5865f2", textDecoration: "none", fontWeight: "500" }}>View all →</Link>
-          </div>
-          {realAlerts.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "32px 0" }}><div style={{ fontSize: "24px", marginBottom: "8px" }}>✅</div><p style={{ fontSize: "13px", color: "var(--t2)" }}>No active alerts</p></div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              {realAlerts.map(a => {
-                const isCrit = a.rule?.severity === "CRITICAL"; const color = isCrit ? "#f85149" : "#d29922";
-                return (
-                  <div key={a.id} style={{ padding: "14px 16px", borderRadius: "12px", background: "var(--bg)", border: `1px solid ${isCrit ? "rgba(248,81,73,0.15)" : "rgba(210,153,34,0.15)"}` }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-                      <span style={{ fontSize: "13px", fontWeight: "600", color: "var(--t1)" }}>{a.rule?.metricKey?.toUpperCase() ?? "Alert"}</span>
-                      <span style={{ fontSize: "10px", fontWeight: "700", padding: "2px 7px", borderRadius: "5px", background: isCrit ? "rgba(248,81,73,0.12)" : "rgba(210,153,34,0.12)", color, border: `1px solid ${isCrit ? "rgba(248,81,73,0.25)" : "rgba(210,153,34,0.25)"}` }}>{a.rule?.severity ?? "WARNING"}</span>
-                    </div>
-                    <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
-                      <span style={{ fontSize: "12px", color: "var(--t2)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.message}</span>
-                      <span style={{ fontSize: "11px", color: "var(--t3)", flexShrink: 0 }}>{timeAgo(a.createdAt)}</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "16px", padding: "20px" }}>
-            <h2 style={{ fontSize: "15px", fontWeight: "600", color: "var(--t1)", marginBottom: "16px" }}>Platform Split</h2>
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-              {platformBreakdown.length > 0 ? platformBreakdown.map((p: any) => {
-                const pct = totalSpend > 0 ? Math.round((Number(p.spend) / totalSpend) * 100) : 0;
-                const color = p.platform === "GOOGLE" ? "#4285F4" : "#1877F2";
-                const label = p.platform === "GOOGLE" ? "Google Ads" : "Meta Ads";
-                return (
-                  <div key={p.platform}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
-                      <span style={{ fontSize: "13px", fontWeight: "600", color }}>{label}</span>
-                      <span style={{ fontSize: "13px", color: "var(--t2)" }}>${Number(p.spend).toLocaleString()} · {pct}%</span>
-                    </div>
-                    <div style={{ height: "6px", borderRadius: "3px", background: "var(--border)" }}>
-                      <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: "3px", transition: "width 0.6s ease" }} />
-                    </div>
-                  </div>
-                );
-              }) : <p style={{ fontSize: "13px", color: "var(--t3)", textAlign: "center", padding: "12px 0" }}>No platform data yet</p>}
-            </div>
-          </div>
-
-          <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "16px", padding: "20px", flex: 1 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-              <h2 style={{ fontSize: "15px", fontWeight: "600", color: "var(--t1)" }}>Recent Uploads</h2>
-              <Link href="/uploads" style={{ fontSize: "12px", color: "#5865f2", textDecoration: "none", fontWeight: "500" }}>View all →</Link>
-            </div>
-            {uploads.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "20px" }}>
-                <p style={{ fontSize: "13px", color: "var(--t2)", marginBottom: "10px" }}>No uploads yet</p>
-                <Link href="/uploads/new" style={{ fontSize: "12px", fontWeight: "600", color: "#5865f2", textDecoration: "none", padding: "7px 14px", borderRadius: "8px", border: "1px solid rgba(88,101,242,0.3)", background: "rgba(88,101,242,0.08)" }}>Upload first dataset →</Link>
+      {/* Platform Split — full width */}
+      <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "16px", padding: "22px", marginBottom: "24px" }}>
+        <h2 style={{ fontSize: "15px", fontWeight: "600", color: "var(--t1)", marginBottom: "16px" }}>Platform Split</h2>
+        <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+          {platformBreakdown.length > 0 ? platformBreakdown.map((p: any) => {
+            const pct   = totalSpend > 0 ? Math.round((Number(p.spend) / totalSpend) * 100) : 0;
+            const color = p.platform === "GOOGLE" ? "#4285F4" : "#1877F2";
+            const label = p.platform === "GOOGLE" ? "Google Ads" : "Meta Ads";
+            return (
+              <div key={p.platform}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "7px" }}>
+                  <span style={{ fontSize: "14px", fontWeight: "600", color }}>{label}</span>
+                  <span style={{ fontSize: "14px", color: "var(--t2)" }}>${Number(p.spend).toLocaleString()} · {pct}%</span>
+                </div>
+                <div style={{ height: "8px", borderRadius: "4px", background: "var(--border)" }}>
+                  <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: "4px", transition: "width 0.6s ease" }} />
+                </div>
               </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                {uploads.map(u => {
-                  const sc = statusCfg(u.status);
-                  return (
-                    <div key={u.id} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 12px", borderRadius: "10px", background: "var(--bg)", border: "1px solid var(--border)" }}>
-                      <div style={{ width: "30px", height: "30px", borderRadius: "7px", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "700", fontSize: "13px", color: "white", background: u.platform === "GOOGLE" ? "#4285F4" : "#1877F2" }}>{u.platform === "GOOGLE" ? "G" : "f"}</div>
-                      <div style={{ flex: 1, overflow: "hidden" }}>
-                        <div style={{ fontSize: "12px", fontWeight: "500", color: "var(--t1)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.fileName}</div>
-                      </div>
-                      <span style={{ fontSize: "10px", fontWeight: "700", padding: "2px 7px", borderRadius: "5px", flexShrink: 0, background: sc.bg, color: sc.color, border: `1px solid ${sc.border}` }}>{u.status}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+            );
+          }) : <p style={{ fontSize: "13px", color: "var(--t3)", textAlign: "center", padding: "12px 0" }}>No platform data yet</p>}
         </div>
       </div>
 
+      {/* Top Campaigns */}
       {topCampaigns.length > 0 && (
         <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "16px", padding: "22px", marginBottom: "0" }}>
           <h2 style={{ fontSize: "16px", fontWeight: "600", color: "var(--t1)", marginBottom: "18px" }}>Top Campaigns by Spend</h2>
