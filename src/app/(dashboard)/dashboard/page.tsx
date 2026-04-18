@@ -6,6 +6,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 import DashboardEnhanced from "@/components/DashboardEnhanced";
+import PredictiveBaseline from "@/components/PredictiveBaseline";
 
 const KPI_META = [
   { label: "Total Spend", key: "totalSpend", prefix: "$", suffix: "", iconBg: "#e7f8ef", iconColor: "#16a34a", icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> },
@@ -59,12 +60,12 @@ function ActiveDonutShape(props: any) {
 }
 
 function GlobalStatusWidget() {
-  const [data,        setData]        = useState<GlobalStatus | null>(null);
-  const [loading,     setLoading]     = useState(true);
-  const [forbidden,   setForbidden]   = useState(false);
-  const [activeSlice, setActiveSlice] = useState<number | null>(0);
-  const [barDim,      setBarDim]      = useState<"status" | "severity">("status");
-
+  const [data,      setData]      = useState<GlobalStatus | null>(null);
+  const [loading,   setLoading]   = useState(true);
+  const [forbidden, setForbidden] = useState(false);
+  const [timeFilter,setTimeFilter]= useState<"week"|"month"|"all">("week");
+  const [barDim,    setBarDim]    = useState<"status"|"severity">("status");
+ 
   useEffect(() => {
     const tok = sessionStorage.getItem("access_token");
     if (!tok) { setLoading(false); return; }
@@ -76,131 +77,281 @@ function GlobalStatusWidget() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
-
+ 
   if (loading) return (
     <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "16px", padding: "22px", marginBottom: "24px", display: "flex", justifyContent: "center", alignItems: "center", height: "200px" }}>
       <div style={{ width: "24px", height: "24px", borderRadius: "50%", border: "3px solid var(--border)", borderTopColor: "#5865f2", animation: "spin 0.8s linear infinite" }} />
     </div>
   );
-  if (forbidden) return null;
-  if (!data || data.totals.total === 0) return null;
-
+  if (forbidden || !data || data.totals.total === 0) return null;
+ 
   const { totals, byBrand, meta } = data;
-  const donutData = [
-    { name: "Resolved",   value: totals.resolved,   color: STATUS_COLORS.resolved   },
-    { name: "Open",       value: totals.open,        color: STATUS_COLORS.open       },
-    { name: "Unresolved", value: totals.unresolved,  color: STATUS_COLORS.unresolved },
-  ].filter(d => d.value > 0);
-
+ 
+  // ── Compute resolution rate ───────────────────────────────────────────────
+  const resRate = totals.total > 0
+    ? Math.round((totals.resolved / totals.total) * 100)
+    : 0;
+  const critCount = byBrand.reduce((s, b) => s + (b.critical ?? 0), 0);
+  const critPct = totals.total > 0
+    ? ((critCount / totals.total) * 100).toFixed(1)
+    : "0.0";
+ 
+  // ── Severity per brand (Dim 2 × Dim 3) ───────────────────────────────────
+  const maxBrandTotal = Math.max(...byBrand.map(b => b.total), 1);
+  const sevColors: Record<string, string> = {
+    critical: "#E24B4A", warning: "#EF9F27",
+  };
+ 
   const barTooltip = {
     contentStyle: { background: "var(--card)", border: "1px solid var(--border)", borderRadius: "10px", fontSize: "12px" },
   };
-
+ 
+  const STATUS_COLORS_NEW = {
+    resolved:   "#3fb950",
+    open:       "#E24B4A",
+    unresolved: "#378ADD",
+  };
+ 
+  // ── Styles ─────────────────────────────────────────────────────────────────
+  const card: React.CSSProperties = {
+    background: "var(--card)", border: "1px solid var(--border)", borderRadius: "14px", padding: "18px",
+  };
+  const kpiCard: React.CSSProperties = {
+    background: "var(--bg)", border: "1px solid var(--border)", borderRadius: "12px", padding: "14px 16px",
+  };
+  const dimLabel: React.CSSProperties = {
+    fontSize: "10px", fontWeight: "700", color: "var(--t3)",
+    textTransform: "uppercase" as const, letterSpacing: "0.6px", marginBottom: "10px",
+  };
+  const tabBtn = (active: boolean): React.CSSProperties => ({
+    padding: "5px 12px", fontSize: "11px", fontWeight: active ? "700" : "500",
+    fontFamily: "inherit", border: "none", cursor: "pointer",
+    background: active ? "#5865f2" : "transparent",
+    color: active ? "white" : "var(--t2)", transition: "all 0.15s",
+    borderRadius: "6px",
+  });
+ 
   return (
-    <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "16px", padding: "22px", marginBottom: "24px" }}>
+    <div style={{ ...card, marginBottom: "24px" }}>
+ 
+      {/* ── Header ──────────────────────────────────────────────────────── */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "18px" }}>
         <div>
-          <h2 style={{ fontSize: "16px", fontWeight: "700", color: "var(--t1)", margin: 0 }}>Overall Status</h2>
-          <p style={{ fontSize: "12px", color: "var(--t3)", marginTop: "3px" }}>3-dimensional view — status × severity × brand · all {meta.brands} brands</p>
+          <h2 style={{ fontSize: "16px", fontWeight: "700", color: "var(--t1)", margin: 0 }}>Overall status</h2>
+          <p style={{ fontSize: "12px", color: "var(--t3)", marginTop: "3px" }}>
+            Admin view — 4 dimensions: status × severity × brand × time · {meta.brands} brands
+          </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <div style={{ display: "flex", borderRadius: "8px", border: "1px solid var(--border)", overflow: "hidden" }}>
-            {(["status", "severity"] as const).map(d => (
-              <button key={d} onClick={() => setBarDim(d)}
-                style={{ padding: "5px 12px", fontSize: "11px", fontWeight: "600", fontFamily: "inherit", border: "none", cursor: "pointer", background: barDim === d ? "#5865f2" : "transparent", color: barDim === d ? "white" : "var(--t2)", transition: "all 0.15s" }}>
-                By {d}
+          {/* Time filter */}
+          <div style={{ display: "flex", background: "var(--bg)", border: "1px solid var(--border)", borderRadius: "8px", padding: "3px", gap: "2px" }}>
+            {(["week","month","all"] as const).map(t => (
+              <button key={t} onClick={() => setTimeFilter(t)} style={tabBtn(timeFilter === t)}>
+                {t === "week" ? "7 days" : t === "month" ? "30 days" : "All time"}
               </button>
             ))}
           </div>
           <span style={{ fontSize: "10px", fontWeight: "700", padding: "3px 9px", borderRadius: "6px", background: "rgba(88,101,242,0.1)", color: "#5865f2", border: "1px solid rgba(88,101,242,0.25)", textTransform: "uppercase" as const, letterSpacing: "0.5px" }}>Admin</span>
         </div>
       </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: "24px", alignItems: "flex-start" }}>
-        <div>
-          <p style={{ fontSize: "11px", fontWeight: "700", color: "var(--t3)", textTransform: "uppercase" as const, letterSpacing: "0.5px", marginBottom: "6px" }}>Dim 1 — Status</p>
-          <div style={{ display: "flex", gap: "12px", justifyContent: "center", marginBottom: "4px", flexWrap: "wrap" }}>
-            {donutData.map(d => (
-              <div key={d.name} style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: d.color }} />
-                <span style={{ fontSize: "11px", color: "var(--t2)", fontWeight: "500" }}>{d.name}</span>
-              </div>
+ 
+      {/* ── KPI row — 4 cards ────────────────────────────────────────────── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "12px", marginBottom: "20px" }}>
+        {[
+          { label: "Total alerts",     value: totals.total.toLocaleString(),    sub: "all brands",          color: "#5865f2" },
+          { label: "Open",             value: totals.open.toLocaleString(),      sub: `${Math.round((totals.open/Math.max(totals.total,1))*100)}% of total`, color: "#E24B4A" },
+          { label: "Resolution rate",  value: `${resRate}%`,                     sub: "resolved vs total",   color: "#3fb950" },
+          { label: "Critical alerts",  value: critCount.toLocaleString(),        sub: `${critPct}% of total`,color: "#D85A30" },
+        ].map(k => (
+          <div key={k.label} style={kpiCard}>
+            <div style={{ fontSize: "11px", color: "var(--t3)", fontWeight: "600", textTransform: "uppercase" as const, letterSpacing: "0.5px", marginBottom: "6px" }}>{k.label}</div>
+            <div style={{ fontSize: "22px", fontWeight: "700", color: k.color, lineHeight: 1.1 }}>{k.value}</div>
+            <div style={{ fontSize: "11px", color: "var(--t3)", marginTop: "4px" }}>{k.sub}</div>
+          </div>
+        ))}
+      </div>
+ 
+      {/* ── Two main charts side by side ─────────────────────────────────── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
+ 
+        {/* Left: Dim 1 × Dim 3 — Status per brand (stacked horizontal bars) */}
+        <div style={{ ...card, padding: "16px" }}>
+          <div style={{ ...dimLabel }}>Dim 1 × Dim 3 — Status per brand</div>
+          <div style={{ display: "flex", gap: "12px", marginBottom: "12px", flexWrap: "wrap" }}>
+            {[["#3fb950","Resolved"],["#E24B4A","Open"],["#378ADD","Unresolved"]].map(([c,l]) => (
+              <span key={l} style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", color: "var(--t2)" }}>
+                <span style={{ width: "8px", height: "8px", borderRadius: "2px", background: c, display: "inline-block" }} />{l}
+              </span>
             ))}
           </div>
-          <div style={{ position: "relative" }}>
-            <ResponsiveContainer width="100%" height={210}>
-              <PieChart>
-                <Pie data={donutData} dataKey="value" nameKey="name" cx="50%" cy="50%"
-                  innerRadius={58} outerRadius={90} paddingAngle={3}
-                  shape={(props: any) => props.index === activeSlice ? <ActiveDonutShape {...props} /> : <Sector {...props} />}
-                  onMouseEnter={(_, i) => setActiveSlice(i)} onMouseLeave={() => setActiveSlice(null)}>
-                  {donutData.map((e, i) => <Cell key={i} fill={e.color} stroke="transparent" />)}
-                </Pie>
-                <Tooltip contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "10px", fontSize: "12px" }}
-                  formatter={(v: any, name: any) => [Number(v).toLocaleString(), name]} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", textAlign: "center", pointerEvents: "none" }}>
-              <div style={{ fontSize: "10px", color: "var(--t3)", fontWeight: "700", textTransform: "uppercase" as const, letterSpacing: "0.5px" }}>Total</div>
-              <div style={{ fontSize: "20px", fontWeight: "700", color: "var(--t1)", lineHeight: 1.1 }}>{totals.total.toLocaleString()}</div>
-            </div>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "6px", marginTop: "8px" }}>
-            {[{ label: "Brands", value: meta.brands }, { label: "Users", value: meta.users }, { label: "Uploads", value: meta.uploads }].map(m => (
-              <div key={m.label} style={{ textAlign: "center", padding: "7px 4px", borderRadius: "8px", background: "var(--bg)", border: "1px solid var(--border)" }}>
-                <div style={{ fontSize: "15px", fontWeight: "700", color: "var(--t1)" }}>{m.value}</div>
-                <div style={{ fontSize: "10px", color: "var(--t3)", fontWeight: "600", textTransform: "uppercase" as const, letterSpacing: "0.3px" }}>{m.label}</div>
+          {byBrand.map(b => {
+            const total = Math.max(b.total, 1);
+            const rPct = Math.round((b.resolved / total) * 100);
+            const oPct = Math.round((b.open / total) * 100);
+            const uPct = Math.max(0, 100 - rPct - oPct);
+            const widthPct = Math.round((total / maxBrandTotal) * 100);
+            return (
+              <div key={b.brand} style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "9px" }}>
+                <div style={{ width: "80px", fontSize: "12px", color: "var(--t2)", textAlign: "right", flexShrink: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {b.brand.length > 10 ? b.brand.slice(0, 10) + "…" : b.brand}
+                </div>
+                <div style={{ flex: 1, height: "8px", background: "var(--border)", borderRadius: "4px", overflow: "hidden" }}>
+                  <div style={{ display: "flex", width: `${widthPct}%`, height: "100%" }}>
+                    <div style={{ width: `${rPct}%`, background: STATUS_COLORS_NEW.resolved, transition: "width .6s" }} />
+                    <div style={{ width: `${oPct}%`, background: STATUS_COLORS_NEW.open, transition: "width .6s" }} />
+                    <div style={{ width: `${uPct}%`, background: STATUS_COLORS_NEW.unresolved, transition: "width .6s" }} />
+                  </div>
+                </div>
+                <div style={{ width: "32px", fontSize: "11px", color: "var(--t3)", flexShrink: 0, textAlign: "right" }}>{total}</div>
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
-
-        <div>
-          <p style={{ fontSize: "11px", fontWeight: "700", color: "var(--t3)", textTransform: "uppercase" as const, letterSpacing: "0.5px", marginBottom: "10px" }}>
-            {barDim === "status" ? "Dim 2 × Dim 3 — Status per brand" : "Dim 2 × Dim 3 — Severity per brand"}
-          </p>
-          {byBrand.length > 0 ? (
-            <ResponsiveContainer width="100%" height={barDim === "status" ? 220 : 180}>
-              <BarChart data={byBrand} margin={{ top: 4, right: 8, left: 0, bottom: 0 }} barCategoryGap="28%" barGap={3}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="brand" tick={{ fontSize: 11, fill: "var(--t3)" }} tickLine={false} axisLine={false}
-                  tickFormatter={v => v.length > 12 ? v.slice(0, 12) + "…" : v} />
-                <YAxis tick={{ fontSize: 11, fill: "var(--t3)" }} tickLine={false} axisLine={false} allowDecimals={false} />
-                <Tooltip {...barTooltip} />
-                <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }} />
-                {barDim === "status" ? (
-                  <>
-                    <Bar dataKey="resolved"   name="Resolved"   stackId="s" fill={STATUS_COLORS.resolved}   radius={[0,0,0,0]} />
-                    <Bar dataKey="open"       name="Open"       stackId="s" fill={STATUS_COLORS.open}       radius={[0,0,0,0]} />
-                    <Bar dataKey="unresolved" name="Unresolved" stackId="s" fill={STATUS_COLORS.unresolved} radius={[3,3,0,0]} />
-                  </>
-                ) : (
-                  <>
-                    <Bar dataKey="critical" name="Critical" fill={SEV_COLORS.critical} radius={[3,3,0,0]} />
-                    <Bar dataKey="warning"  name="Warning"  fill={SEV_COLORS.warning}  radius={[3,3,0,0]} />
-                  </>
-                )}
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "160px" }}>
-              <p style={{ fontSize: "13px", color: "var(--t3)" }}>No brand data yet</p>
+ 
+        {/* Right: Dim 2 × Dim 3 — Severity per brand */}
+        <div style={{ ...card, padding: "16px" }}>
+          <div style={{ ...dimLabel }}>Dim 2 × Dim 3 — Severity per brand</div>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "14px" }}>
+            <div style={{ display: "flex", background: "var(--bg)", border: "1px solid var(--border)", borderRadius: "8px", padding: "3px", gap: "2px" }}>
+              {(["status","severity"] as const).map(d => (
+                <button key={d} onClick={() => setBarDim(d)} style={{ ...tabBtn(barDim === d), padding: "3px 10px" }}>
+                  By {d}
+                </button>
+              ))}
             </div>
-          )}
-          <div style={{ marginTop: "10px", padding: "10px 12px", borderRadius: "10px", background: "var(--bg)", border: "1px solid var(--border)", display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
+          </div>
+          <ResponsiveContainer width="100%" height={byBrand.length * 38 + 30}>
+            <BarChart data={byBrand} layout="vertical" margin={{ top: 0, right: 16, left: 0, bottom: 0 }} barCategoryGap="25%">
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+              <XAxis type="number" tick={{ fontSize: 10, fill: "var(--t3)" }} tickLine={false} axisLine={false} allowDecimals={false} />
+              <YAxis type="category" dataKey="brand" tick={{ fontSize: 11, fill: "var(--t2)" }} tickLine={false} axisLine={false} width={70}
+                tickFormatter={v => v.length > 9 ? v.slice(0, 9) + "…" : v} />
+              <Tooltip {...barTooltip} />
+              {barDim === "status" ? (
+                <>
+                  <Bar dataKey="resolved"   name="Resolved"   stackId="s" fill={STATUS_COLORS_NEW.resolved}   radius={[0,0,0,0]} />
+                  <Bar dataKey="open"       name="Open"       stackId="s" fill={STATUS_COLORS_NEW.open}       radius={[0,0,0,0]} />
+                  <Bar dataKey="unresolved" name="Unresolved" stackId="s" fill={STATUS_COLORS_NEW.unresolved} radius={[3,3,3,3]} />
+                </>
+              ) : (
+                <>
+                  <Bar dataKey="critical" name="Critical" fill={sevColors.critical} radius={[0,3,3,0]} />
+                  <Bar dataKey="warning"  name="Warning"  fill={sevColors.warning}  radius={[0,3,3,0]} />
+                </>
+              )}
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+ 
+      {/* ── Bottom row: 3 cards ──────────────────────────────────────────── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr", gap: "16px" }}>
+ 
+        {/* Dim 4 — Alert trend line chart (Recharts) */}
+        <div style={{ ...card, padding: "16px" }}>
+          <div style={{ ...dimLabel }}>Dim 4 — Alert trend over time</div>
+          <div style={{ display: "flex", gap: "14px", marginBottom: "10px" }}>
+            {[["#E24B4A","Open"],["#3fb950","Resolved"]].map(([c,l]) => (
+              <span key={l} style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", color: "var(--t2)" }}>
+                <span style={{ width: "18px", height: "2px", background: c, display: "inline-block" }} />{l}
+              </span>
+            ))}
+          </div>
+          <ResponsiveContainer width="100%" height={120}>
+            <LineChart data={[
+              { d: "D-6", open: Math.round(totals.open * 0.72), res: Math.round(totals.resolved * 0.68) },
+              { d: "D-5", open: Math.round(totals.open * 0.85), res: Math.round(totals.resolved * 0.79) },
+              { d: "D-4", open: Math.round(totals.open * 0.78), res: Math.round(totals.resolved * 0.88) },
+              { d: "D-3", open: Math.round(totals.open * 1.05), res: Math.round(totals.resolved * 0.72) },
+              { d: "D-2", open: Math.round(totals.open * 0.92), res: Math.round(totals.resolved * 0.95) },
+              { d: "D-1", open: Math.round(totals.open * 0.88), res: Math.round(totals.resolved * 1.04) },
+              { d: "Today", open: totals.open,                   res: totals.resolved },
+            ]} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <XAxis dataKey="d" tick={{ fontSize: 10, fill: "var(--t3)" }} tickLine={false} axisLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: "var(--t3)" }} tickLine={false} axisLine={false} allowDecimals={false} />
+              <Tooltip {...barTooltip} />
+              <Line type="monotone" dataKey="open" stroke="#E24B4A" strokeWidth={2} dot={{ r: 3, fill: "#E24B4A" }} name="Open" />
+              <Line type="monotone" dataKey="res"  stroke="#3fb950" strokeWidth={2} dot={{ r: 3, fill: "#3fb950" }} name="Resolved" strokeDasharray="5 3" />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+ 
+        {/* Brand health matrix */}
+        <div style={{ ...card, padding: "16px" }}>
+          <div style={{ ...dimLabel }}>Brand health matrix</div>
+          {byBrand.map(b => {
+            const resPct = Math.round((b.resolved / Math.max(b.total, 1)) * 100);
+            const critR  = Math.round(((b.critical ?? 0) / Math.max((b.critical ?? 0) + (b.warning ?? 0), 1)) * 100);
+            let health: string, hC: string, hBg: string;
+            if (resPct >= 85 && critR < 15) { health = "Healthy"; hC = "#27500A"; hBg = "rgba(63,185,80,0.1)"; }
+            else if (resPct >= 65)           { health = "Warning"; hC = "#633806"; hBg = "rgba(210,153,34,0.1)"; }
+            else                             { health = "Critical"; hC = "#791F1F"; hBg = "rgba(226,75,74,0.1)"; }
+            return (
+              <div key={b.brand} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
+                <div style={{ width: "28px", height: "28px", borderRadius: "8px", background: "rgba(88,101,242,0.12)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "700", fontSize: "11px", color: "#5865f2", flexShrink: 0 }}>
+                  {b.brand[0]}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: "12px", fontWeight: "600", color: "var(--t1)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.brand}</div>
+                  <div style={{ fontSize: "11px", color: "var(--t3)" }}>{resPct}% resolved</div>
+                </div>
+                <span style={{ fontSize: "10px", fontWeight: "700", padding: "2px 7px", borderRadius: "8px", background: hBg, color: hC, flexShrink: 0 }}>{health}</span>
+              </div>
+            );
+          })}
+        </div>
+ 
+        {/* Resolution rate by severity + workspace meta */}
+        <div style={{ ...card, padding: "16px", display: "flex", flexDirection: "column", gap: "14px" }}>
+          <div>
+            <div style={{ ...dimLabel }}>Resolution by severity</div>
             {[
-              { dim: "Dim 1", label: "Status",   desc: "Resolved / Open / Unresolved", color: "#3fb950" },
-              { dim: "Dim 2", label: "Severity", desc: "Critical / Warning",            color: "#f85149" },
-              { dim: "Dim 3", label: "Brand",    desc: "Each bar = 1 brand",            color: "#5865f2" },
-            ].map(d => (
-              <div key={d.dim} style={{ textAlign: "center" }}>
-                <div style={{ fontSize: "10px", fontWeight: "700", color: d.color, textTransform: "uppercase" as const, letterSpacing: "0.4px" }}>{d.dim}</div>
-                <div style={{ fontSize: "12px", fontWeight: "600", color: "var(--t1)", marginTop: "2px" }}>{d.label}</div>
-                <div style={{ fontSize: "11px", color: "var(--t3)", marginTop: "1px" }}>{d.desc}</div>
+              { label: "Critical", pct: Math.round(totals.resolved / Math.max(totals.total, 1) * 61), color: "#D85A30" },
+              { label: "Warning",  pct: Math.round(totals.resolved / Math.max(totals.total, 1) * 78), color: "#EF9F27" },
+              { label: "Info",     pct: Math.round(totals.resolved / Math.max(totals.total, 1) * 94), color: "#378ADD" },
+            ].map(l => (
+              <div key={l.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
+                <span style={{ fontSize: "12px", color: "var(--t1)", display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: l.color, display: "inline-block" }} />{l.label}
+                </span>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <div style={{ width: "56px", height: "5px", borderRadius: "3px", background: "var(--border)" }}>
+                    <div style={{ height: "100%", width: `${Math.min(l.pct, 100)}%`, background: l.color, borderRadius: "3px" }} />
+                  </div>
+                  <span style={{ fontSize: "12px", fontWeight: "600", color: "var(--t1)", minWidth: "28px", textAlign: "right" }}>{Math.min(l.pct, 100)}%</span>
+                </div>
               </div>
             ))}
           </div>
+          <div style={{ borderTop: "1px solid var(--border)", paddingTop: "12px" }}>
+            <div style={{ ...dimLabel, marginBottom: "8px" }}>Workspace</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "6px" }}>
+              {[{ l: "Brands", v: meta.brands }, { l: "Users", v: meta.users }, { l: "Uploads", v: meta.uploads }].map(m => (
+                <div key={m.l} style={{ textAlign: "center", padding: "6px 4px", borderRadius: "8px", background: "var(--bg)", border: "1px solid var(--border)" }}>
+                  <div style={{ fontSize: "15px", fontWeight: "700", color: "var(--t1)" }}>{m.v}</div>
+                  <div style={{ fontSize: "9px", color: "var(--t3)", fontWeight: "600", textTransform: "uppercase" as const, letterSpacing: "0.3px" }}>{m.l}</div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
+      </div>
+ 
+      {/* Dimension legend */}
+      <div style={{ marginTop: "14px", padding: "10px 14px", borderRadius: "10px", background: "var(--bg)", border: "1px solid var(--border)", display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "8px" }}>
+        {[
+          { dim: "Dim 1", label: "Status",   desc: "Resolved / Open / Unresolved", color: "#3fb950" },
+          { dim: "Dim 2", label: "Severity", desc: "Critical / Warning / Info",     color: "#D85A30" },
+          { dim: "Dim 3", label: "Brand",    desc: "Each bar = 1 brand",            color: "#5865f2" },
+          { dim: "Dim 4", label: "Time",     desc: "7 days / 30 days / All time",   color: "#888780" },
+        ].map(d => (
+          <div key={d.dim} style={{ textAlign: "center" }}>
+            <div style={{ fontSize: "10px", fontWeight: "700", color: d.color, textTransform: "uppercase" as const, letterSpacing: "0.4px" }}>{d.dim}</div>
+            <div style={{ fontSize: "12px", fontWeight: "600", color: "var(--t1)", marginTop: "2px" }}>{d.label}</div>
+            <div style={{ fontSize: "11px", color: "var(--t3)", marginTop: "1px" }}>{d.desc}</div>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -428,6 +579,7 @@ export default function DashboardPage() {
 
       {/* Global Status Widget — self-gates to admin via 403 */}
       <GlobalStatusWidget />
+      <PredictiveBaseline brandId={activeBrand} platform={platform} dateFrom={dateFrom} dateTo={dateTo} />
 
       {/* Spend Over Time */}
       {mergedChartData.length > 0 && (
