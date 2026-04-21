@@ -1,33 +1,26 @@
 import type { CSSProperties } from "react";
 
 export const pageEyebrowStyle: CSSProperties = {
-  color: "#6366F1",
-  fontSize: 12,
+  color: "var(--text-accent, #5b5ef4)",
+  fontSize: 11,
   fontWeight: 700,
   letterSpacing: "0.16em",
   textTransform: "uppercase",
   marginBottom: 8,
 };
 
-export const pageTitleStyle: CSSProperties = {
-  margin: 0,
-  color: "#0f172a",
-  fontSize: 30,
-  fontWeight: 700,
-};
-
 export const pageSubtitleStyle: CSSProperties = {
-  marginTop: 8,
-  color: "#64748b",
+  marginTop: 0,
+  color: "var(--text-muted, #6b7280)",
   fontSize: 14,
   lineHeight: 1.6,
 };
 
 export const cardStyle: CSSProperties = {
-  background: "#fff",
-  border: "1px solid rgba(148,163,184,0.24)",
-  borderRadius: 14,
-  boxShadow: "0 12px 28px rgba(15,23,42,0.04)",
+  background: "var(--card-bg, #ffffff)",
+  border: "1px solid var(--border, #e5e7eb)",
+  borderRadius: 12,
+  boxShadow: "var(--shadow-card, 0 1px 3px rgba(0,0,0,0.07))",
 };
 
 export const paddedCardStyle: CSSProperties = {
@@ -111,14 +104,14 @@ export const primaryButtonStyle: CSSProperties = {
   alignItems: "center",
   justifyContent: "center",
   padding: "11px 18px",
-  borderRadius: 12,
+  borderRadius: 8,
   border: "none",
-  background: "linear-gradient(135deg,#5865f2,#7c83ff)",
+  background: "var(--primary, #5b5ef4)",
   color: "#fff",
   fontSize: 14,
   fontWeight: 700,
   textDecoration: "none",
-  boxShadow: "0 12px 24px rgba(88,101,242,0.22)",
+  boxShadow: "0 8px 18px rgba(91,94,244,0.16)",
   cursor: "pointer",
   fontFamily: "inherit",
 };
@@ -128,10 +121,10 @@ export const secondaryButtonStyle: CSSProperties = {
   alignItems: "center",
   justifyContent: "center",
   padding: "10px 16px",
-  borderRadius: 12,
-  border: "1px solid rgba(148,163,184,0.28)",
+  borderRadius: 8,
+  border: "1px solid var(--border, #e5e7eb)",
   background: "#fff",
-  color: "#475569",
+  color: "var(--text-muted, #6b7280)",
   fontSize: 14,
   fontWeight: 700,
   textDecoration: "none",
@@ -142,10 +135,10 @@ export const secondaryButtonStyle: CSSProperties = {
 export const subtleInputStyle: CSSProperties = {
   width: "100%",
   padding: "11px 13px",
-  borderRadius: 10,
-  border: "1px solid rgba(148,163,184,0.28)",
-  background: "#f8fafc",
-  color: "#0f172a",
+  borderRadius: 8,
+  border: "1px solid var(--border, #e5e7eb)",
+  background: "#ffffff",
+  color: "var(--text-primary, #0f0f0f)",
   fontSize: 14,
   fontFamily: "inherit",
   outline: "none",

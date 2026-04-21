@@ -12,7 +12,6 @@ import {
   largeCardStyle,
   pageEyebrowStyle,
   pageSubtitleStyle,
-  pageTitleStyle,
   primaryButtonStyle,
   secondaryButtonStyle,
   pillStyle,
@@ -171,7 +170,6 @@ export default function DetectionPage() {
     <div style={{ animation: "fadeUp 0.4s ease both", fontFamily: "'Outfit', sans-serif" }}>
       <div style={{ marginBottom: 24 }}>
         <div style={pageEyebrowStyle}>Detection</div>
-        <h1 style={pageTitleStyle}>Detection settings</h1>
         <p style={pageSubtitleStyle}>Configure anomaly sensitivity and alert thresholds using the same card, accent, and spacing system as the rest of the dashboard.</p>
       </div>
 

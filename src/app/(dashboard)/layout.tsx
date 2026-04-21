@@ -160,7 +160,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     if (user.role === "AGENCY_ADMIN") {
       apiFetch<{ items?: { id: string; name: string }[] }>("/api/brands")
         .then((data) => {
-          const list = data.items ?? data;
+          const list = Array.isArray(data.items) ? data.items : [];
           setBrands(list);
           if (list[0]) {
             setSelectedBrand(list[0].id);

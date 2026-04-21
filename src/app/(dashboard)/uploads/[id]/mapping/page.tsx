@@ -3,6 +3,25 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { apiFetch } from "@/lib/apiFetch";
 
+type UploadColumn = {
+  id?: string;
+  name: string;
+  mappedTo?: string;
+  sample?: string[];
+};
+
+type UploadMapping = {
+  sourceColumn: string;
+  targetKey: string;
+};
+
+type UploadRecord = {
+  fileName: string;
+  platform: string;
+  columns?: UploadColumn[];
+  mappings?: UploadMapping[];
+};
+
 const TARGET_COLUMNS = [
   { value: "spend", label: "Spend" },
   { value: "clicks", label: "Clicks" },
@@ -21,7 +40,7 @@ const TARGET_COLUMNS = [
 ];
 
 export default function ColumnMappingPage() {
-  const [upload, setUpload] = useState<any>(null);
+  const [upload, setUpload] = useState<UploadRecord | null>(null);
   const [mappings, setMappings] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -34,15 +53,15 @@ export default function ColumnMappingPage() {
 
   const fetchUpload = useCallback(async () => {
     try {
-      const data = await apiFetch<any>(`/api/uploads/${uploadId}`);
+      const data = await apiFetch<{ upload?: UploadRecord } & UploadRecord>(`/api/uploads/${uploadId}`);
       const nextUpload = data.upload ?? data;
       setUpload(nextUpload);
 
       const initialMappings: Record<string, string> = {};
-      nextUpload?.columns?.forEach((col: any) => {
+      nextUpload?.columns?.forEach((col) => {
         if (col.mappedTo) initialMappings[col.name] = col.mappedTo;
       });
-      nextUpload?.mappings?.forEach((mapping: any) => {
+      nextUpload?.mappings?.forEach((mapping) => {
         initialMappings[mapping.sourceColumn] = mapping.targetKey;
       });
       setMappings(initialMappings);
@@ -60,7 +79,7 @@ export default function ColumnMappingPage() {
   const autoMap = () => {
     if (!upload?.columns) return;
     const auto: Record<string, string> = {};
-    upload.columns.forEach((col: any) => {
+    upload.columns.forEach((col) => {
       const header = col.name.toLowerCase();
       if (header.includes("spend") || header.includes("amount spent") || header === "cost") auto[col.name] = "spend";
       else if (header.includes("link click") || header === "clicks") auto[col.name] = "clicks";
@@ -146,7 +165,9 @@ export default function ColumnMappingPage() {
   return (
     <div style={{ animation: "fadeUp 0.4s ease both", fontFamily: "'Outfit', sans-serif", maxWidth: "900px" }}>
       <div style={{ marginBottom: "28px" }}>
-        <h1 style={{ fontSize: "24px", fontWeight: "700", color: "var(--t1)", marginBottom: "4px" }}>Map Your Columns</h1>
+        <div style={{ color: "var(--primary)", fontSize: "11px", fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: "8px" }}>
+          Uploads
+        </div>
         <p style={{ fontSize: "14px", color: "var(--t2)" }}>
           Match your CSV columns to our unified schema - <strong style={{ color: "var(--t1)" }}>{upload.fileName}</strong> ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {upload.platform}
         </p>
@@ -189,7 +210,7 @@ export default function ColumnMappingPage() {
             <span key={header} style={{ fontSize: "11px", fontWeight: "700", color: "var(--t3)", letterSpacing: "0.8px", textTransform: "uppercase" as const }}>{header}</span>
           ))}
         </div>
-        {upload.columns?.map((col: any, index: number) => (
+        {upload.columns?.map((col, index: number) => (
           <div key={col.id ?? col.name} style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr 1fr", padding: "14px 20px", alignItems: "center", gap: "8px", borderBottom: index < upload.columns.length - 1 ? "1px solid var(--border)" : "none" }}>
             <span style={{ fontSize: "13px", fontWeight: "600", color: "var(--t1)" }}>{col.name}</span>
             <span style={{ fontSize: "12px", color: "var(--t2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>

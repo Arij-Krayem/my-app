@@ -216,7 +216,7 @@ export default function DashboardPage() {
           marginBottom: 18,
           flexWrap: "wrap",
         }}
-      >
+        >
         <div>
           <div
             style={{
@@ -230,9 +230,6 @@ export default function DashboardPage() {
           >
             Dashboard
           </div>
-          <h1 style={{ margin: 0, color: "#0f172a", fontSize: 30, fontWeight: 700 }}>
-            Brand performance overview
-          </h1>
         </div>
 
         <Link

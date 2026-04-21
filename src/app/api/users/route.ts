@@ -54,12 +54,7 @@ export async function GET(req: NextRequest) {
       prisma.user.count({ where }),
     ]);
 
-    return NextResponse.json({
-      items,
-      users: items,
-      totalItems,
-      totalPages: Math.ceil(totalItems / pageSize),
-    });
+    return NextResponse.json({ items, totalItems, totalPages: Math.ceil(totalItems / pageSize) });
   } catch (err) {
     if (err instanceof AuthError)
       return NextResponse.json({ error: err.message }, { status: err.status });

@@ -2,10 +2,46 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, AuthError } from "@/lib/auth-guard";
 
+async function resolveBrandId(userId: string, role: string, requestedBrandId: string | null) {
+  if (requestedBrandId) return requestedBrandId;
+
+  if (role === "AGENCY_ADMIN") {
+    const brand = await prisma.brand.findFirst({
+      orderBy: { createdAt: "asc" },
+      select: { id: true },
+    });
+    return brand?.id ?? null;
+  }
+
+  const membership = await prisma.brandMember.findFirst({
+    where: { userId },
+    orderBy: { id: "asc" },
+    select: { brandId: true },
+  });
+
+  return membership?.brandId ?? null;
+}
+
 export async function GET(req: NextRequest) {
   try {
     const payload = requireAuth(req);
-    const brandId = req.nextUrl.searchParams.get("brandId") ?? "brand_visioad_001";
+    const brandId = await resolveBrandId(
+      payload.userId,
+      payload.role,
+      req.nextUrl.searchParams.get("brandId"),
+    );
+
+    if (!brandId) {
+      return NextResponse.json({
+        alertsPerDay: [],
+        summary: {
+          open: 0,
+          ack: 0,
+          resolved: 0,
+          total: 0,
+        },
+      });
+    }
 
     // Verify access
     if (payload.role !== "AGENCY_ADMIN") {

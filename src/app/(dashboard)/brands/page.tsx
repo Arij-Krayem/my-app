@@ -12,7 +12,6 @@ import {
   metricCardStyle,
   pageEyebrowStyle,
   pageSubtitleStyle,
-  pageTitleStyle,
   primaryButtonStyle,
   secondaryButtonStyle,
   subtleInputStyle,
@@ -141,7 +140,6 @@ export default function BrandsPage() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 24, flexWrap: "wrap" }}>
         <div>
           <div style={pageEyebrowStyle}>Brands</div>
-          <h1 style={pageTitleStyle}>Workspace brands</h1>
           <p style={pageSubtitleStyle}>Manage client workspaces and review health, spend, ROAS, and alert coverage in a single standardized table.</p>
         </div>
         <button type="button" onClick={() => setOpen(true)} style={primaryButtonStyle}>
@@ -305,7 +303,7 @@ export default function BrandsPage() {
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent style={{ maxWidth: 420 }}>
+        <DialogContent style={{ maxWidth: 460 }}>
           <DialogHeader
             icon={
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -317,19 +315,19 @@ export default function BrandsPage() {
             description="Create a new client workspace"
             onClose={() => setOpen(false)}
           />
-          <div>
-            <label style={{ display: "block", marginBottom: 8, color: "#64748b", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+          <div style={{ padding: "20px 24px 0" }}>
+            <label style={{ display: "block", marginBottom: 8, color: "var(--text-muted)", fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase" }}>
               Brand Name
             </label>
             <input
-              style={subtleInputStyle}
+              style={{ ...subtleInputStyle, minHeight: 46 }}
               placeholder="e.g. Maison de Senteurs"
               value={name}
               onChange={(event) => setName(event.target.value)}
               onKeyDown={(event) => event.key === "Enter" && void handleCreate()}
               autoFocus
             />
-            <p style={{ margin: "8px 0 0", color: "#94a3b8", fontSize: 12 }}>A new workspace will be created for this brand.</p>
+            <p style={{ margin: "8px 0 0", color: "#94a3b8", fontSize: 12, lineHeight: 1.5 }}>A new workspace will be created for this brand.</p>
           </div>
           <DialogFooter>
             <button type="button" onClick={() => setOpen(false)} style={secondaryButtonStyle}>

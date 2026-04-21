@@ -58,7 +58,6 @@ export async function apiFetch<T = unknown>(
   const buildHeaders = (token: string | null): HeadersInit => {
     const headers = new Headers(options.headers ?? {});
 
-    // Let the browser set the multipart boundary for FormData requests.
     if (!(options.body instanceof FormData) && !headers.has("Content-Type")) {
       headers.set("Content-Type", "application/json");
     }
@@ -71,6 +70,7 @@ export async function apiFetch<T = unknown>(
   };
 
   const initialToken = getStoredAccessToken();
+
   let res = await fetch(url, {
     ...options,
     credentials: "include",
@@ -99,6 +99,7 @@ export async function apiFetch<T = unknown>(
 
   if (!res.ok) {
     const contentType = res.headers.get("content-type") ?? "";
+
     if (contentType.includes("application/json")) {
       const body = await res.json().catch(() => ({}));
       throw new Error(body?.error ?? `Request failed: ${res.status}`);

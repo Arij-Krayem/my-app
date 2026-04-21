@@ -11,7 +11,6 @@ import {
   emptyTitleStyle,
   pageEyebrowStyle,
   pageSubtitleStyle,
-  pageTitleStyle,
   primaryButtonStyle,
   secondaryButtonStyle,
   pillStyle,
@@ -126,7 +125,6 @@ export default function AlertsPage() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 24, flexWrap: "wrap" }}>
         <div>
           <div style={pageEyebrowStyle}>Alerts</div>
-          <h1 style={pageTitleStyle}>Alert center</h1>
           <p style={pageSubtitleStyle}>Monitor active issues, triage notifications, and resolve campaign risks quickly.</p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>

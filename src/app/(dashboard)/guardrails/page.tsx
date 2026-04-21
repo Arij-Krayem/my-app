@@ -1,7 +1,9 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { useCallback, useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader } from "@/components/ui/dialog";
+import { apiFetch } from "@/lib/apiFetch";
 import {
   cardStyle,
   emptyIconWrapStyle,
@@ -11,7 +13,6 @@ import {
   metricCardStyle,
   pageEyebrowStyle,
   pageSubtitleStyle,
-  pageTitleStyle,
   primaryButtonStyle,
   secondaryButtonStyle,
   subtleInputStyle,
@@ -41,36 +42,19 @@ type Rule = {
 const METRICS = ["spend", "roas", "ctr", "cpc", "cpa", "impressions", "clicks", "conversions"];
 const OPERATORS = [">", "<", ">=", "<=", "=="];
 
-async function readErrorResponse(res: Response) {
-  const contentType = res.headers.get("content-type") ?? "";
-
-  if (contentType.includes("application/json")) {
-    const data = await res.json().catch(() => null);
-    const message = data && typeof data.error === "string" ? data.error : `Request failed (${res.status})`;
-    return { message, body: data };
-  }
-
-  const text = await res.text().catch(() => "");
-  const message = text.trim()
-    ? `Request failed (${res.status}): ${text.slice(0, 180)}`
-    : `Request failed (${res.status})`;
-
-  return { message, body: text };
-}
-
 const ShieldIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
   </svg>
 );
 
-const inputLabelStyle: React.CSSProperties = {
+const inputLabelStyle: CSSProperties = {
   display: "block",
-  marginBottom: 6,
-  color: "#64748b",
+  marginBottom: 8,
+  color: "var(--text-muted)",
   fontSize: 11,
   fontWeight: 700,
-  letterSpacing: "0.08em",
+  letterSpacing: "0.12em",
   textTransform: "uppercase",
 };
 
@@ -91,37 +75,11 @@ export default function GuardrailsPage() {
     severity: "WARNING",
   });
 
-  const token = () => sessionStorage.getItem("access_token") ?? "";
-  const userRaw = typeof window !== "undefined" ? sessionStorage.getItem("user") : null;
-  const user = userRaw ? JSON.parse(userRaw) : null;
-
   const loadRules = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/alerts/rules", {
-        headers: { Authorization: `Bearer ${token()}` },
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        const error = await readErrorResponse(res);
-        console.error("[guardrails] Failed to load rules", {
-          url: "/api/alerts/rules",
-          status: res.status,
-          error,
-        });
-        throw new Error(error.message);
-      }
-
-      const data = await res.json();
+      const data = await apiFetch<{ items?: Rule[] }>("/api/alerts/rules");
       const items = Array.isArray(data.items) ? data.items : [];
-
-      console.log("[guardrails] Loaded rules", {
-        url: "/api/alerts/rules",
-        count: items.length,
-        items,
-      });
-
       setRules(items);
       setMsg("");
     } catch (error) {
@@ -134,25 +92,15 @@ export default function GuardrailsPage() {
 
   const loadBrands = useCallback(async () => {
     try {
-      const res = await fetch("/api/brands", {
-        headers: { Authorization: `Bearer ${token()}` },
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        const error = await readErrorResponse(res);
-        console.error("[guardrails] Failed to load brands", {
-          url: "/api/brands",
-          status: res.status,
-          error,
-        });
-        return;
-      }
-
-      const data = await res.json();
+      const data = await apiFetch<{ items?: { id: string; name: string }[] }>("/api/brands");
       const list = data.items ?? [];
       setBrands(list);
-      if (list.length > 0) setForm((current) => ({ ...current, brandId: list[0].id }));
+      if (list.length > 0) {
+        setForm((current) => ({
+          ...current,
+          brandId: current.brandId || list[0].id,
+        }));
+      }
     } catch (error) {
       console.error("[guardrails] loadBrands error", error);
     }
@@ -185,30 +133,24 @@ export default function GuardrailsPage() {
     if (!form.threshold || !form.brandId) return;
     setSaving(true);
     try {
-      const res = await fetch("/api/alerts/rules", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token()}`,
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          brandId: form.brandId,
-          metricKey: form.metric,
-          operator: form.operator,
-          threshold: Number(form.threshold),
-          severity: form.severity,
-        }),
-      });
+      const payload = {
+        brandId: form.brandId,
+        metricKey: form.metric,
+        operator: form.operator,
+        threshold: Number(form.threshold),
+        severity: form.severity,
+      };
 
-      if (!res.ok) {
-        const error = await readErrorResponse(res);
-        console.error("[guardrails] Failed to save rule", {
-          url: "/api/alerts/rules",
-          status: res.status,
-          error,
+      if (editRule) {
+        await apiFetch(`/api/alerts/rules/${editRule.id}`, {
+          method: "PATCH",
+          body: JSON.stringify(payload),
         });
-        throw new Error(error.message);
+      } else {
+        await apiFetch("/api/alerts/rules", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
       }
 
       setOpen(false);
@@ -225,15 +167,39 @@ export default function GuardrailsPage() {
   }
 
   async function handleToggle(rule: Rule) {
-    setRules((previous) => previous.map((item) => (item.id === rule.id ? { ...item, isActive: !item.isActive } : item)));
+    try {
+      const data = await apiFetch<{ rule: Rule }>(`/api/alerts/rules/${rule.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ isActive: !rule.isActive }),
+      });
+
+      setRules((previous) =>
+        previous.map((item) => (item.id === rule.id ? data.rule : item))
+      );
+      setMsg(`Rule ${data.rule.isActive ? "activated" : "deactivated"}`);
+      setTimeout(() => setMsg(""), 2000);
+    } catch (error) {
+      console.error("[guardrails] handleToggle error", error);
+      setMsg(error instanceof Error ? error.message : "Failed to update rule");
+      setTimeout(() => setMsg(""), 2500);
+    }
   }
 
   async function handleDelete() {
     if (!delId) return;
-    setRules((previous) => previous.filter((item) => item.id !== delId));
-    setDelId(null);
-    setMsg("Rule deleted");
-    setTimeout(() => setMsg(""), 2500);
+    try {
+      await apiFetch(`/api/alerts/rules/${delId}`, {
+        method: "DELETE",
+      });
+      setRules((previous) => previous.filter((item) => item.id !== delId));
+      setDelId(null);
+      setMsg("Rule deleted");
+      setTimeout(() => setMsg(""), 2500);
+    } catch (error) {
+      console.error("[guardrails] handleDelete error", error);
+      setMsg(error instanceof Error ? error.message : "Failed to delete rule");
+      setTimeout(() => setMsg(""), 2500);
+    }
   }
 
   const active = rules.filter((rule) => rule.isActive).length;
@@ -245,7 +211,6 @@ export default function GuardrailsPage() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 24, flexWrap: "wrap" }}>
         <div>
           <div style={pageEyebrowStyle}>Guardrails</div>
-          <h1 style={pageTitleStyle}>Threshold rules</h1>
           <p style={pageSubtitleStyle}>Manage rule thresholds and alert triggers with the same controls used across the updated dashboard.</p>
         </div>
         <button type="button" onClick={openNew} style={primaryButtonStyle}>
@@ -388,7 +353,7 @@ export default function GuardrailsPage() {
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent style={{ maxWidth: 560 }}>
           <DialogHeader
             icon={<ShieldIcon />}
             title={editRule ? "Edit Rule" : "New Guardrail Rule"}
@@ -396,23 +361,21 @@ export default function GuardrailsPage() {
             onClose={() => setOpen(false)}
           />
 
-          <div style={{ display: "grid", gap: 16 }}>
-            {user?.role === "AGENCY_ADMIN" && brands.length > 1 && (
-              <div>
-                <label style={inputLabelStyle}>Brand</label>
-                <select style={subtleInputStyle} value={form.brandId} onChange={(event) => setForm((current) => ({ ...current, brandId: event.target.value }))}>
-                  {brands.map((brand) => (
-                    <option key={brand.id} value={brand.id}>
-                      {brand.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+          <div style={{ display: "grid", gap: 16, padding: "20px 24px 0" }}>
+            <div>
+              <label style={inputLabelStyle}>Brand</label>
+              <select style={{ ...subtleInputStyle, minHeight: 46 }} value={form.brandId} onChange={(event) => setForm((current) => ({ ...current, brandId: event.target.value }))}>
+                {brands.map((brand) => (
+                  <option key={brand.id} value={brand.id}>
+                    {brand.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
             <div>
               <label style={inputLabelStyle}>Metric</label>
-              <select style={subtleInputStyle} value={form.metric} onChange={(event) => setForm((current) => ({ ...current, metric: event.target.value }))}>
+              <select style={{ ...subtleInputStyle, minHeight: 46 }} value={form.metric} onChange={(event) => setForm((current) => ({ ...current, metric: event.target.value }))}>
                 {METRICS.map((metric) => (
                   <option key={metric} value={metric}>
                     {metric.toUpperCase()}
@@ -424,7 +387,7 @@ export default function GuardrailsPage() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div>
                 <label style={inputLabelStyle}>Operator</label>
-                <select style={subtleInputStyle} value={form.operator} onChange={(event) => setForm((current) => ({ ...current, operator: event.target.value }))}>
+                <select style={{ ...subtleInputStyle, minHeight: 46 }} value={form.operator} onChange={(event) => setForm((current) => ({ ...current, operator: event.target.value }))}>
                   {OPERATORS.map((operator) => (
                     <option key={operator}>{operator}</option>
                   ))}
@@ -432,7 +395,7 @@ export default function GuardrailsPage() {
               </div>
               <div>
                 <label style={inputLabelStyle}>Threshold</label>
-                <input style={subtleInputStyle} type="number" placeholder="e.g. 2.5" value={form.threshold} onChange={(event) => setForm((current) => ({ ...current, threshold: event.target.value }))} />
+                <input style={{ ...subtleInputStyle, minHeight: 46 }} type="number" placeholder="e.g. 2.5" value={form.threshold} onChange={(event) => setForm((current) => ({ ...current, threshold: event.target.value }))} />
               </div>
             </div>
 
@@ -448,11 +411,12 @@ export default function GuardrailsPage() {
                       type="button"
                       onClick={() => setForm((current) => ({ ...current, severity }))}
                       style={{
+                        minHeight: 46,
                         padding: "12px 14px",
-                        borderRadius: 12,
-                        border: `1px solid ${activeSeverity ? cfg.border : "rgba(148,163,184,0.24)"}`,
-                        background: activeSeverity ? cfg.bg : "#f8fafc",
-                        color: activeSeverity ? cfg.color : "#64748b",
+                        borderRadius: 10,
+                        border: `1px solid ${activeSeverity ? cfg.border : severity === "WARNING" ? "rgba(217,119,6,0.28)" : "rgba(220,38,38,0.28)"}`,
+                        background: activeSeverity ? cfg.color : "#fff",
+                        color: activeSeverity ? "#fff" : cfg.color,
                         fontSize: 14,
                         fontWeight: 700,
                         cursor: "pointer",
@@ -484,7 +448,7 @@ export default function GuardrailsPage() {
       </Dialog>
 
       <Dialog open={delId !== null} onOpenChange={() => setDelId(null)}>
-        <DialogContent style={{ maxWidth: 400 }}>
+          <DialogContent style={{ maxWidth: 400 }}>
           <DialogHeader
             icon={<ShieldIcon />}
             title="Delete Rule?"
@@ -495,7 +459,7 @@ export default function GuardrailsPage() {
             <button type="button" onClick={() => setDelId(null)} style={secondaryButtonStyle}>
               Cancel
             </button>
-            <button type="button" onClick={() => void handleDelete()} style={{ ...primaryButtonStyle, background: "#dc2626", boxShadow: "none" }}>
+            <button type="button" onClick={() => void handleDelete()} style={{ ...primaryButtonStyle, background: "var(--critical)", boxShadow: "none" }}>
               Delete
             </button>
           </DialogFooter>

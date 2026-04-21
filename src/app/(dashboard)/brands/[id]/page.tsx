@@ -1,108 +1,155 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { apiFetch } from "@/lib/apiFetch";
+
+type BrandRecord = {
+  id: string;
+  name: string;
+  createdAt: string;
+};
+
+type MemberRecord = {
+  id: string;
+  user: {
+    id: string;
+    name: string | null;
+    email: string;
+    role: string;
+  };
+};
+
+type UploadRecord = {
+  id: string;
+  fileName: string;
+  platform: string;
+  status: string;
+  createdAt: string;
+};
+
+type AlertRecord = {
+  id: string;
+  status: string;
+};
+
+type BrandDetailState = {
+  brand: BrandRecord;
+  members: MemberRecord[];
+  uploads: UploadRecord[];
+  alerts: AlertRecord[];
+  metrics: {
+    totalSpend: number;
+    avgRoas: number;
+    avgCtr: number;
+    avgCpc: number;
+  };
+};
+
+function healthFromMetrics(roas: number, openAlerts: number) {
+  if (openAlerts > 0 && roas < 1.5) return "CRITICAL";
+  if (openAlerts > 0 || roas < 2) return "WARNING";
+  return "HEALTHY";
+}
 
 export default function BrandDetailPage() {
-  const [brand, setBrand] = useState<any>(null);
+  const router = useRouter();
+  const params = useParams<{ id: string }>();
+  const brandId = params.id;
   const [activeTab, setActiveTab] = useState("overview");
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
-  const params = useParams();
-  const brandId = params.id as string;
+  const [error, setError] = useState("");
+  const [detail, setDetail] = useState<BrandDetailState | null>(null);
 
   useEffect(() => {
-    // Check if user is admin
     const userData = sessionStorage.getItem("user");
     if (userData) {
       const user = JSON.parse(userData);
       if (user.role !== "AGENCY_ADMIN") {
         router.push("/dashboard");
-        return;
       }
     }
-    fetchBrandDetails();
-  }, [brandId, router]);
+  }, [router]);
 
-  const fetchBrandDetails = async () => {
-    const token = sessionStorage.getItem("access_token");
-    if (!token) return;
+  useEffect(() => {
+    if (!brandId) return;
 
-    try {
-      // Mock data for now
-      const mockBrand = {
-        id: parseInt(brandId),
-        name: "TechCorp",
-        memberCount: 5,
-        uploadCount: 12,
-        lastActivity: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-        health: "HEALTHY",
-        metrics: {
-          totalSpend: 45230,
-          roas: 3.8,
-          ctr: 2.9,
-          cpc: 1.45,
-        },
-        members: [
-          { id: 1, name: "John Doe", email: "john@techcorp.com", role: "MARKETER" },
-          { id: 2, name: "Jane Smith", email: "jane@techcorp.com", role: "MARKETER" },
-          { id: 3, name: "Bob Johnson", email: "bob@techcorp.com", role: "MARKETER" },
-        ],
-        uploads: [
-          { id: 1, fileName: "google_ads_june.csv", platform: "Google Ads", status: "IMPORTED", date: "2024-06-15" },
-          { id: 2, fileName: "meta_ads_june.csv", platform: "Meta Ads", status: "IMPORTED", date: "2024-06-14" },
-          { id: 3, fileName: "google_ads_may.csv", platform: "Google Ads", status: "IMPORTED", date: "2024-05-30" },
-        ],
-      };
-      setBrand(mockBrand);
-    } catch (error) {
-      console.error("Failed to fetch brand details:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    const load = async () => {
+      setLoading(true);
+      setError("");
 
-  const getHealthBadge = (health: string) => {
-    const healthConfig: Record<string, { class: string; text: string }> = {
-      HEALTHY: { class: "badge-success", text: "HEALTHY" },
-      WARNING: { class: "badge-warning", text: "WARNING" },
-      CRITICAL: { class: "badge-danger", text: "CRITICAL" },
+      try {
+        const [brandsRes, membersRes, uploadsRes, alertsRes, kpisRes] = await Promise.all([
+          apiFetch<{ items?: BrandRecord[] }>("/api/brands"),
+          apiFetch<{ items?: MemberRecord[] }>(`/api/brands/${brandId}/members`),
+          apiFetch<{ items?: UploadRecord[] }>(`/api/uploads?brandId=${brandId}&pageSize=10`),
+          apiFetch<{ items?: AlertRecord[] }>(`/api/alerts?brandId=${brandId}&status=OPEN`),
+          apiFetch<{ kpis?: { totalSpend?: number; avgRoas?: number; avgCtr?: number; avgCpc?: number } }>(
+            `/api/analytics/kpis?brandId=${brandId}`
+          ),
+        ]);
+
+        const brand = (brandsRes.items ?? []).find((item) => item.id === brandId);
+
+        if (!brand) {
+          setDetail(null);
+          setError("Brand not found");
+          return;
+        }
+
+        setDetail({
+          brand,
+          members: membersRes.items ?? [],
+          uploads: uploadsRes.items ?? [],
+          alerts: alertsRes.items ?? [],
+          metrics: {
+            totalSpend: Number(kpisRes.kpis?.totalSpend ?? 0),
+            avgRoas: Number(kpisRes.kpis?.avgRoas ?? 0),
+            avgCtr: Number(kpisRes.kpis?.avgCtr ?? 0),
+            avgCpc: Number(kpisRes.kpis?.avgCpc ?? 0),
+          },
+        });
+      } catch (fetchError) {
+        console.error("[brand-detail] Failed to load brand detail", fetchError);
+        setError(fetchError instanceof Error ? fetchError.message : "Failed to load brand");
+      } finally {
+        setLoading(false);
+      }
     };
 
-    const config = healthConfig[health] || { class: "badge-info", text: health };
-    return <span className={`badge ${config.class}`}>{config.text}</span>;
-  };
+    void load();
+  }, [brandId]);
 
-  const getStatusBadge = (status: string) => {
-    const statusConfig: Record<string, { class: string; text: string }> = {
-      IMPORTED: { class: "badge-success", text: "IMPORTED" },
-      PENDING: { class: "badge-warning", text: "PENDING" },
-      FAILED: { class: "badge-danger", text: "FAILED" },
-    };
-
-    const config = statusConfig[status] || { class: "badge-info", text: status };
-    return <span className={`badge ${config.class}`}>{config.text}</span>;
-  };
+  const health = useMemo(() => {
+    if (!detail) return "HEALTHY";
+    return healthFromMetrics(detail.metrics.avgRoas, detail.alerts.length);
+  }, [detail]);
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="loading-spinner" style={{ width: "40px", height: "40px" }}></div>
+        <div className="loading-spinner" style={{ width: "40px", height: "40px" }} />
       </div>
     );
   }
 
-  if (!brand) {
+  if (error || !detail) {
     return (
       <div className="text-center py-12">
-        <p style={{ color: "var(--t2)" }}>Brand not found.</p>
+        <p style={{ color: "var(--t2)" }}>{error || "Brand not found."}</p>
+        <Link href="/brands" style={{ color: "var(--accent)", textDecoration: "none", fontWeight: 600 }}>
+          Back to brands
+        </Link>
       </div>
     );
   }
+
+  const statusBadgeClass =
+    health === "CRITICAL" ? "badge-danger" : health === "WARNING" ? "badge-warning" : "badge-success";
 
   return (
     <div className="animate-fadeUp">
-      {/* Brand Header */}
       <div className="card p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-4">
@@ -111,52 +158,50 @@ export default function BrandDetailPage() {
               className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
               style={{ color: "var(--t1)" }}
             >
-              ← Back
+              Back
             </button>
             <div>
-              <h1 className="text-3xl font-bold mb-1" style={{ color: "var(--t1)" }}>
-                {brand.name}
-              </h1>
+              <div style={{ color: "var(--primary)", fontSize: "11px", fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: "8px" }}>
+                Brands
+              </div>
               <div className="flex items-center gap-3">
-                {getHealthBadge(brand.health)}
+                <span className={`badge ${statusBadgeClass}`}>{health}</span>
                 <span className="text-sm" style={{ color: "var(--t2)" }}>
-                  {brand.memberCount} members • {brand.uploadCount} uploads
+                  {detail.members.length} members • {detail.uploads.length} uploads
                 </span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* KPI Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="p-4 rounded-lg" style={{ background: "var(--bg)" }}>
             <p className="text-sm mb-1" style={{ color: "var(--t3)" }}>Total Spend</p>
             <p className="text-xl font-bold" style={{ color: "var(--t1)" }}>
-              ${brand.metrics.totalSpend.toLocaleString()}
+              ${detail.metrics.totalSpend.toLocaleString()}
             </p>
           </div>
           <div className="p-4 rounded-lg" style={{ background: "var(--bg)" }}>
             <p className="text-sm mb-1" style={{ color: "var(--t3)" }}>ROAS</p>
             <p className="text-xl font-bold" style={{ color: "var(--t1)" }}>
-              {brand.metrics.roas}x
+              {detail.metrics.avgRoas.toFixed(2)}x
             </p>
           </div>
           <div className="p-4 rounded-lg" style={{ background: "var(--bg)" }}>
             <p className="text-sm mb-1" style={{ color: "var(--t3)" }}>CTR</p>
             <p className="text-xl font-bold" style={{ color: "var(--t1)" }}>
-              {brand.metrics.ctr}%
+              {detail.metrics.avgCtr.toFixed(2)}%
             </p>
           </div>
           <div className="p-4 rounded-lg" style={{ background: "var(--bg)" }}>
             <p className="text-sm mb-1" style={{ color: "var(--t3)" }}>CPC</p>
             <p className="text-xl font-bold" style={{ color: "var(--t1)" }}>
-              ${brand.metrics.cpc}
+              ${detail.metrics.avgCpc.toFixed(2)}
             </p>
           </div>
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="card">
         <div className="border-b" style={{ borderColor: "var(--border)" }}>
           <nav className="flex gap-6 px-6">
@@ -165,13 +210,11 @@ export default function BrandDetailPage() {
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={`py-4 px-2 border-b-2 font-medium transition-colors capitalize ${
-                  activeTab === tab
-                    ? "border-blue-500 text-blue-600"
-                    : "border-transparent hover:text-gray-600"
+                  activeTab === tab ? "border-blue-500 text-blue-600" : "border-transparent hover:text-gray-600"
                 }`}
                 style={{
                   borderBottomColor: activeTab === tab ? "var(--accent)" : "transparent",
-                  color: activeTab === tab ? "var(--accent)" : "var(--t2)"
+                  color: activeTab === tab ? "var(--accent)" : "var(--t2)",
                 }}
               >
                 {tab}
@@ -187,7 +230,13 @@ export default function BrandDetailPage() {
                 Overview
               </h3>
               <p style={{ color: "var(--t2)" }}>
-                Brand overview and performance metrics would be displayed here.
+                Created{" "}
+                {new Date(detail.brand.createdAt).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+                . {detail.alerts.length} open alerts currently linked to this brand.
               </p>
             </div>
           )}
@@ -198,7 +247,7 @@ export default function BrandDetailPage() {
                 Team Members
               </h3>
               <div className="space-y-3">
-                {brand.members.map((member: any) => (
+                {detail.members.map((member) => (
                   <div
                     key={member.id}
                     className="flex items-center justify-between p-3 rounded-lg"
@@ -206,13 +255,13 @@ export default function BrandDetailPage() {
                   >
                     <div>
                       <p className="font-medium" style={{ color: "var(--t1)" }}>
-                        {member.name}
+                        {member.user.name || member.user.email}
                       </p>
                       <p className="text-sm" style={{ color: "var(--t2)" }}>
-                        {member.email}
+                        {member.user.email}
                       </p>
                     </div>
-                    <span className="badge badge-info">{member.role}</span>
+                    <span className="badge badge-info">{member.user.role}</span>
                   </div>
                 ))}
               </div>
@@ -225,7 +274,7 @@ export default function BrandDetailPage() {
                 Recent Uploads
               </h3>
               <div className="space-y-3">
-                {brand.uploads.map((upload: any) => (
+                {detail.uploads.map((upload) => (
                   <div
                     key={upload.id}
                     className="flex items-center justify-between p-3 rounded-lg"
@@ -236,10 +285,15 @@ export default function BrandDetailPage() {
                         {upload.fileName}
                       </p>
                       <p className="text-sm" style={{ color: "var(--t2)" }}>
-                        {upload.platform} • {upload.date}
+                        {upload.platform} •{" "}
+                        {new Date(upload.createdAt).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
                       </p>
                     </div>
-                    {getStatusBadge(upload.status)}
+                    <span className="badge badge-info">{upload.status}</span>
                   </div>
                 ))}
               </div>

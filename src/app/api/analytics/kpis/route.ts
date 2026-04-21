@@ -2,14 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, AuthError } from "@/lib/auth-guard";
 
+// ─── Helper: verify user can access this brand ───────────────────────────────
 async function canAccessBrand(userId: string, role: string, brandId: string): Promise<boolean> {
   if (role === "AGENCY_ADMIN") return true;
-
   const member = await prisma.brandMember.findUnique({
     where: { userId_brandId: { userId, brandId } },
   });
-
-  return Boolean(member);
+  return !!member;
 }
 
 async function resolveBrandId(userId: string, role: string, requestedBrandId: string | null) {
@@ -35,12 +34,12 @@ async function resolveBrandId(userId: string, role: string, requestedBrandId: st
 export async function GET(req: NextRequest) {
   try {
     const payload = requireAuth(req);
-    const { searchParams } = new URL(req.url);
 
+    const { searchParams } = new URL(req.url);
+    const brandId  = await resolveBrandId(payload.userId, payload.role, searchParams.get("brandId"));
     const platform = searchParams.get("platform") ?? "";
     const dateFrom = searchParams.get("dateFrom") ?? "";
-    const dateTo = searchParams.get("dateTo") ?? "";
-    const brandId = await resolveBrandId(payload.userId, payload.role, searchParams.get("brandId"));
+    const dateTo   = searchParams.get("dateTo")   ?? "";
 
     if (!brandId) {
       return NextResponse.json({
@@ -62,28 +61,21 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    // ── Brand access check ──────────────────────────────────────────────────
     const allowed = await canAccessBrand(payload.userId, payload.role, brandId);
     if (!allowed) {
       return NextResponse.json({ error: "Access denied to this brand" }, { status: 403 });
     }
 
+    // Build WHERE clause
     const conditions: string[] = [`"brandId" = '${brandId}'`];
     if (platform && ["GOOGLE", "META"].includes(platform)) {
       conditions.push(`platform = '${platform}'::"Platform"`);
     }
     if (dateFrom) conditions.push(`date >= '${dateFrom}'::date`);
-    if (dateTo) conditions.push(`date <= '${dateTo}'::date`);
+    if (dateTo)   conditions.push(`date <= '${dateTo}'::date`);
 
     const where = conditions.join(" AND ");
-
-    console.log("[analytics/kpis] query", {
-      userId: payload.userId,
-      role: payload.role,
-      brandId,
-      platform: platform || "ALL",
-      dateFrom: dateFrom || null,
-      dateTo: dateTo || null,
-    });
 
     const result = await prisma.$queryRawUnsafe(`
       SELECT
@@ -101,7 +93,6 @@ export async function GET(req: NextRequest) {
     `) as Record<string, unknown>[];
 
     const kpis = result[0] ?? {
-      totalRows: 0,
       totalSpend: 0,
       totalClicks: 0,
       totalImpressions: 0,
@@ -110,6 +101,7 @@ export async function GET(req: NextRequest) {
       avgCtr: 0,
       avgCpc: 0,
       avgRoas: 0,
+      totalRows: 0,
     };
 
     const platformBreakdown = await prisma.$queryRawUnsafe(`
@@ -153,56 +145,47 @@ export async function GET(req: NextRequest) {
       LIMIT 10
     `) as Record<string, unknown>[];
 
-    console.log("[analytics/kpis] result", {
-      brandId,
-      totalRows: Number(kpis.totalRows ?? 0),
-      platformBreakdownCount: platformBreakdown.length,
-      spendOverTimeCount: spendOverTime.length,
-      topCampaignCount: topCampaigns.length,
-    });
-
     return NextResponse.json({
       kpis: {
-        totalSpend: Number(kpis.totalSpend ?? 0),
-        totalClicks: Number(kpis.totalClicks ?? 0),
-        totalImpressions: Number(kpis.totalImpressions ?? 0),
-        totalConversions: Number(kpis.totalConversions ?? 0),
-        totalConversionValue: Number(kpis.totalConversionValue ?? 0),
-        avgCtr: Number(Number(kpis.avgCtr ?? 0).toFixed(2)),
-        avgCpc: Number(Number(kpis.avgCpc ?? 0).toFixed(2)),
-        avgRoas: Number(Number(kpis.avgRoas ?? 0).toFixed(2)),
-        totalRows: Number(kpis.totalRows ?? 0),
+        totalSpend:           Number(kpis.totalSpend),
+        totalClicks:          Number(kpis.totalClicks),
+        totalImpressions:     Number(kpis.totalImpressions),
+        totalConversions:     Number(kpis.totalConversions),
+        totalConversionValue: Number(kpis.totalConversionValue),
+        avgCtr:               Number(Number(kpis.avgCtr).toFixed(2)),
+        avgCpc:               Number(Number(kpis.avgCpc).toFixed(2)),
+        avgRoas:              Number(Number(kpis.avgRoas).toFixed(2)),
+        totalRows:            Number(kpis.totalRows),
       },
-      platformBreakdown: platformBreakdown.map((item) => ({
-        platform: item.platform,
-        rows: Number(item.rows ?? 0),
-        spend: Number(item.spend ?? 0),
-        clicks: Number(item.clicks ?? 0),
-        avgRoas: Number(Number(item.avgRoas ?? 0).toFixed(2)),
+      platformBreakdown: platformBreakdown.map(p => ({
+        platform: p.platform,
+        rows:     Number(p.rows),
+        spend:    Number(p.spend),
+        clicks:   Number(p.clicks),
+        avgRoas:  Number(Number(p.avgRoas).toFixed(2)),
       })),
-      spendOverTime: spendOverTime.map((item) => ({
-        date: item.date,
-        platform: item.platform,
-        spend: Number(item.spend ?? 0),
-        clicks: Number(item.clicks ?? 0),
-        roas: Number(Number(item.roas ?? 0).toFixed(2)),
+      spendOverTime: spendOverTime.map(d => ({
+        date:     d.date,
+        platform: d.platform,
+        spend:    Number(d.spend),
+        clicks:   Number(d.clicks),
+        roas:     Number(Number(d.roas).toFixed(2)),
       })),
-      topCampaigns: topCampaigns.map((item) => ({
-        campaign: item.campaign,
-        platform: item.platform,
-        spend: Number(item.spend ?? 0),
-        clicks: Number(item.clicks ?? 0),
-        conversions: Number(item.conversions ?? 0),
-        roas: Number(Number(item.roas ?? 0).toFixed(2)),
+      topCampaigns: topCampaigns.map(c => ({
+        campaign:    c.campaign,
+        platform:    c.platform,
+        spend:       Number(c.spend),
+        clicks:      Number(c.clicks),
+        conversions: Number(c.conversions),
+        roas:        Number(Number(c.roas).toFixed(2)),
       })),
       filters: { brandId, platform: platform || "ALL", dateFrom, dateTo },
     });
-  } catch (error) {
-    if (error instanceof AuthError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
 
-    console.error("[analytics/kpis] failed", error);
+  } catch (err) {
+    if (err instanceof AuthError)
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    console.error("[GET /api/analytics/kpis]", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

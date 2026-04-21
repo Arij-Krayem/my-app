@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties, FormEvent } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/apiFetch";
@@ -17,105 +17,60 @@ type SettingsSection = "profile" | "security" | "account";
 
 const SECTION_META: Record<
   SettingsSection,
-  { label: string; title: string; subtitle: string }
+  { label: string; title: string; subtitle: string; helper: string }
 > = {
   profile: {
     label: "Profile",
     title: "Profile Information",
     subtitle: "Name & email",
+    helper:
+      "Quick Note: Keep your profile details up to date so uploads, alerts, and account ownership stay clear across the workspace.",
   },
   security: {
     label: "Security",
     title: "Password & Access",
     subtitle: "Password & access",
+    helper:
+      "Quick Note: Use a strong password you do not reuse elsewhere. Updating it regularly helps protect workspace access.",
   },
   account: {
     label: "Account",
     title: "Role & Details",
     subtitle: "Role & details",
+    helper:
+      "Quick Note: Account details help teammates understand ownership and access level across the workspace.",
   },
 };
 
-const baseCardStyle: CSSProperties = {
-  background: "#fff",
-  border: "0.5px solid rgba(148,163,184,0.32)",
-  borderRadius: 12,
-  padding: 20,
+const panelStyle: CSSProperties = {
+  background: "var(--card-bg)",
+  border: "1px solid var(--border)",
+  borderRadius: "var(--radius-card)",
+  boxShadow: "var(--shadow-card)",
 };
 
-function InfoTile({
-  label,
-  value,
-  hint,
-  linkLabel,
-  href,
-}: {
-  label: string;
-  value: string;
-  hint: string;
-  linkLabel?: string;
-  href?: string;
-}) {
-  return (
-    <div style={{ ...baseCardStyle, padding: 18 }}>
-      <div
-        style={{
-          color: "#6366F1",
-          fontSize: 11,
-          fontWeight: 700,
-          letterSpacing: "0.12em",
-          textTransform: "uppercase",
-          marginBottom: 10,
-        }}
-      >
-        {label}
-      </div>
-      <div style={{ color: "#0f172a", fontSize: 15, fontWeight: 700 }}>{value}</div>
-      <div style={{ marginTop: 6, color: "#64748b", fontSize: 13 }}>{hint}</div>
-      {linkLabel ? (
-        <div style={{ marginTop: 10 }}>
-          <Link
-            href={href ?? "/brands"}
-            style={{
-              color: "#4f46e5",
-              fontSize: 12,
-              fontWeight: 700,
-              textDecoration: "none",
-            }}
-          >
-            {linkLabel}
-          </Link>
-        </div>
-      ) : null}
-    </div>
-  );
-}
+const fieldLabelStyle: CSSProperties = {
+  display: "block",
+  marginBottom: 8,
+  color: "var(--text-muted)",
+  fontSize: 12,
+  fontWeight: 700,
+  letterSpacing: "0.08em",
+  textTransform: "uppercase",
+};
 
-function CheckItem({ text, done }: { text: string; done: boolean }) {
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, color: done ? "#0f172a" : "#64748b", fontSize: 14 }}>
-      <span
-        style={{
-          width: 22,
-          height: 22,
-          borderRadius: "50%",
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: done ? "rgba(34,197,94,0.12)" : "rgba(148,163,184,0.12)",
-          color: done ? "#16a34a" : "#94a3b8",
-          border: done ? "1px solid rgba(34,197,94,0.18)" : "1px solid rgba(148,163,184,0.16)",
-          flexShrink: 0,
-        }}
-      >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="20 6 9 17 4 12" />
-        </svg>
-      </span>
-      {text}
-    </div>
-  );
-}
+const inputStyle: CSSProperties = {
+  width: "100%",
+  minHeight: 44,
+  padding: "12px 14px",
+  borderRadius: "var(--radius-input)",
+  border: "1px solid var(--border)",
+  background: "#fff",
+  color: "var(--text-primary)",
+  fontSize: 14,
+  fontFamily: "inherit",
+  outline: "none",
+};
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -144,7 +99,6 @@ export default function SettingsPage() {
 
     apiFetch<{ user?: UserRecord }>("/api/users/me")
       .then((data) => {
-        console.log("[settings] profile response", data);
         if (data?.user) {
           setUser(data.user);
           setName(data.user.name || "");
@@ -244,256 +198,138 @@ export default function SettingsPage() {
   const roleLabel = (user?.role || "AGENCY_ADMIN").replace("_", " ");
   const displayName = name || user?.name || "Agency Admin";
   const displayEmail = email || user?.email || "admin@visioad.com";
-  const displayInitial = (displayName || displayEmail)[0]?.toUpperCase() ?? "A";
+  const displayInitial = (displayName || displayEmail)
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
-  const checklist = useMemo(
-    () => [
-      { text: "Display name is filled in", done: Boolean(name.trim()) },
-      { text: "Email address is available", done: Boolean(email.trim()) },
-      { text: "Role is assigned", done: Boolean(user?.role) },
-    ],
-    [email, name, user?.role],
-  );
-
-  const inputStyle: CSSProperties = {
-    width: "100%",
+  const messageStyle = (isError: boolean): CSSProperties => ({
+    marginTop: 16,
     padding: "12px 14px",
-    borderRadius: 10,
-    border: "1px solid rgba(148,163,184,0.32)",
-    background: "#f8fafc",
-    color: "#0f172a",
-    fontSize: 14,
-    fontFamily: "inherit",
-    outline: "none",
-  };
-
-  const labelStyle: CSSProperties = {
-    display: "block",
-    marginBottom: 7,
-    color: "#475569",
-    fontSize: 12,
-    fontWeight: 700,
-    letterSpacing: "0.02em",
-  };
-
-  const formMessageStyle = (isError: boolean): CSSProperties => ({
-    marginBottom: 16,
-    padding: "12px 14px",
-    borderRadius: 10,
-    border: isError
-      ? "1px solid rgba(239,68,68,0.24)"
-      : "1px solid rgba(34,197,94,0.2)",
-    background: isError ? "rgba(239,68,68,0.06)" : "rgba(34,197,94,0.06)",
-    color: isError ? "#dc2626" : "#15803d",
+    borderRadius: "var(--radius-input)",
+    border: isError ? "1px solid rgba(220,38,38,0.18)" : "1px solid rgba(22,163,74,0.18)",
+    background: isError ? "rgba(220,38,38,0.06)" : "rgba(22,163,74,0.06)",
+    color: isError ? "var(--critical)" : "var(--success)",
     fontSize: 13,
     fontWeight: 600,
   });
 
-  const renderSectionPanel = () => {
+  const renderSectionBody = () => {
     if (activeSection === "profile") {
       return (
-        <>
-          <div
-            style={{
-              marginBottom: 18,
-              padding: "14px 16px",
-              borderRadius: 12,
-              background: "rgba(99,102,241,0.08)",
-              border: "1px solid rgba(99,102,241,0.12)",
-              color: "#5b61d6",
-              fontSize: 13,
-              lineHeight: 1.5,
-            }}
-          >
-            Quick Note: Keep your profile details up to date so uploads, alerts, and account ownership stay clear across the workspace.
+        <form onSubmit={saveProfile}>
+          <div className="settings-two-col" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 16 }}>
+            <div>
+              <label style={fieldLabelStyle}>Full Name</label>
+              <input type="text" value={name} onChange={(event) => setName(event.target.value)} required style={inputStyle} />
+            </div>
+            <div>
+              <label style={fieldLabelStyle}>Email Address</label>
+              <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required style={inputStyle} />
+            </div>
           </div>
 
-          <form onSubmit={saveProfile}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 16 }}>
-              <div>
-                <label style={labelStyle}>Full Name</label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  required
-                  style={inputStyle}
-                />
-              </div>
-              <div>
-                <label style={labelStyle}>Email Address</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  required
-                  style={inputStyle}
-                />
-              </div>
+          {profileText ? (
+            <div style={messageStyle(profileIsError)}>
+              {profileIsError ? profileText : "Profile updated successfully"}
             </div>
+          ) : null}
 
-            {profileText ? (
-              <div style={formMessageStyle(profileIsError)}>
-                {profileIsError ? profileText : "Profile updated successfully"}
-              </div>
-            ) : null}
-
-            <button
-              type="submit"
-              disabled={profileLoading}
-              style={{
-                marginTop: 18,
-                padding: "11px 18px",
-                border: "none",
-                borderRadius: 12,
-                background: "linear-gradient(135deg,#5865f2,#7c83ff)",
-                color: "#fff",
-                fontSize: 14,
-                fontWeight: 700,
-                cursor: profileLoading ? "not-allowed" : "pointer",
-                opacity: profileLoading ? 0.72 : 1,
-                boxShadow: "0 12px 22px rgba(88,101,242,0.18)",
-              }}
-            >
-              {profileLoading ? "Saving..." : "Update Profile"}
-            </button>
-          </form>
-        </>
+          <button
+            type="submit"
+            disabled={profileLoading}
+            style={{
+              marginTop: 18,
+              minHeight: 44,
+              padding: "0 18px",
+              border: "none",
+              borderRadius: "var(--radius-button)",
+              background: "var(--primary)",
+              color: "#fff",
+              fontSize: 14,
+              fontWeight: 700,
+              cursor: profileLoading ? "not-allowed" : "pointer",
+              opacity: profileLoading ? 0.7 : 1,
+              fontFamily: "inherit",
+            }}
+          >
+            {profileLoading ? "Saving..." : "Update Profile"}
+          </button>
+        </form>
       );
     }
 
     if (activeSection === "security") {
       return (
-        <>
-          <div
-            style={{
-              marginBottom: 18,
-              padding: "14px 16px",
-              borderRadius: 12,
-              background: "rgba(99,102,241,0.08)",
-              border: "1px solid rgba(99,102,241,0.12)",
-              color: "#5b61d6",
-              fontSize: 13,
-              lineHeight: 1.5,
-            }}
-          >
-            Quick Note: Use a strong password you do not reuse elsewhere. Updating it regularly helps protect workspace access.
+        <form onSubmit={savePassword} style={{ display: "grid", gap: 16 }}>
+          <div>
+            <label style={fieldLabelStyle}>Current Password</label>
+            <input type="password" value={currentPw} onChange={(event) => setCurrentPw(event.target.value)} required style={inputStyle} />
+          </div>
+          <div>
+            <label style={fieldLabelStyle}>New Password</label>
+            <input type="password" value={newPw} onChange={(event) => setNewPw(event.target.value)} required minLength={6} style={inputStyle} />
+          </div>
+          <div>
+            <label style={fieldLabelStyle}>Confirm New Password</label>
+            <input type="password" value={confirmPw} onChange={(event) => setConfirmPw(event.target.value)} required minLength={6} style={inputStyle} />
           </div>
 
-          <form onSubmit={savePassword}>
-            <div style={{ display: "grid", gap: 16 }}>
-              <div>
-                <label style={labelStyle}>Current Password</label>
-                <input
-                  type="password"
-                  value={currentPw}
-                  onChange={(event) => setCurrentPw(event.target.value)}
-                  required
-                  style={inputStyle}
-                />
-              </div>
-              <div>
-                <label style={labelStyle}>New Password</label>
-                <input
-                  type="password"
-                  value={newPw}
-                  onChange={(event) => setNewPw(event.target.value)}
-                  required
-                  minLength={6}
-                  style={inputStyle}
-                />
-              </div>
-              <div>
-                <label style={labelStyle}>Confirm New Password</label>
-                <input
-                  type="password"
-                  value={confirmPw}
-                  onChange={(event) => setConfirmPw(event.target.value)}
-                  required
-                  minLength={6}
-                  style={inputStyle}
-                />
-              </div>
+          {passwordText ? (
+            <div style={messageStyle(passwordIsError)}>
+              {passwordIsError ? passwordText : "Password updated successfully"}
             </div>
+          ) : null}
 
-            {passwordText ? (
-              <div style={{ ...formMessageStyle(passwordIsError), marginTop: 16, marginBottom: 0 }}>
-                {passwordIsError ? passwordText : "Password updated successfully"}
-              </div>
-            ) : null}
-
-            <button
-              type="submit"
-              disabled={passwordLoading}
-              style={{
-                marginTop: 18,
-                padding: "11px 18px",
-                border: "none",
-                borderRadius: 12,
-                background: "linear-gradient(135deg,#5865f2,#7c83ff)",
-                color: "#fff",
-                fontSize: 14,
-                fontWeight: 700,
-                cursor: passwordLoading ? "not-allowed" : "pointer",
-                opacity: passwordLoading ? 0.72 : 1,
-                boxShadow: "0 12px 22px rgba(88,101,242,0.18)",
-              }}
-            >
-              {passwordLoading ? "Saving..." : "Change Password"}
-            </button>
-          </form>
-        </>
+          <button
+            type="submit"
+            disabled={passwordLoading}
+            style={{
+              minHeight: 44,
+              width: "fit-content",
+              padding: "0 18px",
+              border: "none",
+              borderRadius: "var(--radius-button)",
+              background: "var(--primary)",
+              color: "#fff",
+              fontSize: 14,
+              fontWeight: 700,
+              cursor: passwordLoading ? "not-allowed" : "pointer",
+              opacity: passwordLoading ? 0.7 : 1,
+              fontFamily: "inherit",
+            }}
+          >
+            {passwordLoading ? "Saving..." : "Change Password"}
+          </button>
+        </form>
       );
     }
 
     return (
-      <>
-        <div
-          style={{
-            marginBottom: 18,
-            padding: "14px 16px",
-            borderRadius: 12,
-            background: "rgba(99,102,241,0.08)",
-            border: "1px solid rgba(99,102,241,0.12)",
-            color: "#5b61d6",
-            fontSize: 13,
-            lineHeight: 1.5,
-          }}
-        >
-          Quick Note: Account details help teammates understand ownership and access level across the workspace.
-        </div>
-
-        <div style={{ display: "grid", gap: 14 }}>
-          <div style={{ ...baseCardStyle, padding: 16, background: "#f8fafc" }}>
-            <div style={{ color: "#64748b", fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
-              Role
-            </div>
-            <div style={{ color: "#0f172a", fontSize: 16, fontWeight: 700 }}>{roleLabel}</div>
+      <div style={{ display: "grid", gap: 16 }}>
+        <div className="settings-two-col" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 16 }}>
+          <div style={{ ...panelStyle, padding: 16, background: "#fafafa" }}>
+            <div style={fieldLabelStyle}>Role</div>
+            <div style={{ color: "var(--text-primary)", fontSize: 16, fontWeight: 700 }}>{roleLabel}</div>
           </div>
-          <div style={{ ...baseCardStyle, padding: 16, background: "#f8fafc" }}>
-            <div style={{ color: "#64748b", fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
-              Member Since
-            </div>
-            <div style={{ color: "#0f172a", fontSize: 16, fontWeight: 700 }}>{memberSince}</div>
-          </div>
-          <div style={{ ...baseCardStyle, padding: 16, background: "#f8fafc" }}>
-            <div style={{ color: "#64748b", fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
-              Workspace Access
-            </div>
-            <Link
-              href="/brands"
-              style={{ color: "#4f46e5", fontSize: 14, fontWeight: 700, textDecoration: "none" }}
-            >
-              Open workspace settings
-            </Link>
+          <div style={{ ...panelStyle, padding: 16, background: "#fafafa" }}>
+            <div style={fieldLabelStyle}>Member Since</div>
+            <div style={{ color: "var(--text-primary)", fontSize: 16, fontWeight: 700 }}>{memberSince}</div>
           </div>
         </div>
 
-        <div style={{ marginTop: 18, ...baseCardStyle }}>
-          <div style={{ color: "#0f172a", fontSize: 15, fontWeight: 700, marginBottom: 8 }}>
-            Sign Out
-          </div>
-          <div style={{ color: "#64748b", fontSize: 13, marginBottom: 14 }}>
+        <div style={{ ...panelStyle, padding: 16, background: "#fafafa" }}>
+          <div style={fieldLabelStyle}>Workspace Access</div>
+          <Link href="/brands" style={{ color: "var(--text-accent)", fontSize: 14, fontWeight: 700 }}>
+            Open workspace settings
+          </Link>
+        </div>
+
+        <div style={{ ...panelStyle, padding: 18 }}>
+          <div style={{ color: "var(--text-primary)", fontSize: 16, fontWeight: 700, marginBottom: 8 }}>Sign Out</div>
+          <div style={{ color: "var(--text-muted)", fontSize: 13, lineHeight: 1.6, marginBottom: 14 }}>
             End the current session on this device when you are finished working.
           </div>
           {!showLogout ? (
@@ -501,11 +337,12 @@ export default function SettingsPage() {
               type="button"
               onClick={() => setShowLogout(true)}
               style={{
-                padding: "10px 16px",
-                borderRadius: 12,
-                border: "1px solid rgba(239,68,68,0.24)",
-                background: "rgba(239,68,68,0.08)",
-                color: "#dc2626",
+                minHeight: 40,
+                padding: "0 16px",
+                borderRadius: "var(--radius-button)",
+                border: "1px solid rgba(220,38,38,0.2)",
+                background: "rgba(220,38,38,0.06)",
+                color: "var(--critical)",
                 fontSize: 14,
                 fontWeight: 700,
                 cursor: "pointer",
@@ -517,25 +354,26 @@ export default function SettingsPage() {
           ) : (
             <div
               style={{
-                borderRadius: 12,
-                border: "1px solid rgba(239,68,68,0.18)",
-                background: "rgba(239,68,68,0.05)",
+                borderRadius: "var(--radius-input)",
+                border: "1px solid rgba(220,38,38,0.16)",
+                background: "rgba(220,38,38,0.04)",
                 padding: 14,
               }}
             >
-              <div style={{ color: "#475569", fontSize: 13, marginBottom: 12 }}>
+              <div style={{ color: "var(--text-muted)", fontSize: 13, marginBottom: 12 }}>
                 Are you sure you want to sign out?
               </div>
-              <div style={{ display: "flex", gap: 10 }}>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                 <button
                   type="button"
                   onClick={() => setShowLogout(false)}
                   style={{
-                    padding: "9px 14px",
-                    borderRadius: 10,
-                    border: "1px solid rgba(148,163,184,0.32)",
+                    minHeight: 40,
+                    padding: "0 14px",
+                    borderRadius: "var(--radius-button)",
+                    border: "1px solid var(--border)",
                     background: "#fff",
-                    color: "#475569",
+                    color: "var(--text-muted)",
                     fontSize: 13,
                     fontWeight: 700,
                     cursor: "pointer",
@@ -548,10 +386,11 @@ export default function SettingsPage() {
                   type="button"
                   onClick={logout}
                   style={{
-                    padding: "9px 14px",
-                    borderRadius: 10,
+                    minHeight: 40,
+                    padding: "0 14px",
+                    borderRadius: "var(--radius-button)",
                     border: "none",
-                    background: "#ef4444",
+                    background: "var(--critical)",
                     color: "#fff",
                     fontSize: 13,
                     fontWeight: 700,
@@ -565,153 +404,60 @@ export default function SettingsPage() {
             </div>
           )}
         </div>
-      </>
+      </div>
     );
   };
 
   return (
     <div style={{ animation: "fadeUp 0.4s ease both", fontFamily: "'Outfit', sans-serif" }}>
-      <section
-        style={{
-          marginBottom: 22,
-          borderRadius: 18,
-          padding: 24,
-          background: "linear-gradient(135deg,#f8f9ff 0%, #ffffff 55%, #f4f6ff 100%)",
-          border: "0.5px solid rgba(148,163,184,0.22)",
-          boxShadow: "0 16px 40px rgba(15,23,42,0.05)",
-        }}
-      >
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "minmax(0, 1.35fr) minmax(0, 1fr)",
-            gap: 18,
-            alignItems: "start",
-          }}
-        >
-          <div>
+      <section className="settings-main-grid" style={{ display: "grid", gridTemplateColumns: "280px minmax(0, 1fr)", gap: 20, alignItems: "start" }}>
+        <aside style={{ ...panelStyle, padding: 22 }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", paddingBottom: 22, borderBottom: "1px solid var(--border)" }}>
             <div
               style={{
-                color: "#6366F1",
-                fontSize: 12,
-                fontWeight: 700,
-                letterSpacing: "0.16em",
-                textTransform: "uppercase",
-                marginBottom: 10,
+                width: 84,
+                height: 84,
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "linear-gradient(135deg, var(--primary), #8a8cf8)",
+                color: "#fff",
+                fontSize: 28,
+                fontWeight: 800,
+                marginBottom: 14,
               }}
             >
-              Settings
+              {displayInitial}
             </div>
-            <h1 style={{ margin: 0, color: "#0f172a", fontSize: 32, fontWeight: 700 }}>
-              Manage your workspace profile
-            </h1>
-            <p style={{ marginTop: 10, color: "#64748b", fontSize: 15, maxWidth: 540, lineHeight: 1.6 }}>
-              Keep personal details, account access, and workspace context organized from one cleaner control panel.
-            </p>
+            <div style={{ color: "var(--text-primary)", fontSize: 20, fontWeight: 700 }}>{displayName}</div>
+            <div style={{ marginTop: 6, color: "var(--text-muted)", fontSize: 14, wordBreak: "break-word" }}>{displayEmail}</div>
+            <span
+              style={{
+                marginTop: 12,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                minHeight: 30,
+                padding: "0 12px",
+                borderRadius: 999,
+                background: "rgba(91,94,244,0.1)",
+                color: "var(--text-accent)",
+                fontSize: 11,
+                fontWeight: 800,
+                letterSpacing: "0.08em",
+              }}
+            >
+              {roleLabel}
+            </span>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12 }}>
-            <InfoTile
-              label="Current Section"
-              value={`${SECTION_META[activeSection].label} - ${activeSection === "profile" ? "Profile ready" : activeSection === "security" ? "Access secured" : "Details active"}`}
-              hint={SECTION_META[activeSection].title}
-            />
-            <InfoTile
-              label="Role"
-              value={roleLabel}
-              hint="Workspace access available"
-              linkLabel="Workspace access"
-              href="/brands"
-            />
-            <InfoTile
-              label="Member Since"
-              value={memberSince}
-              hint="Account active"
-            />
-          </div>
-        </div>
-      </section>
-
-      <section
-        style={{
-          display: "grid",
-          gridTemplateColumns: "320px minmax(0, 1fr)",
-          gap: 20,
-          alignItems: "start",
-        }}
-      >
-        <aside style={{ display: "grid", gap: 16 }}>
-          <div style={baseCardStyle}>
-            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-              <div
-                style={{
-                  width: 62,
-                  height: 62,
-                  borderRadius: 18,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  background: "linear-gradient(135deg,#5865f2,#8b93ff)",
-                  color: "#fff",
-                  fontSize: 24,
-                  fontWeight: 800,
-                  boxShadow: "0 14px 24px rgba(88,101,242,0.2)",
-                  flexShrink: 0,
-                }}
-              >
-                {displayInitial}
-              </div>
-              <div style={{ minWidth: 0 }}>
-                <div
-                  style={{
-                    color: "#0f172a",
-                    fontSize: 18,
-                    fontWeight: 700,
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                  }}
-                >
-                  {displayName}
-                </div>
-                <div
-                  style={{
-                    marginTop: 4,
-                    color: "#64748b",
-                    fontSize: 13,
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                  }}
-                >
-                  {displayEmail}
-                </div>
-                <span
-                  style={{
-                    display: "inline-flex",
-                    marginTop: 10,
-                    padding: "6px 10px",
-                    borderRadius: 999,
-                    background: "rgba(99,102,241,0.1)",
-                    color: "#4f46e5",
-                    fontSize: 11,
-                    fontWeight: 700,
-                    letterSpacing: "0.05em",
-                  }}
-                >
-                  {roleLabel}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div style={baseCardStyle}>
-            <div style={{ color: "#64748b", fontSize: 12, fontWeight: 700, marginBottom: 12 }}>
-              Navigation
-            </div>
+          <div style={{ paddingTop: 22 }}>
+            <div style={{ ...fieldLabelStyle, marginBottom: 14 }}>Navigation</div>
             <div style={{ display: "grid", gap: 8 }}>
               {(Object.keys(SECTION_META) as SettingsSection[]).map((section) => {
                 const active = activeSection === section;
+
                 return (
                   <button
                     key={section}
@@ -723,35 +469,33 @@ export default function SettingsPage() {
                       justifyContent: "space-between",
                       gap: 12,
                       width: "100%",
-                      border: "none",
-                      borderRadius: 999,
-                      background: active ? "rgba(99,102,241,0.1)" : "transparent",
-                      color: active ? "#4338ca" : "#334155",
+                      minHeight: 58,
                       padding: "12px 14px",
-                      fontFamily: "inherit",
+                      borderRadius: 12,
+                      border: active ? "1px solid rgba(91,94,244,0.18)" : "1px solid transparent",
+                      background: active ? "rgba(91,94,244,0.08)" : "transparent",
+                      color: active ? "var(--text-accent)" : "var(--text-primary)",
                       cursor: "pointer",
+                      fontFamily: "inherit",
                     }}
                   >
                     <span style={{ textAlign: "left" }}>
-                      <span style={{ display: "block", fontSize: 14, fontWeight: 700 }}>
-                        {SECTION_META[section].label}
-                      </span>
-                      <span style={{ display: "block", marginTop: 2, fontSize: 12, color: active ? "#5b61d6" : "#94a3b8" }}>
+                      <span style={{ display: "block", fontSize: 14, fontWeight: 700 }}>{SECTION_META[section].label}</span>
+                      <span style={{ display: "block", marginTop: 4, fontSize: 12, color: active ? "var(--text-accent)" : "var(--text-muted)" }}>
                         {SECTION_META[section].subtitle}
                       </span>
                     </span>
-                    {active ? (
-                      <span
-                        style={{
-                          width: 8,
-                          height: 8,
-                          borderRadius: "50%",
-                          background: "#6366F1",
-                          boxShadow: "0 0 0 6px rgba(99,102,241,0.12)",
-                          flexShrink: 0,
-                        }}
-                      />
-                    ) : null}
+                    <span
+                      style={{
+                        width: 10,
+                        height: 10,
+                        borderRadius: "50%",
+                        background: active ? "var(--primary)" : "transparent",
+                        boxShadow: active ? "0 0 0 6px rgba(91,94,244,0.12)" : "none",
+                        border: active ? "none" : "1px solid var(--border)",
+                        flexShrink: 0,
+                      }}
+                    />
                   </button>
                 );
               })}
@@ -759,52 +503,52 @@ export default function SettingsPage() {
           </div>
         </aside>
 
-        <div style={{ display: "grid", gap: 16 }}>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "minmax(0, 1.35fr) minmax(280px, 0.75fr)",
-              gap: 16,
-              alignItems: "start",
-            }}
-          >
-            <div style={baseCardStyle}>
-              <div style={{ marginBottom: 18 }}>
-                <div
-                  style={{
-                    color: "#64748b",
-                    fontSize: 12,
-                    fontWeight: 700,
-                    letterSpacing: "0.1em",
-                    textTransform: "uppercase",
-                    marginBottom: 8,
-                  }}
-                >
-                  {SECTION_META[activeSection].label}
-                </div>
-                <h2 style={{ margin: 0, color: "#0f172a", fontSize: 22, fontWeight: 700 }}>
-                  {SECTION_META[activeSection].title}
-                </h2>
-              </div>
-              {renderSectionPanel()}
+        <div style={{ ...panelStyle, padding: 24 }}>
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ ...fieldLabelStyle, color: "var(--text-accent)", marginBottom: 10 }}>
+              {SECTION_META[activeSection].label.toUpperCase()}
             </div>
-
-            <div style={baseCardStyle}>
-              <div style={{ color: "#0f172a", fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
-                Profile Checklist
-              </div>
-              <div style={{ color: "#64748b", fontSize: 13, marginBottom: 16 }}>
-                A quick readiness view for the core account details used across the workspace.
-              </div>
-              <div style={{ display: "grid", gap: 14 }}>
-                {checklist.map((item) => (
-                  <CheckItem key={item.text} text={item.text} done={item.done} />
-                ))}
-              </div>
+            <div style={{ color: "var(--text-primary)", fontSize: 28, fontWeight: 700, lineHeight: 1.15 }}>
+              {SECTION_META[activeSection].title}
             </div>
           </div>
+
+          <div
+            style={{
+              marginBottom: 20,
+              padding: "14px 16px",
+              borderRadius: "var(--radius-card)",
+              background: "rgba(91,94,244,0.08)",
+              border: "1px solid rgba(91,94,244,0.14)",
+              color: "var(--text-accent)",
+              fontSize: 13,
+              lineHeight: 1.6,
+            }}
+          >
+            {SECTION_META[activeSection].helper}
+          </div>
+
+          {renderSectionBody()}
         </div>
+
       </section>
+
+      <style>{`
+        @media (max-width: 1180px) {
+          .settings-main-grid {
+            grid-template-columns: 260px minmax(0, 1fr);
+          }
+        }
+
+        @media (max-width: 980px) {
+          .settings-hero-grid,
+          .settings-main-grid,
+          .settings-hero-cards,
+          .settings-two-col {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

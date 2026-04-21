@@ -218,28 +218,21 @@ export async function GET(req: NextRequest) {
       prisma.upload.count({ where }),
     ]);
 
-    console.log("[uploads][GET] result", {
-      userId: payload.userId,
-      role: payload.role,
-      totalItems,
-      brandId: brandId || null,
-      platform: platform || "ALL",
-      status: status || "ALL",
-      page,
-      pageSize,
-    });
-
     return NextResponse.json({
       totalItems,
       totalPages:  Math.ceil(totalItems / pageSize),
       currentPage: page,
       itemsPerPage: pageSize,
-      items,
+      items: items.map((item) => ({
+        ...item,
+        brand: item.brand?.name ?? null,
+      })),
     });
 
   } catch (err) {
     if (err instanceof AuthError)
       return NextResponse.json({ error: err.message }, { status: err.status });
+    console.error("[GET /api/uploads]", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

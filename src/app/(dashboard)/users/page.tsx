@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { useCallback, useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader } from "@/components/ui/dialog";
 import { apiFetch } from "@/lib/apiFetch";
@@ -12,7 +13,6 @@ import {
   metricCardStyle,
   pageEyebrowStyle,
   pageSubtitleStyle,
-  pageTitleStyle,
   primaryButtonStyle,
   secondaryButtonStyle,
   subtleInputStyle,
@@ -38,20 +38,60 @@ interface User {
   brandMembers: { brand: Brand }[];
 }
 
-const ROLE_CFG: Record<Role, { color: string; bg: string; border: string }> = {
-  AGENCY_ADMIN: { color: "#4f46e5", bg: "rgba(99,102,241,0.1)", border: "rgba(99,102,241,0.22)" },
-  MARKETER: { color: "#d97706", bg: "rgba(245,158,11,0.1)", border: "rgba(245,158,11,0.22)" },
+type UserForm = {
+  name: string;
+  email: string;
+  password: string;
+  role: Role;
+  brandIds: string[];
+};
+
+const ROLE_CFG: Record<Role, { color: string; bg: string; border: string; label: string }> = {
+  AGENCY_ADMIN: { color: "#5b5ef4", bg: "rgba(91,94,244,0.1)", border: "rgba(91,94,244,0.2)", label: "Agency Admin" },
+  MARKETER: { color: "#d97706", bg: "rgba(217,119,6,0.1)", border: "rgba(217,119,6,0.2)", label: "Marketer" },
 };
 
 const AVATAR_COLORS = ["#5865f2", "#16a34a", "#dc2626", "#d97706", "#0ea5e9"];
 
-const emptyForm = { name: "", email: "", password: "", role: "MARKETER" as Role, brandIds: [] as string[] };
+const emptyForm: UserForm = { name: "", email: "", password: "", role: "MARKETER", brandIds: [] };
+
+const labelStyle: CSSProperties = {
+  display: "block",
+  marginBottom: 8,
+  color: "var(--text-muted)",
+  fontSize: 11,
+  fontWeight: 700,
+  letterSpacing: "0.12em",
+  textTransform: "uppercase",
+};
 
 function UserIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
       <circle cx="12" cy="7" r="4" />
+    </svg>
+  );
+}
+
+function UserPlusIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M15 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+      <circle cx="8" cy="7" r="4" />
+      <line x1="20" y1="8" x2="20" y2="14" />
+      <line x1="17" y1="11" x2="23" y2="11" />
+    </svg>
+  );
+}
+
+function UserXIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M15 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+      <circle cx="8" cy="7" r="4" />
+      <line x1="18" y1="8" x2="23" y2="13" />
+      <line x1="23" y1="8" x2="18" y2="13" />
     </svg>
   );
 }
@@ -67,8 +107,8 @@ export default function UsersPage() {
   const [editUser, setEditUser] = useState<User | null>(null);
   const [msg, setMsg] = useState("");
   const [saving, setSaving] = useState(false);
-  const [inviteForm, setInviteForm] = useState(emptyForm);
-  const [editForm, setEditForm] = useState(emptyForm);
+  const [inviteForm, setInviteForm] = useState<UserForm>(emptyForm);
+  const [editForm, setEditForm] = useState<UserForm>(emptyForm);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -77,8 +117,6 @@ export default function UsersPage() {
         apiFetch<{ items?: User[] }>("/api/users?pageSize=100"),
         apiFetch<{ items?: Brand[] }>("/api/brands"),
       ]);
-      console.log("[users] users response", usersData);
-      console.log("[users] brands response", brandsData);
       setUsers(usersData.items ?? []);
       setBrands(brandsData.items ?? []);
     } catch (fetchError) {
@@ -172,56 +210,88 @@ export default function UsersPage() {
     }
   }
 
-  function toggleBrand(brandId: string, form: typeof emptyForm, setForm: (value: typeof emptyForm) => void) {
-    setForm({
-      ...form,
-      brandIds: form.brandIds.includes(brandId)
-        ? form.brandIds.filter((value) => value !== brandId)
-        : [...form.brandIds, brandId],
-    });
+  function toggleBrand(brandId: string, form: UserForm, setForm: React.Dispatch<React.SetStateAction<UserForm>>) {
+    setForm((current) => ({
+      ...current,
+      brandIds: current.brandIds.includes(brandId)
+        ? current.brandIds.filter((value) => value !== brandId)
+        : [...current.brandIds, brandId],
+    }));
   }
 
-  const brandPills = (form: typeof emptyForm, setForm: (value: typeof emptyForm) => void) => (
-    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-      {brands.map((brand) => {
-        const active = form.brandIds.includes(brand.id);
-        return (
-          <button
-            key={brand.id}
-            type="button"
-            onClick={() => toggleBrand(brand.id, form, setForm)}
-            style={active ? primaryButtonStyle : secondaryButtonStyle}
-          >
-            {brand.name}
-          </button>
-        );
-      })}
-    </div>
-  );
-
-  const formBody = (form: typeof emptyForm, setForm: (value: typeof emptyForm) => void, isInvite?: boolean) => (
-    <div style={{ display: "grid", gap: 16 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        <input style={subtleInputStyle} placeholder="Full name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
-        <input style={subtleInputStyle} type="email" placeholder="Email" value={form.email} disabled={!isInvite} onChange={(event) => setForm({ ...form, email: event.target.value })} />
+  function renderBrandPills(form: UserForm, setForm: React.Dispatch<React.SetStateAction<UserForm>>) {
+    return (
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        {brands.map((brand) => {
+          const active = form.brandIds.includes(brand.id);
+          return (
+            <button
+              key={brand.id}
+              type="button"
+              onClick={() => toggleBrand(brand.id, form, setForm)}
+              style={{
+                minHeight: 38,
+                padding: "0 14px",
+                borderRadius: 999,
+                border: `1px solid ${active ? "rgba(91,94,244,0.2)" : "var(--border)"}`,
+                background: active ? "var(--primary)" : "#fff",
+                color: active ? "#fff" : "var(--text-muted)",
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              {brand.name}
+            </button>
+          );
+        })}
       </div>
-      {isInvite && (
-        <input style={subtleInputStyle} type="password" placeholder="Password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} />
-      )}
-      <select style={subtleInputStyle} value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value as Role })}>
-        <option value="MARKETER">Marketer</option>
-        <option value="AGENCY_ADMIN">Agency Admin</option>
-      </select>
-      {brandPills(form, setForm)}
-    </div>
-  );
+    );
+  }
+
+  function renderFormBody(form: UserForm, setForm: React.Dispatch<React.SetStateAction<UserForm>>, isInvite?: boolean) {
+    return (
+      <div style={{ display: "grid", gap: 16, padding: "20px 24px 0" }}>
+        <div className="users-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div>
+            <label style={labelStyle}>Full Name</label>
+            <input style={{ ...subtleInputStyle, minHeight: 46 }} placeholder="Full name" value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} />
+          </div>
+          <div>
+            <label style={labelStyle}>Email Address</label>
+            <input style={{ ...subtleInputStyle, minHeight: 46 }} type="email" placeholder="Email address" value={form.email} disabled={!isInvite} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} />
+          </div>
+        </div>
+
+        {isInvite ? (
+          <div>
+            <label style={labelStyle}>Temporary Password</label>
+            <input style={{ ...subtleInputStyle, minHeight: 46 }} type="password" placeholder="Temporary password" value={form.password} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} />
+          </div>
+        ) : null}
+
+        <div>
+          <label style={labelStyle}>Role</label>
+          <select style={{ ...subtleInputStyle, minHeight: 46 }} value={form.role} onChange={(event) => setForm((current) => ({ ...current, role: event.target.value as Role }))}>
+            <option value="AGENCY_ADMIN">Agency Admin</option>
+            <option value="MARKETER">Marketer</option>
+          </select>
+        </div>
+
+        <div>
+          <label style={labelStyle}>Brand Access</label>
+          {renderBrandPills(form, setForm)}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ animation: "fadeUp 0.4s ease both", fontFamily: "'Outfit', sans-serif" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 24, flexWrap: "wrap" }}>
         <div>
           <div style={pageEyebrowStyle}>Users</div>
-          <h1 style={pageTitleStyle}>Team access</h1>
           <p style={pageSubtitleStyle}>Manage teammates, role assignments, and brand access using the same tables, pills, and card system as the rest of the app.</p>
         </div>
         <button type="button" onClick={() => setInviteOpen(true)} style={primaryButtonStyle}>
@@ -332,7 +402,7 @@ export default function UsersPage() {
                         </div>
                       </td>
                       <td style={tableCellStyle}>
-                        <span style={pillStyle(role.color, role.bg, role.border)}>{user.role === "AGENCY_ADMIN" ? "Admin" : "Marketer"}</span>
+                        <span style={pillStyle(role.color, role.bg, role.border)}>{role.label}</span>
                       </td>
                       <td style={tableCellStyle}>
                         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -377,24 +447,24 @@ export default function UsersPage() {
       </div>
 
       <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
-        <DialogContent>
-          <DialogHeader icon={<UserIcon />} title="Invite User" description="Add a new team member to the platform" onClose={() => setInviteOpen(false)} />
-          {formBody(inviteForm, setInviteForm, true)}
+        <DialogContent style={{ maxWidth: 560 }}>
+          <DialogHeader icon={<UserPlusIcon />} title="Invite User" description="Send an invitation to join the workspace" onClose={() => setInviteOpen(false)} />
+          {renderFormBody(inviteForm, setInviteForm, true)}
           <DialogFooter>
             <button type="button" onClick={() => setInviteOpen(false)} style={secondaryButtonStyle}>
               Cancel
             </button>
             <button type="button" onClick={() => void handleInvite()} disabled={saving || !inviteForm.name || !inviteForm.email || !inviteForm.password} style={{ ...primaryButtonStyle, opacity: saving || !inviteForm.name || !inviteForm.email || !inviteForm.password ? 0.65 : 1 }}>
-              {saving ? "Creating..." : "Create User"}
+              {saving ? "Sending..." : "Send Invite"}
             </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent>
+        <DialogContent style={{ maxWidth: 560 }}>
           <DialogHeader icon={<UserIcon />} title="Edit User" description="Update team member details and access" onClose={() => setEditOpen(false)} />
-          {formBody(editForm, setEditForm)}
+          {renderFormBody(editForm, setEditForm)}
           <DialogFooter>
             <button type="button" onClick={() => setEditOpen(false)} style={secondaryButtonStyle}>
               Cancel
@@ -407,20 +477,31 @@ export default function UsersPage() {
       </Dialog>
 
       <Dialog open={delId !== null} onOpenChange={() => setDelId(null)}>
-        <DialogContent style={{ maxWidth: 400 }}>
-          <DialogHeader icon={<UserIcon />} title="Remove User?" description="This user will lose access to all brands immediately." onClose={() => setDelId(null)} />
-          <DialogFooter>
+        <DialogContent style={{ maxWidth: 420 }}>
+          <DialogHeader icon={<UserXIcon />} title="Remove User?" description="This user will lose access to all brands immediately." onClose={() => setDelId(null)} />
+          <div style={{ padding: "18px 24px 0", color: "var(--text-muted)", fontSize: 14, lineHeight: 1.6 }}>
+            This action removes the teammate from every assigned brand and revokes workspace access right away.
+          </div>
+          <DialogFooter style={{ paddingTop: 22 }}>
             <button type="button" onClick={() => setDelId(null)} style={secondaryButtonStyle}>
               Cancel
             </button>
-            <button type="button" onClick={() => void handleDelete()} style={{ ...primaryButtonStyle, background: "#dc2626", boxShadow: "none" }}>
+            <button type="button" onClick={() => void handleDelete()} style={{ ...primaryButtonStyle, background: "var(--critical)", boxShadow: "none" }}>
               Remove
             </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        @media (max-width: 720px) {
+          .users-form-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

@@ -1,95 +1,188 @@
-"use client"
-import * as React from "react"
+"use client";
+
+import * as React from "react";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+
 interface DialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  children: React.ReactNode
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  children: React.ReactNode;
 }
+
 export function Dialog({ open, onOpenChange, children }: DialogProps) {
-  React.useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") onOpenChange(false) }
-    if (open) document.addEventListener("keydown", handleKey)
-    return () => document.removeEventListener("keydown", handleKey)
-  }, [open, onOpenChange])
-  if (!open) return null
   return (
-    <div style={{
-      position: "fixed", inset: 0, zIndex: 9999,
-      display: "flex", alignItems: "center", justifyContent: "center",
-    }}>
-      <div onClick={() => onOpenChange(false)} style={{ position: "absolute", inset: 0, backgroundColor: "rgba(15,18,40,0.35)" }} />
+    <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       {children}
-    </div>
-  )
+    </DialogPrimitive.Root>
+  );
 }
+
 interface DialogContentProps {
-  children: React.ReactNode
-  style?: React.CSSProperties
+  children: React.ReactNode;
+  style?: React.CSSProperties;
 }
+
 export function DialogContent({ children, style }: DialogContentProps) {
   return (
-    <div style={{
-      position: "relative", zIndex: 1,
-      background: "#ffffff",
-      borderRadius: 16,
-      padding: "28px 28px 24px",
-      width: "100%", maxWidth: 480,
-      margin: "0 16px",
-      boxShadow: "0 8px 40px rgba(0,0,0,0.14)",
-      fontFamily: "'Outfit', sans-serif",
-      maxHeight: "90vh", overflowY: "auto",
-      ...style,
-    }}>
-      {children}
-    </div>
-  )
+    <DialogPrimitive.Portal>
+      <DialogPrimitive.Overlay className="dialog-overlay" />
+      <DialogPrimitive.Content className="dialog-content" style={style}>
+        {children}
+      </DialogPrimitive.Content>
+      <style>{`
+        .dialog-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.45);
+          backdrop-filter: blur(4px);
+          z-index: 50;
+          animation: fadeIn 150ms ease;
+        }
+
+        .dialog-content {
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          width: min(90vw, 560px);
+          max-height: min(90vh, 760px);
+          overflow-y: auto;
+          background: var(--card-bg, #ffffff);
+          border: 1px solid var(--border, #e5e7eb);
+          border-radius: 14px;
+          padding: 0;
+          z-index: 51;
+          box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+          animation: scaleIn 150ms ease;
+          outline: none;
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+
+        @keyframes scaleIn {
+          from { opacity: 0; transform: translate(-50%, -48%) scale(0.96); }
+          to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+      `}</style>
+    </DialogPrimitive.Portal>
+  );
 }
+
 interface DialogHeaderProps {
-  icon?: React.ReactNode
-  title: string
-  description?: string
-  onClose: () => void
+  icon?: React.ReactNode;
+  title: string;
+  description?: string;
+  onClose?: () => void;
 }
+
 export function DialogHeader({ icon, title, description, onClose }: DialogHeaderProps) {
   return (
-    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        {icon && (
-          <div style={{
-            width: 42, height: 42, borderRadius: 10,
-            background: "rgba(88,101,242,0.1)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            color: "#5865f2", flexShrink: 0,
-          }}>
+    <div
+      className="dialog-header"
+      style={{
+        display: "flex",
+        alignItems: "flex-start",
+        justifyContent: "space-between",
+        gap: 16,
+        padding: "24px 24px 18px",
+        borderBottom: "1px solid rgba(229,231,235,0.9)",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 14, minWidth: 0 }}>
+        {icon ? (
+          <div
+            className="dialog-icon"
+            aria-hidden="true"
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 12,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "rgba(91,94,244,0.1)",
+              color: "var(--primary, #5b5ef4)",
+              flexShrink: 0,
+            }}
+          >
             {icon}
           </div>
-        )}
-        <div>
-          <h2 style={{ fontSize: 17, fontWeight: 700, color: "#1e293b", margin: 0 }}>{title}</h2>
-          {description && <p style={{ fontSize: 13, color: "#94a3b8", margin: "3px 0 0" }}>{description}</p>}
+        ) : null}
+        <div style={{ minWidth: 0 }}>
+          <DialogPrimitive.Title
+            className="dialog-title"
+            style={{
+              margin: 0,
+              color: "var(--text-primary, #0f0f0f)",
+              fontSize: 20,
+              fontWeight: 700,
+              lineHeight: 1.2,
+            }}
+          >
+            {title}
+          </DialogPrimitive.Title>
+          <DialogPrimitive.Description
+            className="dialog-description"
+            style={{
+              margin: "6px 0 0",
+              color: "var(--text-muted, #6b7280)",
+              fontSize: 13,
+              lineHeight: 1.5,
+            }}
+          >
+            {description ?? ""}
+          </DialogPrimitive.Description>
         </div>
       </div>
-      <button onClick={onClose} style={{
-        width: 30, height: 30, borderRadius: 8, border: "1px solid #e2e8f0",
-        background: "#f8fafc", cursor: "pointer", display: "flex",
-        alignItems: "center", justifyContent: "center", color: "#94a3b8",
-        fontSize: 16, flexShrink: 0, marginLeft: 8,
-      }}>✕</button>
+
+      <DialogPrimitive.Close
+        className="dialog-close"
+        aria-label="Close dialog"
+        onClick={onClose}
+        style={{
+          width: 34,
+          height: 34,
+          borderRadius: 10,
+          border: "1px solid rgba(229,231,235,0.95)",
+          background: "#fff",
+          color: "#6b7280",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          cursor: "pointer",
+          flexShrink: 0,
+          fontSize: 20,
+          lineHeight: 1,
+          fontFamily: "inherit",
+        }}
+      >
+        ×
+      </DialogPrimitive.Close>
     </div>
-  )
+  );
 }
+
 interface DialogFooterProps {
-  children: React.ReactNode
-  style?: React.CSSProperties
+  children: React.ReactNode;
+  style?: React.CSSProperties;
 }
+
 export function DialogFooter({ children, style }: DialogFooterProps) {
   return (
-    <div style={{
-      display: "flex", justifyContent: "flex-end", gap: 10,
-      marginTop: 24, paddingTop: 20, borderTop: "1px solid #f1f5f9",
-      ...style,
-    }}>
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "flex-end",
+        gap: 12,
+        padding: "18px 24px 24px",
+        borderTop: "1px solid rgba(229,231,235,0.9)",
+        ...style,
+      }}
+    >
       {children}
     </div>
-  )
+  );
 }

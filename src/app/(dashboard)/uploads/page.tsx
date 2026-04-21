@@ -122,7 +122,7 @@ export default function UploadsPage() {
           marginBottom: 24,
           flexWrap: "wrap",
         }}
-      >
+        >
         <div>
           <div
             style={{
@@ -136,9 +136,6 @@ export default function UploadsPage() {
           >
             Uploads
           </div>
-          <h1 style={{ margin: 0, fontSize: 30, fontWeight: 700, color: "var(--t1)" }}>
-            Dataset Uploads
-          </h1>
           <p style={{ marginTop: 8, fontSize: 14, color: "var(--t2)" }}>
             Review upload history, monitor import status, and continue mappings when needed.
           </p>

@@ -1,9 +1,11 @@
 import "dotenv/config";
+
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 
 declare global {
+  // eslint-disable-next-line no-var
   var prisma: PrismaClient | undefined;
 }
 
@@ -16,37 +18,41 @@ const adapter = new PrismaPg(pool);
 export const prisma =
   global.prisma ?? new PrismaClient({ adapter });
 
-if (process.env.NODE_ENV !== "production") {
-  global.prisma = prisma;
-}
+if (process.env.NODE_ENV !== "production") global.prisma = prisma;
 
 function getDbTarget() {
-  const rawUrl = process.env.DATABASE_URL;
-  if (!rawUrl) {
-    return { loaded: false };
+  const connectionString = process.env.DATABASE_URL;
+
+  if (!connectionString) {
+    return { configured: false };
   }
 
   try {
-    const parsed = new URL(rawUrl);
+    const parsed = new URL(connectionString);
     return {
-      loaded: true,
+      configured: true,
       host: parsed.hostname,
       port: parsed.port || "5432",
       database: parsed.pathname.replace(/^\//, ""),
-      user: parsed.username,
+      user: decodeURIComponent(parsed.username),
     };
   } catch {
-    return { loaded: true, invalid: true };
+    return { configured: true, parseError: true };
   }
 }
 
-if (!(globalThis as { __prismaConnectLogged?: boolean }).__prismaConnectLogged) {
-  (globalThis as { __prismaConnectLogged?: boolean }).__prismaConnectLogged = true;
-  prisma.$connect()
+const prismaBootstrap = globalThis as typeof globalThis & {
+  __prismaConnectPromise?: Promise<void>;
+};
+
+if (!prismaBootstrap.__prismaConnectPromise) {
+  prismaBootstrap.__prismaConnectPromise = prisma
+    .$connect()
     .then(() => {
       console.log("[prisma] Database connected successfully", getDbTarget());
     })
     .catch((error) => {
       console.error("[prisma] Database connection failed", getDbTarget(), error);
+      throw error;
     });
 }

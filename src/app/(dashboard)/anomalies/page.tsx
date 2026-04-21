@@ -11,7 +11,6 @@ import {
   largeCardStyle,
   pageEyebrowStyle,
   pageSubtitleStyle,
-  pageTitleStyle,
   primaryButtonStyle,
   secondaryButtonStyle,
   subtleInputStyle,
@@ -89,7 +88,6 @@ export default function AnomaliesPage() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 24, flexWrap: "wrap" }}>
         <div>
           <div style={pageEyebrowStyle}>Anomalies</div>
-          <h1 style={pageTitleStyle}>Statistical anomaly review</h1>
           <p style={pageSubtitleStyle}>Explore significant deviations, inspect anomaly scores, and review recommendations in one consistent workspace.</p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>

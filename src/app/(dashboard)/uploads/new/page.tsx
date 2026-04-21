@@ -4,11 +4,16 @@ import { CSSProperties, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/apiFetch";
 
+type BrandOption = {
+  id: string;
+  name: string;
+};
+
 export default function NewUploadPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [platform, setPlatform] = useState("Google Ads");
   const [brand, setBrand] = useState("");
-  const [brands, setBrands] = useState<any[]>([]);
+  const [brands, setBrands] = useState<BrandOption[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -25,7 +30,7 @@ export default function NewUploadPage() {
 
   const fetchBrands = async () => {
     try {
-      const data = await apiFetch<{ items?: any[] }>("/api/brands");
+      const data = await apiFetch<{ items?: BrandOption[] }>("/api/brands");
       const list = Array.isArray(data?.items) ? data.items : [];
       setBrands(list);
       if (list.length > 0) {
@@ -131,9 +136,9 @@ export default function NewUploadPage() {
   return (
     <div className="animate-fadeUp" style={{ maxWidth: "760px", margin: "0 auto" }}>
       <div style={{ marginBottom: "32px" }}>
-        <h1 className="text-3xl font-bold mb-2" style={{ color: "var(--t1)", letterSpacing: "-0.04em" }}>
-          New Upload
-        </h1>
+        <div style={{ color: "var(--primary)", fontSize: "11px", fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: "8px" }}>
+          Uploads
+        </div>
         <p style={{ color: "var(--t2)", fontSize: "15px" }}>
           Upload your Google Ads or Meta CSV data to start monitoring
         </p>
