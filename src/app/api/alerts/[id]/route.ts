@@ -2,9 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, AuthError } from "@/lib/auth-guard";
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+type PatchRouteContext = {
+  params: Promise<{ id: string }>;
+};
+
+export async function PATCH(req: NextRequest, context: PatchRouteContext) {
   try {
     const payload = requireAuth(req);
+    const { id: alertId } = await context.params;
     const { status } = await req.json();
 
     if (!["OPEN", "ACK", "RESOLVED"].includes(status)) {
@@ -13,7 +18,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
     // Verify the alert belongs to a brand the user can access
     const alert = await prisma.alert.findUnique({
-      where: { id: params.id },
+      where: { id: alertId },
       select: { brandId: true },
     });
 
@@ -31,7 +36,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     }
 
     const updated = await prisma.alert.update({
-      where: { id: params.id },
+      where: { id: alertId },
       data: { status },
     });
 
