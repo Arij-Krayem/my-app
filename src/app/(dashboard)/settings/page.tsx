@@ -1,12 +1,25 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import AvatarUploadField from "@/components/AvatarUploadField";
+import UserAvatar from "@/components/UserAvatar";
+import { readSessionUser, writeSessionUser } from "@/lib/session-user";
+
+interface SettingsUser {
+  id: string;
+  name: string | null;
+  email: string;
+  role: string;
+  createdAt?: string;
+  avatarUrl?: string | null;
+}
 
 export default function SettingsPage() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<SettingsUser | null>(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [confirmPw, setConfirmPw] = useState("");
@@ -20,12 +33,12 @@ export default function SettingsPage() {
 
   useEffect(() => {
     document.documentElement.removeAttribute("data-theme");
-    const raw = sessionStorage.getItem("user");
-    if (raw) {
-      const u = JSON.parse(raw);
+    const u = readSessionUser();
+    if (u) {
       setUser(u);
       setName(u.name || "");
       setEmail(u.email || "");
+      setAvatarUrl(u.avatarUrl ?? null);
     }
     fetch("/api/users/me", {
       headers: { Authorization: `Bearer ${token()}` },
@@ -37,7 +50,8 @@ export default function SettingsPage() {
           setUser(d.user);
           setName(d.user.name || "");
           setEmail(d.user.email || "");
-          sessionStorage.setItem("user", JSON.stringify(d.user));
+          setAvatarUrl(d.user.avatarUrl ?? null);
+          writeSessionUser(d.user);
         }
       })
       .catch(() => {});
@@ -52,18 +66,20 @@ export default function SettingsPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
         credentials: "include",
-        body: JSON.stringify({ name, email }),
+        body: JSON.stringify({ name, email, avatarUrl }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to update profile");
 
-      const updated = { ...user, name: data.user.name, email: data.user.email };
-      sessionStorage.setItem("user", JSON.stringify(updated));
+      const updated = { ...user, name: data.user.name, email: data.user.email, avatarUrl: data.user.avatarUrl ?? null } as SettingsUser;
+      writeSessionUser(updated);
       setUser(updated);
+      setAvatarUrl(updated.avatarUrl ?? null);
       setProfileMsg("success");
       setTimeout(() => setProfileMsg(""), 3000);
-    } catch (err: any) {
-      setProfileMsg(`error:${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to update profile";
+      setProfileMsg(`error:${message}`);
       setTimeout(() => setProfileMsg(""), 4000);
     } finally {
       setProfileLoading(false);
@@ -89,8 +105,9 @@ export default function SettingsPage() {
       setPasswordMsg("success");
       setCurrentPw(""); setNewPw(""); setConfirmPw("");
       setTimeout(() => setPasswordMsg(""), 3000);
-    } catch (err: any) {
-      setPasswordMsg(`error:${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to change password";
+      setPasswordMsg(`error:${message}`);
       setTimeout(() => setPasswordMsg(""), 4000);
     } finally {
       setPasswordLoading(false);
@@ -144,15 +161,22 @@ export default function SettingsPage() {
         <div>
           <div style={{ ...cardSt, marginBottom: "16px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "24px" }}>
-              <div style={{ width: "48px", height: "48px", borderRadius: "12px", background: "linear-gradient(135deg,#5865f2,#818cf8)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: "800", fontSize: "20px", flexShrink: 0 }}>
-                {(user?.name || user?.email || "?")[0].toUpperCase()}
-              </div>
+              <UserAvatar name={user?.name} email={user?.email} avatarUrl={avatarUrl} size={48} borderRadius={12} fontSize={20} />
               <div>
                 <h2 style={{ fontSize: "18px", fontWeight: "800", color: "var(--t1)" }}>Profile information</h2>
                 <p style={{ fontSize: "13px", color: "var(--t2)", marginTop: "2px" }}>Update your display name and account email.</p>
               </div>
             </div>
             <form onSubmit={saveProfile}>
+              <div style={{ marginBottom: "16px" }}>
+                <AvatarUploadField
+                  currentUrl={avatarUrl}
+                  name={name || user?.name}
+                  email={email || user?.email}
+                  onUploaded={setAvatarUrl}
+                  onRemove={() => setAvatarUrl(null)}
+                />
+              </div>
               <div style={{ marginBottom: "14px" }}>
                 <label style={labelSt}>Full Name</label>
                 <input type="text" value={name} onChange={e => setName(e.target.value)} required style={inputSt} onFocus={focus} onBlur={blur} />
@@ -215,9 +239,7 @@ export default function SettingsPage() {
             {user && (
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: "14px", padding: "16px", borderRadius: "12px", background: "#f8fafc", border: "1px solid var(--border)", marginBottom: "16px" }}>
-                  <div style={{ width: "44px", height: "44px", borderRadius: "12px", background: "linear-gradient(135deg,#5865f2,#818cf8)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: "800", fontSize: "18px", flexShrink: 0 }}>
-                    {(user.name || user.email)[0].toUpperCase()}
-                  </div>
+                  <UserAvatar name={user.name} email={user.email} avatarUrl={user.avatarUrl} size={44} borderRadius={12} fontSize={18} />
                   <div>
                     <p style={{ fontSize: "15px", fontWeight: "800", color: "var(--t1)" }}>{user.name}</p>
                     <p style={{ fontSize: "12px", color: "var(--t2)", marginTop: "2px" }}>{user.email}</p>

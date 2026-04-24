@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Tooltip } from "antd";
 import { usePathname, useRouter } from "next/navigation";
 import styles from "./layout.module.css";
+import UserAvatar from "@/components/UserAvatar";
+import { readSessionUser, userSessionEventName, type SessionUser } from "@/lib/session-user";
 
 const SVG = {
   dashboard: <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /></svg>,
@@ -46,11 +48,7 @@ interface AlertNotif {
 interface NavItem { href: string; icon: ReactNode; label: string; }
 
 function getStoredUser() {
-  if (typeof window === "undefined") return null;
-  const raw = sessionStorage.getItem("user");
-  if (!raw) return null;
-  try { return JSON.parse(raw) as { name: string; email: string; role: string }; }
-  catch { return null; }
+  return readSessionUser();
 }
 
 function timeAgo(dateStr: string) {
@@ -87,7 +85,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const router   = useRouter();
   const pathname = usePathname();
   const [collapsed,     setCollapsed]     = useState(false);
-  const [user,          setUser]          = useState<{ name: string; email: string; role: string } | null>(null);
+  const [user,          setUser]          = useState<SessionUser | null>(null);
   const [userReady,     setUserReady]     = useState(false);
   const [brands,        setBrands]        = useState<{ id: string; name: string }[]>([]);
   const [selectedBrand, setSelectedBrand] = useState("");
@@ -114,7 +112,24 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     } catch {}
   }, []);
 
-  useEffect(() => { setUser(getStoredUser()); setUserReady(true); }, []);
+  useEffect(() => {
+    const syncUserFromSession = () => {
+      setUser(getStoredUser());
+      setUserReady(true);
+    };
+
+    const handleUserUpdate = (event: Event) => {
+      const nextUser = (event as CustomEvent<{ user: SessionUser }>).detail?.user;
+      if (nextUser) setUser(nextUser);
+    };
+
+    const timeout = window.setTimeout(syncUserFromSession, 0);
+    window.addEventListener(userSessionEventName(), handleUserUpdate);
+    return () => {
+      window.clearTimeout(timeout);
+      window.removeEventListener(userSessionEventName(), handleUserUpdate);
+    };
+  }, []);
 
   useEffect(() => {
     if (!userReady) return;
@@ -233,7 +248,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         {!collapsed && user && (
           <div className={styles.sidebarFooter}>
             <div className={styles.userCard}>
-              <div className={styles.userAvatar}>{(user.name || user.email)[0].toUpperCase()}</div>
+              <div className={styles.userAvatar}>
+                <UserAvatar name={user.name} email={user.email} avatarUrl={user.avatarUrl} size={38} borderRadius={999} style={{ width: "100%", height: "100%" }} />
+              </div>
               <div className={styles.userMeta}>
                 <div className={styles.userName}>{user.name || user.email}</div>
                 <div className={styles.userRole}>{user.role.replace("_", " ")}</div>
@@ -330,7 +347,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               <div ref={dropdownRef} className={styles.popoverAnchor}>
                 <button type="button" onClick={() => setShowDropdown(v => !v)}
                   className={styles.avatarButton} aria-label="Toggle user menu">
-                  {(user.name || user.email)[0].toUpperCase()}
+                  <UserAvatar name={user.name} email={user.email} avatarUrl={user.avatarUrl} size={40} borderRadius={12} style={{ width: "100%", height: "100%" }} />
                 </button>
                 {showDropdown && (
                   <div className={`${styles.dropdownPanel} ${styles.userMenuPanel}`}>

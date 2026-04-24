@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import UserAvatar from "@/components/UserAvatar";
 
 const NAV = [
   {
@@ -57,7 +58,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
 
   const visibleNav = NAV.filter(
     (item) => user && item.roles.includes(user.role)
@@ -331,7 +331,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         /* Mobile overlay */
         @media (max-width: 768px) {
           .sidebar {
-            transform: translateX(${mobileOpen ? "0" : "-100%"});
+            transform: translateX(-100%);
             width: 230px !important;
           }
           .main-wrap { margin-left: 0; }
@@ -379,7 +379,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <div className="sidebar-footer">
             <div className="user-card">
               <div className="avatar">
-                {user?.email?.[0]?.toUpperCase() ?? "U"}
+                <UserAvatar
+                  name={user?.name}
+                  email={user?.email}
+                  avatarUrl={user?.avatarUrl}
+                  size={32}
+                  borderRadius={999}
+                  style={{ width: "100%", height: "100%" }}
+                />
               </div>
               <div className="user-info">
                 <div className="user-email">{user?.email}</div>

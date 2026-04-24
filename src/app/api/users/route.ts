@@ -9,6 +9,7 @@ const USER_SELECT = {
   id:           true,
   name:         true,
   email:        true,
+  avatarUrl:    true,
   role:         true,
   isApproved:   true,
   isActive:     true,
@@ -45,7 +46,7 @@ export async function POST(req: NextRequest) {
     if (payload.role !== "AGENCY_ADMIN")
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
 
-    const { name, email, password, role, brandIds } = await req.json();
+    const { name, email, password, role, brandIds, avatarUrl } = await req.json();
     if (!email || !password)
       return NextResponse.json({ error: "Email and password required" }, { status: 400 });
 
@@ -60,6 +61,7 @@ export async function POST(req: NextRequest) {
       data: {
         name,
         email,
+        avatarUrl: avatarUrl ?? null,
         role:         role ?? "MARKETER",
         passwordHash,
         isApproved:   true,
@@ -92,7 +94,7 @@ export async function PATCH(req: NextRequest) {
     if (!id)
       return NextResponse.json({ error: "User id required" }, { status: 400 });
 
-    const { name, role, brandIds, isActive } = await req.json();
+    const { name, role, brandIds, isActive, avatarUrl } = await req.json();
 
     // ── Update brand assignments ───────────────────────────────────────────
     if (brandIds !== undefined) {
@@ -110,6 +112,7 @@ export async function PATCH(req: NextRequest) {
     if (name     !== undefined) updateData.name     = name;
     if (role     !== undefined) updateData.role     = role;
     if (isActive !== undefined) updateData.isActive = isActive;  // ← active/inactive toggle
+    if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl;
 
     const user = await prisma.user.update({
       where:  { id },

@@ -1,6 +1,9 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogFooter } from "@/components/ui/dialog";
+import AvatarUploadField from "@/components/AvatarUploadField";
+import UserAvatar from "@/components/UserAvatar";
+import { readSessionUser, writeSessionUser } from "@/lib/session-user";
 
 type Role = "AGENCY_ADMIN" | "MARKETER";
 
@@ -9,6 +12,7 @@ interface User {
   id:           string;
   name:         string | null;
   email:        string;
+  avatarUrl?:   string | null;
   role:         Role;
   isApproved:   boolean;
   isActive:     boolean;
@@ -20,8 +24,6 @@ const ROLE_CFG: Record<Role, { color: string; bg: string; border: string }> = {
   AGENCY_ADMIN: { color: "#dc2626", bg: "rgba(220,38,38,.08)", border: "rgba(220,38,38,.2)" },
   MARKETER:     { color: "#16a34a", bg: "rgba(22,163,74,.08)",  border: "rgba(22,163,74,.2)" },
 };
-const AVATAR_COLORS = ["#5865f2","#16a34a","#dc2626","#d97706","#0ea5e9"];
-
 const UserIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
@@ -37,7 +39,7 @@ const sel: React.CSSProperties = { ...inp, cursor: "pointer" };
 const btn: React.CSSProperties = { padding: "9px 20px", borderRadius: 12, border: "none", cursor: "pointer", fontWeight: 700, fontSize: 14 };
 const lbl: React.CSSProperties = { fontSize: 11, fontWeight: 800, color: "var(--t2)", textTransform: "uppercase" as const, letterSpacing: ".12em", marginBottom: 6, display: "block" };
 
-const emptyForm = { name: "", email: "", password: "", role: "MARKETER" as Role, brandIds: [] as string[] };
+const emptyForm = { name: "", email: "", password: "", role: "MARKETER" as Role, brandIds: [] as string[], avatarUrl: null as string | null };
 
 export default function UsersPage() {
   const [users,      setUsers]      = useState<User[]>([]);
@@ -131,7 +133,7 @@ export default function UsersPage() {
 
   function openEdit(u: User) {
     setEditUser(u);
-    setEditForm({ name: u.name ?? "", email: u.email, password: "", role: u.role, brandIds: u.brandMembers.map(m => m.brand.id) });
+    setEditForm({ name: u.name ?? "", email: u.email, password: "", role: u.role, brandIds: u.brandMembers.map(m => m.brand.id), avatarUrl: u.avatarUrl ?? null });
     setEditOpen(true);
   }
 
@@ -164,9 +166,18 @@ export default function UsersPage() {
         method:  "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
         credentials: "include",
-        body: JSON.stringify({ name: editForm.name, role: editForm.role, brandIds: editForm.brandIds }),
+        body: JSON.stringify({ name: editForm.name, role: editForm.role, brandIds: editForm.brandIds, avatarUrl: editForm.avatarUrl }),
       });
       if (!res.ok) throw new Error("Failed to update");
+      const currentUser = readSessionUser();
+      if (currentUser?.id === editUser.id) {
+        writeSessionUser({
+          ...currentUser,
+          name: editForm.name,
+          role: editForm.role,
+          avatarUrl: editForm.avatarUrl,
+        });
+      }
       setEditOpen(false);
       flash("User updated");
       await loadData();
@@ -210,6 +221,15 @@ export default function UsersPage() {
 
   const FormBody = ({ form, setForm, isInvite }: { form: typeof emptyForm; setForm: (f: typeof emptyForm) => void; isInvite?: boolean }) => (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {!isInvite && (
+        <AvatarUploadField
+          currentUrl={form.avatarUrl}
+          name={form.name}
+          email={form.email}
+          onUploaded={url => setForm({ ...form, avatarUrl: url })}
+          onRemove={() => setForm({ ...form, avatarUrl: null })}
+        />
+      )}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <div>
           <label style={lbl}>Full Name</label>
@@ -363,8 +383,6 @@ export default function UsersPage() {
             <tbody>
               {filtered.map((u, i) => {
                 const rc      = ROLE_CFG[u.role];
-                const color   = AVATAR_COLORS[i % AVATAR_COLORS.length];
-                const initials = (u.name ?? u.email).split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
                 const since    = new Date(u.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
                 const isPending = !u.isApproved;
                 return (
@@ -374,9 +392,7 @@ export default function UsersPage() {
                     <td style={{ padding: 16 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                         <div style={{ position: "relative", flexShrink: 0 }}>
-                          <div style={{ width: 40, height: 40, borderRadius: 12, background: color, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 13 }}>
-                            {initials}
-                          </div>
+                          <UserAvatar name={u.name} email={u.email} avatarUrl={u.avatarUrl} size={40} borderRadius={12} colorIndex={i} />
                           {/* Pending dot */}
                           {isPending && (
                             <div style={{ position: "absolute", top: -3, right: -3, width: 12, height: 12, borderRadius: "50%", background: "#d97706", border: "2px solid #fff" }} />

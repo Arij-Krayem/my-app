@@ -173,10 +173,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  background: #111827;
-  color: #fff;
-  font-size: 14px;
-  font-weight: 700;
+  overflow: hidden;
 }
 
 .userMeta {
@@ -271,6 +268,8 @@
   font-size: 14px;
   font-weight: 800;
   box-shadow: 0 10px 20px rgba(88, 101, 242, 0.18);
+  padding: 0;
+  overflow: hidden;
 }
 
 .brandSelect {

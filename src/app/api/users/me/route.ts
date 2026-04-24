@@ -6,6 +6,7 @@ import { z } from "zod";
 const Body = z.object({
   name:  z.string().min(1).optional(),
   email: z.string().email().optional(),
+  avatarUrl: z.string().trim().min(1).nullable().optional(),
 });
 
 export async function GET(req: NextRequest) {
@@ -14,7 +15,7 @@ export async function GET(req: NextRequest) {
 
     const user = await prisma.user.findUnique({
       where:  { id: payload.userId },
-      select: { id: true, name: true, email: true, role: true, createdAt: true },
+      select: { id: true, name: true, email: true, avatarUrl: true, role: true, createdAt: true },
     });
 
     if (!user)
@@ -44,8 +45,12 @@ export async function PATCH(req: NextRequest) {
 
     const user = await prisma.user.update({
       where:  { id: payload.userId },
-      data:   { ...(data.name && { name: data.name }), ...(data.email && { email: data.email }) },
-      select: { id: true, name: true, email: true, role: true, createdAt: true },
+      data:   {
+        ...(data.name && { name: data.name }),
+        ...(data.email && { email: data.email }),
+        ...(data.avatarUrl !== undefined && { avatarUrl: data.avatarUrl }),
+      },
+      select: { id: true, name: true, email: true, avatarUrl: true, role: true, createdAt: true },
     });
 
     return NextResponse.json({ user });

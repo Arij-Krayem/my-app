@@ -6,6 +6,7 @@ import { requireAuth } from "@/lib/auth-guard";
 const UpdateBody = z.object({
   name: z.string().optional(),
   role: z.enum(["MARKETER", "AGENCY_ADMIN"]).optional(),
+  avatarUrl: z.string().trim().min(1).nullable().optional(),
 });
 
 // Next.js 16: ctx.params is a Promise
@@ -23,7 +24,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
 
     const user = await prisma.user.findUnique({
       where: { id },
-      select: { id: true, email: true, name: true, role: true, createdAt: true },
+      select: { id: true, email: true, name: true, avatarUrl: true, role: true, createdAt: true },
     });
 
     if (!user) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -57,7 +58,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     const user = await prisma.user.update({
       where: { id },
       data,
-      select: { id: true, email: true, name: true, role: true },
+      select: { id: true, email: true, name: true, avatarUrl: true, role: true },
     });
 
     return NextResponse.json({ user });

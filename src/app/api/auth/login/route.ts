@@ -16,6 +16,7 @@ const LOGIN_USER_SELECT = {
   id:           true,
   email:        true,
   name:         true,
+  avatarUrl:    true,
   passwordHash: true,
   role:         true,
   isApproved:   true,
@@ -68,7 +69,7 @@ export async function POST(req: NextRequest) {
 
     const res = NextResponse.json({
       accessToken,
-      user: { id: user.id, email: user.email, role: user.role, name: user.name },
+      user: { id: user.id, email: user.email, role: user.role, name: user.name, avatarUrl: user.avatarUrl },
     });
 
     res.headers.set("Set-Cookie", refreshCookie(refreshToken, 7 * 24 * 3600));

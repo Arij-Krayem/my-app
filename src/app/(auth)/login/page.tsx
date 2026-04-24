@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { writeSessionUser } from "@/lib/session-user";
 
 // ── Zod schema ────────────────────────────────────────────────────────────────
 const loginSchema = z.object({
@@ -69,7 +70,7 @@ export default function LoginPage() {
         setLoading(false); return;
       }
       sessionStorage.setItem("access_token", data.accessToken);
-      sessionStorage.setItem("user", JSON.stringify(data.user));
+      writeSessionUser(data.user);
       router.push("/dashboard");
     } catch {
       setServerError("Network error. Please try again.");
