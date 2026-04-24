@@ -37,7 +37,7 @@ export default function DashboardPage() {
   const [analytics,   setAnalytics]   = useState<any>(null);
   const [kpiLoading,  setKpiLoading]  = useState(true);
   const [brands,      setBrands]      = useState<{ id: string; name: string }[]>([]);
-  const [activeBrand, setActiveBrand] = useState("brand_visioad_001");
+  const [activeBrand, setActiveBrand] = useState("");
   const [platform,    setPlatform]    = useState("");
   const [dateFrom,    setDateFrom]    = useState("");
   const [dateTo,      setDateTo]      = useState("");
@@ -59,7 +59,7 @@ export default function DashboardPage() {
   }
 
   const fetchPrevSpend = (brandId: string, plat: string, from: string, to: string) => {
-    const token = sessionStorage.getItem("access_token"); if (!token) return;
+    const token = sessionStorage.getItem("access_token"); if (!token || !brandId) return;
     const { prevFrom, prevTo } = getPrevBounds(from, to);
     const p = new URLSearchParams({ brandId, dateFrom: prevFrom, dateTo: prevTo });
     if (plat) p.set("platform", plat);
@@ -81,7 +81,7 @@ export default function DashboardPage() {
   };
 
   const fetchAnalytics = (brandId: string, plat: string, from: string, to: string) => {
-    const token = sessionStorage.getItem("access_token"); if (!token) return;
+    const token = sessionStorage.getItem("access_token"); if (!token || !brandId) return;
     setKpiLoading(true);
     const p = new URLSearchParams({ brandId });
     if (plat) p.set("platform", plat);
@@ -97,17 +97,27 @@ export default function DashboardPage() {
   // ── Initial load ───────────────────────────────────────────────────────────
   useEffect(() => {
     const token = sessionStorage.getItem("access_token") ?? "";
-    if (!token) return;
+    if (!token) {
+      setKpiLoading(false);
+      return;
+    }
     const headers = { Authorization: `Bearer ${token}` };
     fetch("/api/users/me", { headers, credentials: "include" })
       .then(r => r.ok ? r.json() : null).then(d => { if (d?.role) setUserRole(d.role); }).catch(() => {});
     fetch("/api/brands", { headers, credentials: "include" })
       .then(r => r.ok ? r.json() : { items: [] })
       .then(d => {
-        const list = d.items ?? []; setBrands(list);
-        const first = list.length > 0 ? list[0].id : "brand_visioad_001";
-        setActiveBrand(first); fetchAnalytics(first, "", "", "");
-      }).catch(() => { fetchAnalytics("brand_visioad_001", "", "", ""); });
+        const list = d.items ?? [];
+        setBrands(list);
+        if (!list.length) {
+          setKpiLoading(false);
+          return;
+        }
+
+        const first = list[0].id;
+        setActiveBrand(first);
+        fetchAnalytics(first, "", "", "");
+      }).catch(() => { setKpiLoading(false); });
   }, []);
 
   // ── Listen for brand-change events fired by layout.tsx top-bar dropdown ───
@@ -124,8 +134,15 @@ export default function DashboardPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const applyFilters = () => fetchAnalytics(activeBrand, platform, dateFrom, dateTo);
-  const resetFilters = () => { setPlatform(""); setDateFrom(""); setDateTo(""); fetchAnalytics(activeBrand, "", "", ""); };
+  const applyFilters = () => {
+    if (!activeBrand) return;
+    fetchAnalytics(activeBrand, platform, dateFrom, dateTo);
+  };
+  const resetFilters = () => {
+    setPlatform(""); setDateFrom(""); setDateTo("");
+    if (!activeBrand) return;
+    fetchAnalytics(activeBrand, "", "", "");
+  };
 
   const handleBrandSwitch = (brandId: string) => {
     setActiveBrand(brandId); setPlatform(""); setDateFrom(""); setDateTo("");
@@ -251,7 +268,9 @@ export default function DashboardPage() {
 
       {/* Global Status Widget — self-gates to admin via 403 */}
       <GlobalStatusWidget />
-      <PredictiveBaseline brandId={activeBrand} platform={platform} dateFrom={dateFrom} dateTo={dateTo} />
+      {activeBrand && (
+        <PredictiveBaseline brandId={activeBrand} platform={platform} dateFrom={dateFrom} dateTo={dateTo} />
+      )}
 
       {/* Spend Over Time */}
       {mergedChartData.length > 0 && (

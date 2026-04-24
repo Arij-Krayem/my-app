@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   ComposedChart, Line, Area, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine,
@@ -132,12 +132,25 @@ export default function PredictiveBaseline({
   const [error,      setError]      = useState<string | null>(null);
   const [metric,     setMetric]     = useState<"spend" | "roas" | "ctr" | "cpc">("spend");
   const [windowSize, setWindowSize] = useState<7 | 14 | 28>(7);
+  const requestSeq = useRef(0);
 
   const metricMeta = METRICS.find(m => m.key === metric) ?? METRICS[0];
 
   const fetchData = useCallback(() => {
+    if (!brandId) {
+      setLoading(false);
+      setError(null);
+      setData(null);
+      return;
+    }
+
     const token = sessionStorage.getItem("access_token");
-    if (!token) return;
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
+    const requestId = ++requestSeq.current;
 
     setLoading(true);
     setError(null);
@@ -153,14 +166,30 @@ export default function PredictiveBaseline({
     })
       .then(r => r.json())
       .then(d => {
-        if (d.error) setError(d.error);
-        else setData(d);
+        if (requestId !== requestSeq.current) return;
+        if (d.error) {
+          setData(null);
+          setError(d.error);
+        } else {
+          setData(d);
+          setError(null);
+        }
       })
-      .catch(() => setError("Failed to load prediction data"))
-      .finally(() => setLoading(false));
+      .catch(() => {
+        if (requestId !== requestSeq.current) return;
+        setData(null);
+        setError("Failed to load prediction data");
+      })
+      .finally(() => {
+        if (requestId !== requestSeq.current) return;
+        setLoading(false);
+      });
   }, [brandId, platform, dateFrom, dateTo, metric, windowSize]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    const timeout = window.setTimeout(() => { fetchData(); }, 0);
+    return () => window.clearTimeout(timeout);
+  }, [fetchData]);
 
   // ── Build unified chart data ────────────────────────────────────────────
   const chartData: ChartPoint[] = [];

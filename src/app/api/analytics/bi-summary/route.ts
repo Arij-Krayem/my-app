@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
 
     // ── WHERE clause ─────────────────────────────────────────────────────────
-    // ✅ FIXED: "brandId" with quotes (camelCase Prisma column) not brand_id
+    //  FIXED: "brandId" with quotes (camelCase Prisma column) not brand_id
     const conditions: string[] = [`"brandId" = '${brandId}'`];
     if (platform && ["GOOGLE", "META"].includes(platform))
       conditions.push(`platform = '${platform}'::"Platform"`);
