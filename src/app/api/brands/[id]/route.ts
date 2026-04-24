@@ -66,3 +66,35 @@ export async function GET(
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const payload = requireAuth(req);
+    const { id } = await params;
+
+    if (payload.role !== "AGENCY_ADMIN") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const brand = await prisma.brand.findUnique({
+      where: { id },
+      select: { id: true, name: true },
+    });
+
+    if (!brand) {
+      return NextResponse.json({ error: "Brand not found" }, { status: 404 });
+    }
+
+    await prisma.brand.delete({ where: { id } });
+
+    return NextResponse.json({ ok: true, id: brand.id, name: brand.name });
+  } catch (err) {
+    if (err instanceof AuthError)
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    console.error("[DELETE /api/brands/[id]]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}

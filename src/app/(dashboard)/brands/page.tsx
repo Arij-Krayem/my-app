@@ -143,7 +143,7 @@ function LogoUpload({
           <img src={preview} alt="Logo preview" style={{ width: 56, height: 56, borderRadius: 10, objectFit: "cover", border: "1px solid var(--border)", flexShrink: 0 }} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{ fontSize: 13, fontWeight: 600, color: "var(--t1)", marginBottom: 4 }}>Logo uploaded</p>
-            <p style={{ fontSize: 11, color: "var(--t3)" }}>Click "Change" to replace</p>
+            <p style={{ fontSize: 11, color: "var(--t3)" }}>Click &quot;Change&quot; to replace</p>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <button type="button" onClick={() => fileRef.current?.click()}
@@ -200,6 +200,7 @@ function LogoUpload({
 export default function BrandsPage() {
   const [brands,  setBrands]  = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
+  const [role,    setRole]    = useState("");
 
   // ── Create dialog state ───────────────────────────────────────────────────
   const [createOpen,   setCreateOpen]   = useState(false);
@@ -213,6 +214,8 @@ export default function BrandsPage() {
   const [editName,    setEditName]    = useState("");
   const [editLogoUrl, setEditLogoUrl] = useState<string | null>(null);
   const [editSaving,  setEditSaving]  = useState(false);
+  const [deleteBrand, setDeleteBrand] = useState<Brand | null>(null);
+  const [deleteSaving, setDeleteSaving] = useState(false);
 
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("ALL");
@@ -220,6 +223,16 @@ export default function BrandsPage() {
 
   const token = () => sessionStorage.getItem("access_token") ?? "";
   const flash = (m: string) => { setMsg(m); setTimeout(() => setMsg(""), 3000); };
+  const isAdmin = role === "AGENCY_ADMIN";
+
+  useEffect(() => {
+    const raw = sessionStorage.getItem("user");
+    if (!raw) return;
+    try {
+      const user = JSON.parse(raw) as { role?: string };
+      setRole(user.role ?? "");
+    } catch {}
+  }, []);
 
   const loadBrands = useCallback(async () => {
     setLoading(true);
@@ -301,6 +314,28 @@ export default function BrandsPage() {
     } catch (e: unknown) {
       flash(`Error: ${e instanceof Error ? e.message : "Failed"}`);
     } finally { setEditSaving(false); }
+  }
+
+  async function handleDelete() {
+    if (!deleteBrand) return;
+    setDeleteSaving(true);
+    try {
+      const res = await fetch(`/api/brands/${deleteBrand.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token()}` },
+        credentials: "include",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Failed to delete brand");
+
+      setBrands(prev => prev.filter(b => b.id !== deleteBrand.id));
+      setDeleteBrand(null);
+      flash("Brand deleted successfully");
+    } catch (e: unknown) {
+      flash(`Error: ${e instanceof Error ? e.message : "Failed to delete brand"}`);
+    } finally {
+      setDeleteSaving(false);
+    }
   }
 
   const enriched = brands.map(b => ({ ...b, health: b.health ?? "HEALTHY" }));
@@ -426,6 +461,15 @@ export default function BrandsPage() {
                       <div style={{ display: "flex", gap: 8 }}>
                         <button onClick={() => openEdit(b)} className="btn-secondary" style={{ padding: "8px 14px" }}>Edit</button>
                         <button onClick={() => navigator.clipboard.writeText(b.id).then(() => { flash("ID copied"); })} className="btn-secondary" style={{ padding: "8px 14px" }}>Copy ID</button>
+                        {isAdmin && (
+                          <button
+                            onClick={() => setDeleteBrand(b)}
+                            className="btn-secondary"
+                            style={{ padding: "8px 14px", color: "#dc2626", borderColor: "rgba(220,38,38,.2)" }}
+                          >
+                            Delete
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -493,6 +537,23 @@ export default function BrandsPage() {
             <button onClick={handleEdit} disabled={editSaving || !editName.trim()}
               style={{ ...btn, background: "#5865f2", color: "#fff", opacity: editSaving || !editName.trim() ? 0.6 : 1 }}>
               {editSaving ? "Saving..." : "Save Changes"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteBrand !== null} onOpenChange={() => !deleteSaving && setDeleteBrand(null)}>
+        <DialogContent style={{ maxWidth: 400 }}>
+          <DialogHeader
+            icon={<span style={{ fontSize: 18 }}>!</span>}
+            title="Delete Brand?"
+            description={`Are you sure you want to delete this brand${deleteBrand ? `, ${deleteBrand.name}` : ""}? This will remove its related data as well.`}
+            onClose={() => !deleteSaving && setDeleteBrand(null)}
+          />
+          <DialogFooter>
+            <button onClick={() => setDeleteBrand(null)} className="btn-secondary" disabled={deleteSaving}>Cancel</button>
+            <button onClick={handleDelete} disabled={deleteSaving} style={{ ...btn, background: "#dc2626", color: "#fff", opacity: deleteSaving ? 0.6 : 1 }}>
+              {deleteSaving ? "Deleting..." : "Delete"}
             </button>
           </DialogFooter>
         </DialogContent>
