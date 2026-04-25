@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { cookieName, refreshCookie } from "@/lib/cookies";
-import { verifyRefreshToken, signAccessToken, signRefreshToken, hashToken } from "@/lib/auth";
+import { verifyRefreshToken, signAccessToken, signRefreshToken, hashToken, refreshTokenMaxAgeSeconds } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   const token = req.cookies.get(cookieName())?.value;
   if (!token) return NextResponse.json({ error: "No refresh token" }, { status: 401 });
 
-  let payload: { userId: string };
   try {
-    payload = verifyRefreshToken(token);
+    verifyRefreshToken(token);
   } catch {
     return NextResponse.json({ error: "Invalid refresh token" }, { status: 401 });
   }
@@ -30,17 +29,18 @@ export async function POST(req: NextRequest) {
   });
 
   const newRefresh = signRefreshToken({ userId: stored.userId });
+  const refreshMaxAgeSeconds = refreshTokenMaxAgeSeconds();
   await prisma.refreshToken.create({
     data: {
       userId: stored.userId,
       tokenHash: hashToken(newRefresh),
-      expiresAt: new Date(Date.now() + 7 * 24 * 3600 * 1000),
+      expiresAt: new Date(Date.now() + refreshMaxAgeSeconds * 1000),
     },
   });
 
   const newAccess = signAccessToken({ userId: stored.userId, role: stored.user.role });
 
   const res = NextResponse.json({ accessToken: newAccess });
-  res.headers.set("Set-Cookie", refreshCookie(newRefresh, 7 * 24 * 3600));
+  res.headers.set("Set-Cookie", refreshCookie(newRefresh, refreshMaxAgeSeconds));
   return res;
 }

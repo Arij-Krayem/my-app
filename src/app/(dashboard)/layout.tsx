@@ -1,12 +1,13 @@
 "use client";
 
-import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Tooltip } from "antd";
 import { usePathname, useRouter } from "next/navigation";
 import styles from "./layout.module.css";
 import UserAvatar from "@/components/UserAvatar";
 import { readSessionUser, userSessionEventName, type SessionUser } from "@/lib/session-user";
+import { installSessionFetchInterceptor } from "@/lib/session-fetch";
 
 const SVG = {
   dashboard: <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /></svg>,
@@ -96,6 +97,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   const dropdownRef = useRef<HTMLDivElement>(null);
   const bellRef     = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    installSessionFetchInterceptor();
+  }, []);
 
   const fetchNotifications = useCallback(async () => {
     const token = sessionStorage.getItem("access_token");

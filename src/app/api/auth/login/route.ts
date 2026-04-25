@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z }                         from "zod";
 import bcrypt                        from "bcryptjs";
 import { prisma }                    from "@/lib/prisma";
-import { signAccessToken, signRefreshToken, hashToken } from "@/lib/auth";
+import { signAccessToken, signRefreshToken, hashToken, refreshTokenMaxAgeSeconds } from "@/lib/auth";
 import { refreshCookie }             from "@/lib/cookies";
 
 const Body = z.object({
@@ -58,12 +58,13 @@ export async function POST(req: NextRequest) {
     // ── Everything below is identical to your original ─────────────────────
     const accessToken  = signAccessToken({ userId: user.id, role: user.role });
     const refreshToken = signRefreshToken({ userId: user.id });
+    const refreshMaxAgeSeconds = refreshTokenMaxAgeSeconds();
 
     await prisma.refreshToken.create({
       data: {
         userId:    user.id,
         tokenHash: hashToken(refreshToken),
-        expiresAt: new Date(Date.now() + 7 * 24 * 3600 * 1000),
+        expiresAt: new Date(Date.now() + refreshMaxAgeSeconds * 1000),
       },
     });
 
@@ -72,7 +73,7 @@ export async function POST(req: NextRequest) {
       user: { id: user.id, email: user.email, role: user.role, name: user.name, avatarUrl: user.avatarUrl },
     });
 
-    res.headers.set("Set-Cookie", refreshCookie(refreshToken, 7 * 24 * 3600));
+    res.headers.set("Set-Cookie", refreshCookie(refreshToken, refreshMaxAgeSeconds));
     return res;
 
   } catch (err) {
