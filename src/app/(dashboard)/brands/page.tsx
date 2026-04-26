@@ -37,6 +37,8 @@ const btn: React.CSSProperties = {
   padding: "9px 20px", borderRadius: 12, border: "none",
   cursor: "pointer", fontWeight: 700, fontSize: 14,
 };
+const BRAND_NAME_PATTERN = /^[\p{L}]+(?:[ '\u2019-][\p{L}]+)*$/u;
+const BRAND_NAME_ERROR = "Brand name should only contain letters.";
 
 function deriveHealth(roas: number, openAlerts: number): "HEALTHY" | "WARNING" | "CRITICAL" {
   if (openAlerts > 0 && roas < 1.5) return "CRITICAL";
@@ -273,14 +275,15 @@ export default function BrandsPage() {
 
   // ── Create brand ───────────────────────────────────────────────────────────
   async function handleCreate() {
-    if (!createName.trim()) return;
+    const trimmedName = createName.trim();
+    if (!trimmedName || !BRAND_NAME_PATTERN.test(trimmedName)) return;
     setSaving(true);
     try {
       const res = await fetch("/api/brands", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
         credentials: "include",
-        body: JSON.stringify({ name: createName.trim(), logoUrl: createLogoUrl }),
+        body: JSON.stringify({ name: trimmedName, logoUrl: createLogoUrl }),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "Failed");
       setCreateOpen(false); setCreateName(""); setCreateLogoUrl(null);
@@ -343,6 +346,9 @@ export default function BrandsPage() {
     (filter === "ALL" || b.health === filter) &&
     b.name.toLowerCase().includes(search.toLowerCase())
   );
+  const createNameTrimmed = createName.trim();
+  const createNameError = createNameTrimmed && !BRAND_NAME_PATTERN.test(createNameTrimmed) ? BRAND_NAME_ERROR : "";
+  const canCreateBrand = Boolean(createNameTrimmed) && !createNameError;
 
   return (
     <div className="dashboard-page">
@@ -490,10 +496,17 @@ export default function BrandsPage() {
               <label style={{ fontSize: 11, fontWeight: 800, color: "var(--t2)", textTransform: "uppercase" as const, letterSpacing: ".12em", marginBottom: 8, display: "block" }}>
                 Brand Name
               </label>
-              <input style={inp} placeholder="e.g. TechCorp" value={createName}
+              <input style={{ ...inp, border: createNameError ? "1px solid #dc2626" : inp.border }} placeholder="e.g. TechCorp" value={createName}
                 onChange={e => setCreateName(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && handleCreate()} autoFocus />
-              <p style={{ fontSize: 12, color: "var(--t3)", margin: "6px 0 0" }}>A new workspace will be created for this brand.</p>
+              {createNameError ? (
+                <p style={{ fontSize: 12, color: "#dc2626", margin: "6px 0 0", display: "flex", alignItems: "center", gap: 4 }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  {createNameError}
+                </p>
+              ) : (
+                <p style={{ fontSize: 12, color: "var(--t3)", margin: "6px 0 0" }}>A new workspace will be created for this brand.</p>
+              )}
             </div>
             {/* Logo upload */}
             <LogoUpload
@@ -504,8 +517,8 @@ export default function BrandsPage() {
           </div>
           <DialogFooter>
             <button onClick={() => { setCreateOpen(false); setCreateName(""); setCreateLogoUrl(null); }} className="btn-secondary">Cancel</button>
-            <button onClick={handleCreate} disabled={saving || !createName.trim()}
-              style={{ ...btn, background: "#5865f2", color: "#fff", opacity: saving || !createName.trim() ? 0.6 : 1 }}>
+            <button onClick={handleCreate} disabled={saving || !canCreateBrand}
+              style={{ ...btn, background: "#5865f2", color: "#fff", opacity: saving || !canCreateBrand ? 0.6 : 1 }}>
               {saving ? "Creating..." : "Create Brand"}
             </button>
           </DialogFooter>
