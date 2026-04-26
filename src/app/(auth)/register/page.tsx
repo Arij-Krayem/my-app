@@ -10,7 +10,8 @@ import { z } from "zod";
 const registerSchema = z.object({
   name: z.string()
           .min(1,  "Full name is required.")
-          .min(4,  "Full name must be at least 4 characters."),
+          .min(4,  "Full name must be at least 4 characters.")
+          .regex(/^[\p{L}]+(?:[ '\u2019-][\p{L}]+)*$/u, "Name should only contain letters."),
   email: z.string()
            .min(1,  "Email is required.")
            .min(6,  "Email must be at least 6 characters.")
