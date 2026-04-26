@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useEffect } from "react";
 import Link from "next/link";
 
@@ -283,13 +283,67 @@ export default function LandingPage() {
 
       {/* ── FOOTER ── */}
       <footer style={{ borderTop: "1px solid var(--border)", padding: "32px 48px" }}>
-        <div style={{ maxWidth: "1100px", margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" }}>
+        <div style={{ maxWidth: "1100px", margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "24px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <div style={{ width: "30px", height: "30px", borderRadius: "8px", background: "linear-gradient(135deg, #5865f2, #818cf8)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "800", color: "white", fontSize: "13px" }}>V</div>
             <div>
               <div style={{ fontWeight: "700", fontSize: "14px", color: "var(--t1)" }}>VisioAd</div>
               <div style={{ fontSize: "11px", color: "var(--t3)" }}>Full-Service Brand Advertising Agency</div>
             </div>
+          </div>
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(2, minmax(170px, 1fr))",
+            gap: "8px 18px",
+            maxWidth: "470px",
+            flex: "1 1 420px",
+            color: "var(--t2)",
+            fontSize: "12px",
+          }}>
+            <div style={{ gridColumn: "1 / -1", fontSize: "12px", fontWeight: "700", color: "var(--t1)", letterSpacing: "0.2px" }}>Contact Us</div>
+            {[
+              {
+                icon: <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 0c2.5 2.7 3.8 6 3.8 10S14.5 19.3 12 22m0-20c-2.5 2.7-3.8 6-3.8 10S9.5 19.3 12 22M2 12h20" />,
+                label: "www.visioad.com",
+                href: "https://www.visioad.com",
+              },
+              {
+                icon: <path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.4 19.4 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.7.6 2.5a2 2 0 0 1-.5 2.1L8 9.5a16 16 0 0 0 6.5 6.5l1.2-1.2a2 2 0 0 1 2.1-.5c.8.3 1.6.5 2.5.6a2 2 0 0 1 1.7 2Z" />,
+                label: "+216 31 439 350",
+                href: "tel:+21631439350",
+              },
+              {
+                icon: <path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm18 3-10 6L2 7" />,
+                label: "info@visioad.com",
+                href: "mailto:info@visioad.com",
+              },
+              {
+                icon: <><path d="M21 10c0 7-9 12-9 12S3 17 3 10a9 9 0 1 1 18 0Z" /><circle cx="12" cy="10" r="3" /></>,
+                label: "Immeuble Centre Ibrahim, Av. Habib Bourguiba, Sousse 4000",
+              },
+            ].map(item => {
+              const content = (
+                <>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flex: "0 0 auto", marginTop: "1px", color: "#5865f2" }}>
+                    {item.icon}
+                  </svg>
+                  <span>{item.label}</span>
+                </>
+              );
+
+              return item.href ? (
+                <a key={item.label} href={item.href} style={{ display: "flex", alignItems: "flex-start", gap: "7px", color: "var(--t2)", lineHeight: 1.45, textDecoration: "none" }}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = "#5865f2"}
+                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = "var(--t2)"}
+                >
+                  {content}
+                </a>
+              ) : (
+                <div key={item.label} style={{ display: "flex", alignItems: "flex-start", gap: "7px", lineHeight: 1.45 }}>
+                  {content}
+                </div>
+              );
+            })}
           </div>
           <div style={{ display: "flex", gap: "24px", alignItems: "center" }}>
             <Link href="/login" style={{ fontSize: "14px", color: "var(--t2)", textDecoration: "none" }}
