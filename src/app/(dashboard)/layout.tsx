@@ -26,27 +26,21 @@ const SVG = {
 
 const NAV_ITEMS = [
   { href: "/dashboard", icon: SVG.dashboard, label: "Dashboard" },
+  { href: "/brands",    icon: SVG.brands,    label: "Brands"    },
   { href: "/uploads",   icon: SVG.uploads,   label: "Uploads"   },
   { href: "/alerts",    icon: SVG.alerts,    label: "Alerts"    },
   { href: "/guardrails",icon: SVG.guardrails,label: "Guardrails"},
   { href: "/anomalies", icon: SVG.anomalies, label: "Anomalies" },
-  { href: "/settings",  icon: SVG.settings,  label: "Settings"  },
-  // ── Visible to all roles — data filtered server-side per brand access ─────
-  { href: "/brands",    icon: SVG.brands,    label: "Brands"    },
   { href: "/detection", icon: SVG.detection, label: "Detection" },
+  { href: "/users",     icon: SVG.users,     label: "Users", adminOnly: true },
+  { href: "/settings",  icon: SVG.settings,  label: "Settings"  },
 ];
-
-const ADMIN_ITEMS = [
-  // ── Users management — admin only ─────────────────────────────────────────
-  { href: "/users",     icon: SVG.users,     label: "Users"     },
-];
-
 interface AlertNotif {
   id: string; message: string; status: string; createdAt: string;
   rule?: { metricKey: string; severity: string } | null;
   brand?: { name: string } | null;
 }
-interface NavItem { href: string; icon: ReactNode; label: string; }
+interface NavItem { href: string; icon: ReactNode; label: string; adminOnly?: boolean; }
 
 function getStoredUser() {
   return readSessionUser();
@@ -233,21 +227,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         </div>
 
         <nav className={styles.sidebarNav}>
-          {NAV_ITEMS.map(item => (
+          {NAV_ITEMS.filter(item => !item.adminOnly || isAdmin).map(item => (
             <SidebarItem key={item.href} item={item} pathname={pathname}
               collapsed={collapsed} onNavigate={() => setCollapsed(true)} />
           ))}
-          {isAdmin && (
-            <div className={styles.adminSection}>
-              {collapsed
-                ? <div className={styles.sectionDivider} />
-                : <div className={styles.sectionLabel}>Admin</div>}
-              {ADMIN_ITEMS.map(item => (
-                <SidebarItem key={item.href} item={item} pathname={pathname}
-                  collapsed={collapsed} onNavigate={() => setCollapsed(true)} />
-              ))}
-            </div>
-          )}
         </nav>
 
         {!collapsed && user && (
