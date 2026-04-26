@@ -42,9 +42,19 @@ const BASE_STYLE = `
   color: #fff;
 `;
 
+const LOGO_MARK = (letter: string, background: string, extraStyle = "") => `
+  <table role="presentation" cellpadding="0" cellspacing="0" align="center" style="border-collapse:collapse;margin:0 auto 14px;">
+    <tr>
+      <td width="48" height="48" align="center" valign="middle" style="width:48px;height:48px;border-radius:12px;background:${background};${extraStyle}">
+        <span style="display:block;width:48px;height:48px;line-height:48px;text-align:center;color:#ffffff;font-size:22px;font-weight:800;font-family:'Segoe UI',Arial,sans-serif;mso-line-height-rule:exactly;">${letter}</span>
+      </td>
+    </tr>
+  </table>
+`;
+
 const HEADER = (letter: string, color: string) => `
   <div style="text-align:center;margin-bottom:28px;">
-    <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,${color});display:inline-flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:white;margin-bottom:12px;">${letter}</div>
+    ${LOGO_MARK(letter, `linear-gradient(135deg,${color})`)}
   </div>
 `;
 
@@ -213,12 +223,10 @@ export async function sendApprovalEmail({
     <body style="margin:0;padding:0;background:#f3f4f6;font-family:'Segoe UI',Arial,sans-serif;">
       <div style="max-width:560px;margin:40px auto;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e5e7eb;">
 
-        <div style="background:linear-gradient(135deg,#5865f2,#818cf8);padding:32px 40px;text-align:center;">
-          <div style="width:48px;height:48px;background:rgba(255,255,255,0.2);border-radius:12px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;">
-            <span style="color:white;font-weight:800;font-size:20px;">V</span>
-          </div>
+        <div style="background:linear-gradient(135deg,#5865f2,#818cf8);padding:34px 40px 32px;text-align:center;">
+          ${LOGO_MARK("V", "rgba(255,255,255,0.22)", "box-shadow:0 8px 22px rgba(17,24,39,0.12);")}
           <h1 style="color:white;margin:0;font-size:22px;font-weight:700;">Account Approved!</h1>
-          <p style="color:rgba(255,255,255,0.8);margin:8px 0 0;font-size:14px;">VisioAd Ads Monitor</p>
+          <p style="color:rgba(255,255,255,0.86);margin:8px 0 0;font-size:14px;">VisioAd Ads Monitor</p>
         </div>
 
         <div style="padding:40px;">
