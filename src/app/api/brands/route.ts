@@ -50,9 +50,6 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const payload = requireAuth(req);
-    if (payload.role !== "AGENCY_ADMIN")
-      return NextResponse.json({ error: "Access denied" }, { status: 403 });
-
     const { name, logoUrl } = await req.json();
 
     if (!name?.trim())
@@ -61,6 +58,9 @@ export async function POST(req: NextRequest) {
     const brand = await prisma.brand.create({
       data: {
         name:    name.trim(),
+        members: payload.role !== "AGENCY_ADMIN"
+          ? { create: { user: { connect: { id: payload.userId } } } }
+          : undefined,
         logoUrl: logoUrl ?? null,   // ← NEW: save logo URL
       },
     });
