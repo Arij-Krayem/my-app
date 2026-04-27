@@ -52,6 +52,9 @@ export default function GuardrailsPage() {
   const token = () => sessionStorage.getItem("access_token") ?? "";
   const userRaw = typeof window !== "undefined" ? sessionStorage.getItem("user") : null;
   const user = userRaw ? JSON.parse(userRaw) : null;
+  const showBrandSelect =
+    (user?.role === "AGENCY_ADMIN" && brands.length > 1) ||
+    (user?.role === "MARKETER" && brands.length > 0);
 
   const loadRules = useCallback(async () => {
     setLoading(true);
@@ -239,7 +242,7 @@ export default function GuardrailsPage() {
             onClose={() => setOpen(false)}
           />
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            {user?.role === "AGENCY_ADMIN" && brands.length > 1 && (
+            {showBrandSelect && (
               <div>
                 <label style={{ fontSize: 12, fontWeight: 700, color: "var(--t2)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 6, display: "block" }}>Brand</label>
                 <select style={sel} value={form.brandId} onChange={e => setForm(f => ({ ...f, brandId: e.target.value }))}>
