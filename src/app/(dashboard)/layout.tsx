@@ -157,10 +157,12 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       if (brandId) setSelectedBrand(brandId);
     };
     window.addEventListener("brand-change-sync", syncHandler);
+    window.addEventListener("alerts-refresh", fetchNotifications);
 
     return () => {
       window.clearTimeout(timeout);
       window.removeEventListener("brand-change-sync", syncHandler);
+      window.removeEventListener("alerts-refresh", fetchNotifications);
     };
   }, [fetchNotifications, router, user, userReady]);
 

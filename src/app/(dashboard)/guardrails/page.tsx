@@ -109,10 +109,11 @@ export default function GuardrailsPage() {
     setSaving(true);
     try {
       const res = await fetch("/api/alerts/rules", {
-        method: "POST",
+        method: editRule ? "PUT" : "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
         credentials: "include",
         body: JSON.stringify({
+          ...(editRule ? { id: editRule.id } : {}),
           brandId: form.brandId,
           metricKey: form.metric,
           operator: form.operator,
@@ -125,6 +126,7 @@ export default function GuardrailsPage() {
       setMsg(editRule ? "Rule updated" : "Rule created");
       setTimeout(() => setMsg(""), 2500);
       await loadRules();
+      window.dispatchEvent(new Event("alerts-refresh"));
     } catch {
       setMsg("Failed to save rule");
       setTimeout(() => setMsg(""), 2500);
@@ -140,11 +142,20 @@ export default function GuardrailsPage() {
   async function handleDelete() {
     if (!delId) return;
     try {
-      setRules(p => p.filter(r => r.id !== delId));
+      const res = await fetch(`/api/alerts/rules?id=${encodeURIComponent(delId)}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token()}` },
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error();
       setDelId(null);
       setMsg("Rule deleted");
       setTimeout(() => setMsg(""), 2500);
-    } catch {}
+      await loadRules();
+    } catch {
+      setMsg("Failed to delete rule");
+      setTimeout(() => setMsg(""), 2500);
+    }
   }
 
   const active = rules.filter(r => r.isActive).length;
