@@ -60,7 +60,7 @@ export default function UsersPage() {
 
   const token = () => sessionStorage.getItem("access_token") ?? "";
 
-  const flash = (m: string) => { setMsg(m); setTimeout(() => setMsg(""), 3000); };
+  const flash = (m: string, duration = 3000) => { setMsg(m); setTimeout(() => setMsg(""), duration); };
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -162,6 +162,12 @@ export default function UsersPage() {
     if (!editUser) return;
     setSaving(true);
     try {
+      const previousBrandIds = editUser.brandMembers.map(m => m.brand.id).sort();
+      const nextBrandIds = [...editForm.brandIds].sort();
+      const brandsChanged =
+        previousBrandIds.length !== nextBrandIds.length ||
+        previousBrandIds.some((brandId, index) => brandId !== nextBrandIds[index]);
+
       const res = await fetch(`/api/users?id=${editUser.id}`, {
         method:  "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
@@ -179,7 +185,12 @@ export default function UsersPage() {
         });
       }
       setEditOpen(false);
-      flash("User updated");
+      flash(
+        brandsChanged
+          ? `Brand assignments updated successfully for ${editForm.name || editUser.email}.`
+          : "User updated",
+        brandsChanged ? 30000 : 3000,
+      );
       await loadData();
     } catch (e: unknown) {
       flash(`Error: ${e instanceof Error ? e.message : "Failed"}`);
