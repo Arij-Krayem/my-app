@@ -125,40 +125,70 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const byDate: Record<string, { spend: number; impressions: number; clicks: number; revenue: number }> = {};
+    const byDate: Record<string, {
+      spend: number;
+      impressions: number;
+      clicks: number;
+      conversionValue: number;
+      roasValues: number[];
+    }> = {};
 
     for (const fact of facts) {
       const date = fact.date.toISOString().split("T")[0];
-      const metrics = fact.metrics as Record<string, string>;
+      const metrics = fact.metrics as Record<string, string | number>;
 
       if (!byDate[date]) {
-        byDate[date] = { spend: 0, impressions: 0, clicks: 0, revenue: 0 };
+        byDate[date] = { spend: 0, impressions: 0, clicks: 0, conversionValue: 0, roasValues: [] };
       }
 
-      byDate[date].spend += parseFloat(metrics.spend ?? "0") || 0;
-      byDate[date].impressions += parseFloat(metrics.impressions ?? "0") || 0;
-      byDate[date].clicks += parseFloat(metrics.clicks ?? "0") || 0;
-      byDate[date].revenue += parseFloat(metrics.revenue ?? "0") || 0;
+      const spend = Number(metrics.spend ?? 0) || 0;
+      const impressions = Number(metrics.impressions ?? 0) || 0;
+      const clicks = Number(metrics.clicks ?? 0) || 0;
+      const conversionValue = Number(metrics.conversionValue ?? metrics.conversion_value ?? 0) || 0;
+      const roas = Number(metrics.roas);
+
+      byDate[date].spend += spend;
+      byDate[date].impressions += impressions;
+      byDate[date].clicks += clicks;
+      byDate[date].conversionValue += conversionValue;
+      if (Number.isFinite(roas) && roas > 0) byDate[date].roasValues.push(roas);
     }
 
     const series = Object.entries(byDate)
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, agg]) => {
-        let value = 0;
+      .flatMap(([date, agg]) => {
+        let value: number | null = 0;
 
         if (metric === "spend") value = agg.spend;
-        else if (metric === "roas") value = agg.spend > 0 ? agg.revenue / agg.spend : 0;
-        else if (metric === "ctr") value = agg.impressions > 0 ? (agg.clicks / agg.impressions) * 100 : 0;
+        else if (metric === "roas") {
+          if (agg.roasValues.length > 0) {
+            value = agg.roasValues.reduce((sum, roas) => sum + roas, 0) / agg.roasValues.length;
+          } else if (agg.spend > 0 && agg.conversionValue > 0) {
+            value = agg.conversionValue / agg.spend;
+          } else {
+            value = null;
+          }
+        } else if (metric === "ctr") value = agg.impressions > 0 ? (agg.clicks / agg.impressions) * 100 : 0;
         else if (metric === "cpc") value = agg.clicks > 0 ? agg.spend / agg.clicks : 0;
         else value = agg.spend;
 
-        return {
+        if (value === null) return [];
+
+        return [{
           date,
           metric,
           value: parseFloat(value.toFixed(6)),
           platform: platform ?? "ALL",
-        };
+        }];
       });
+
+    if (series.length < window) {
+      const label = metric === "roas" ? "historical ROAS data" : "data";
+      return NextResponse.json(
+        { error: `Not enough ${label} to generate a prediction - need at least ${window} days, found ${series.length}` },
+        { status: 422 }
+      );
+    }
 
     const result = await runPrediction(series, window, forecastDays);
 

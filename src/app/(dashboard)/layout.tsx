@@ -137,19 +137,17 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     const token = sessionStorage.getItem("access_token");
     if (!token || !user) { router.push("/login"); return; }
 
-    if (user.role === "AGENCY_ADMIN") {
-      fetch("/api/brands", { headers: { Authorization: `Bearer ${token}` }, credentials: "include" })
-        .then(r => r.ok ? r.json() : [])
-        .then(data => {
-          const list = data.items ?? data;
-          setBrands(list);
-          if (list[0]) {
-            setSelectedBrand(list[0].id);
-            // ── Fire initial brand event so dashboard loads the right brand ──
-            window.dispatchEvent(new CustomEvent("brand-change", { detail: { brandId: list[0].id } }));
-          }
-        });
-    }
+    fetch("/api/brands", { headers: { Authorization: `Bearer ${token}` }, credentials: "include" })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => {
+        const list = data.items ?? data;
+        setBrands(list);
+        if (list[0]) {
+          setSelectedBrand(list[0].id);
+          // ── Fire initial brand event so dashboard loads the right brand ──
+          window.dispatchEvent(new CustomEvent("brand-change", { detail: { brandId: list[0].id } }));
+        }
+      });
 
     const timeout = window.setTimeout(() => { void fetchNotifications(); }, 0);
 
@@ -258,7 +256,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           </div>
 
           <div className={styles.topbarRight}>
-            {isAdmin && brands.length > 0 && (
+            {brands.length > 0 && (
               <select
                 value={selectedBrand}
                 onChange={e => handleBrandChange(e.target.value)}  // ← FIXED

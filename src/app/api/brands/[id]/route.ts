@@ -75,9 +75,9 @@ export async function DELETE(
     const payload = requireAuth(req);
     const { id } = await params;
 
-    if (payload.role !== "AGENCY_ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const allowed = await canAccessBrand(payload.userId, payload.role, id);
+    if (!allowed)
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
 
     const brand = await prisma.brand.findUnique({
       where: { id },

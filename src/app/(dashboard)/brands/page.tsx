@@ -202,7 +202,6 @@ function LogoUpload({
 export default function BrandsPage() {
   const [brands,  setBrands]  = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
-  const [role,    setRole]    = useState("");
 
   // ── Create dialog state ───────────────────────────────────────────────────
   const [createOpen,   setCreateOpen]   = useState(false);
@@ -225,16 +224,6 @@ export default function BrandsPage() {
 
   const token = () => sessionStorage.getItem("access_token") ?? "";
   const flash = (m: string) => { setMsg(m); setTimeout(() => setMsg(""), 3000); };
-  const isAdmin = role === "AGENCY_ADMIN";
-
-  useEffect(() => {
-    const raw = sessionStorage.getItem("user");
-    if (!raw) return;
-    try {
-      const user = JSON.parse(raw) as { role?: string };
-      setRole(user.role ?? "");
-    } catch {}
-  }, []);
 
   const loadBrands = useCallback(async () => {
     setLoading(true);
@@ -467,15 +456,13 @@ export default function BrandsPage() {
                       <div style={{ display: "flex", gap: 8 }}>
                         <button onClick={() => openEdit(b)} className="btn-secondary" style={{ padding: "8px 14px" }}>Edit</button>
                         <button onClick={() => navigator.clipboard.writeText(b.id).then(() => { flash("ID copied"); })} className="btn-secondary" style={{ padding: "8px 14px" }}>Copy ID</button>
-                        {isAdmin && (
-                          <button
-                            onClick={() => setDeleteBrand(b)}
-                            className="btn-secondary"
-                            style={{ padding: "8px 14px", color: "#dc2626", borderColor: "rgba(220,38,38,.2)" }}
-                          >
-                            Delete
-                          </button>
-                        )}
+                        <button
+                          onClick={() => setDeleteBrand(b)}
+                          className="btn-secondary"
+                          style={{ padding: "8px 14px", color: "#dc2626", borderColor: "rgba(220,38,38,.2)" }}
+                        >
+                          Delete
+                        </button>
                       </div>
                     </td>
                   </tr>
