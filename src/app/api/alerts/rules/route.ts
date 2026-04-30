@@ -2,18 +2,35 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, AuthError } from "@/lib/auth-guard";
 import { evaluateGuardrailRulesForBrand } from "@/lib/guardrail-alerts";
-import { z } from "zod";
+import { validateGuardrailRuleInput } from "@/lib/guardrail-rule-validation";
 
-const Body = z.object({
-  brandId:   z.string().min(1),
-  metricKey: z.string().min(1),
-  operator:  z.enum([">", "<", ">=", "<=", "=="]),
-  threshold: z.number(),
-  severity:  z.enum(["WARNING", "CRITICAL"]),
-});
-const UpdateBody = Body.extend({
-  id: z.string().min(1),
-});
+function validationResponse(errors: ReturnType<typeof validateGuardrailRuleInput>["errors"]) {
+  return NextResponse.json(
+    { error: "Invalid guardrail rule", fieldErrors: errors },
+    { status: 400 },
+  );
+}
+
+async function readJson(req: NextRequest) {
+  try {
+    return await req.json();
+  } catch {
+    return null;
+  }
+}
+
+async function canAccessBrand(userId: string, brandId: string, role: string) {
+  if (role === "AGENCY_ADMIN") {
+    const brand = await prisma.brand.findUnique({ where: { id: brandId }, select: { id: true } });
+    return Boolean(brand);
+  }
+
+  const member = await prisma.brandMember.findFirst({
+    where: { userId, brandId },
+    select: { id: true },
+  });
+  return Boolean(member);
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -51,14 +68,18 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const payload = requireAuth(req);
-    const data = Body.parse(await req.json());
+    const body = await readJson(req);
+    if (!body) return validationResponse({ threshold: "Enter valid rule details." });
 
-    // Verify brand access
-    if (payload.role !== "AGENCY_ADMIN") {
-      const member = await prisma.brandMember.findFirst({
-        where: { userId: payload.userId, brandId: data.brandId },
-      });
-      if (!member) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    const validation = validateGuardrailRuleInput(body);
+    if (!validation.data) return validationResponse(validation.errors);
+    const data = validation.data;
+
+    if (!(await canAccessBrand(payload.userId, data.brandId, payload.role))) {
+      if (payload.role === "AGENCY_ADMIN") {
+        return validationResponse({ brandId: "Select a valid brand." });
+      }
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const rule = await prisma.alertRule.create({ data });
@@ -75,7 +96,15 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const payload = requireAuth(req);
-    const { id, ...data } = UpdateBody.parse(await req.json());
+    const body = await readJson(req);
+    if (!body) return validationResponse({ threshold: "Enter valid rule details." });
+
+    const id = typeof body?.id === "string" ? body.id.trim() : "";
+    if (!id) return validationResponse({ brandId: "Rule ID is required." });
+
+    const validation = validateGuardrailRuleInput(body);
+    if (!validation.data) return validationResponse(validation.errors);
+    const data = validation.data;
 
     const existingRule = await prisma.alertRule.findUnique({
       where: { id },
@@ -84,6 +113,13 @@ export async function PUT(req: NextRequest) {
 
     if (!existingRule) {
       return NextResponse.json({ error: "Rule not found" }, { status: 404 });
+    }
+
+    if (!(await canAccessBrand(payload.userId, data.brandId, payload.role))) {
+      if (payload.role === "AGENCY_ADMIN") {
+        return validationResponse({ brandId: "Select a valid brand." });
+      }
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     if (payload.role !== "AGENCY_ADMIN") {

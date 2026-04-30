@@ -1,6 +1,12 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogFooter } from "@/components/ui/dialog";
+import {
+  GUARDRAIL_METRICS,
+  GUARDRAIL_OPERATORS,
+  type GuardrailRuleErrors,
+  validateGuardrailRuleInput,
+} from "@/lib/guardrail-rule-validation";
 
 const SEV_CFG: Record<string, { color: string; bg: string; border: string }> = {
   CRITICAL: { color: "#dc2626", bg: "rgba(220,38,38,0.08)", border: "rgba(220,38,38,0.2)" },
@@ -19,9 +25,6 @@ type Rule = {
   brand?: { name: string };
 };
 
-const METRICS = ["spend", "roas", "ctr", "cpc", "cpa", "impressions", "clicks", "conversions"];
-const OPERATORS = [">", "<", ">=", "<=", "=="];
-
 const ShieldIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
@@ -35,6 +38,7 @@ const inp: React.CSSProperties = {
 };
 const sel: React.CSSProperties = { ...inp, cursor: "pointer" };
 const btn: React.CSSProperties = { padding: "9px 20px", borderRadius: 12, border: "none", cursor: "pointer", fontWeight: 700, fontSize: 14, transition: "opacity .15s" };
+const errorText: React.CSSProperties = { color: "#dc2626", fontSize: 12, fontWeight: 600, marginTop: 6 };
 
 export default function GuardrailsPage() {
   const [rules, setRules] = useState<Rule[]>([]);
@@ -45,6 +49,8 @@ export default function GuardrailsPage() {
   const [delId, setDelId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
+  const [formError, setFormError] = useState("");
+  const [errors, setErrors] = useState<GuardrailRuleErrors>({});
   const [form, setForm] = useState({
     brandId: "", metric: "roas", operator: "<", threshold: "", severity: "WARNING",
   });
@@ -95,18 +101,37 @@ export default function GuardrailsPage() {
   function openNew() {
     setEditRule(null);
     setForm({ brandId: brands[0]?.id ?? "", metric: "roas", operator: "<", threshold: "", severity: "WARNING" });
+    setErrors({});
+    setFormError("");
     setOpen(true);
   }
 
   function openEdit(r: Rule) {
     setEditRule(r);
     setForm({ brandId: r.brandId, metric: r.metricKey, operator: r.operator, threshold: String(r.threshold), severity: r.severity });
+    setErrors({});
+    setFormError("");
     setOpen(true);
   }
 
   async function handleSave() {
-    if (!form.threshold || !form.brandId) return;
+    const validation = validateGuardrailRuleInput({
+      brandId: form.brandId,
+      metricKey: form.metric,
+      operator: form.operator,
+      threshold: form.threshold,
+      severity: form.severity,
+    });
+
+    if (!validation.data) {
+      setErrors(validation.errors);
+      setFormError("Please correct the highlighted fields before saving this rule.");
+      return;
+    }
+
     setSaving(true);
+    setErrors({});
+    setFormError("");
     try {
       const res = await fetch("/api/alerts/rules", {
         method: editRule ? "PUT" : "POST",
@@ -114,14 +139,18 @@ export default function GuardrailsPage() {
         credentials: "include",
         body: JSON.stringify({
           ...(editRule ? { id: editRule.id } : {}),
-          brandId: form.brandId,
-          metricKey: form.metric,
-          operator: form.operator,
-          threshold: Number(form.threshold),
-          severity: form.severity,
+          ...validation.data,
         }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        if (data?.fieldErrors) {
+          setErrors(data.fieldErrors);
+          setFormError(data.error ?? "Please correct the highlighted fields before saving this rule.");
+          return;
+        }
+        throw new Error(data?.error ?? "Failed to save rule");
+      }
       setOpen(false);
       setMsg(editRule ? "Rule updated" : "Rule created");
       setTimeout(() => setMsg(""), 2500);
@@ -253,32 +282,55 @@ export default function GuardrailsPage() {
             onClose={() => setOpen(false)}
           />
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            {showBrandSelect && (
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: "var(--t2)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 6, display: "block" }}>Brand</label>
-                <select style={sel} value={form.brandId} onChange={e => setForm(f => ({ ...f, brandId: e.target.value }))}>
-                  {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                </select>
+            {formError && (
+              <div className="dashboard-banner-error" style={{ margin: 0 }}>
+                {formError}
               </div>
             )}
 
+            {showBrandSelect && (
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: "var(--t2)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 6, display: "block" }}>Brand</label>
+                <select style={sel} value={form.brandId} onChange={e => {
+                  setForm(f => ({ ...f, brandId: e.target.value }));
+                  setErrors(prev => ({ ...prev, brandId: undefined }));
+                }}>
+                  {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                </select>
+                {errors.brandId && <div style={errorText}>{errors.brandId}</div>}
+              </div>
+            )}
+            {!showBrandSelect && errors.brandId && <div style={errorText}>{errors.brandId}</div>}
+
             <div>
               <label style={{ fontSize: 12, fontWeight: 700, color: "var(--t2)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 6, display: "block" }}>Metric</label>
-              <select style={sel} value={form.metric} onChange={e => setForm(f => ({ ...f, metric: e.target.value }))}>
-                {METRICS.map(m => <option key={m} value={m}>{m.toUpperCase()}</option>)}
+              <select style={sel} value={form.metric} onChange={e => {
+                setForm(f => ({ ...f, metric: e.target.value }));
+                setErrors(prev => ({ ...prev, metricKey: undefined, threshold: undefined }));
+              }}>
+                {GUARDRAIL_METRICS.map(m => <option key={m} value={m}>{m.toUpperCase()}</option>)}
               </select>
+              {errors.metricKey && <div style={errorText}>{errors.metricKey}</div>}
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div>
                 <label style={{ fontSize: 12, fontWeight: 700, color: "var(--t2)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 6, display: "block" }}>Operator</label>
-                <select style={sel} value={form.operator} onChange={e => setForm(f => ({ ...f, operator: e.target.value }))}>
-                  {OPERATORS.map(o => <option key={o}>{o}</option>)}
+                <select style={sel} value={form.operator} onChange={e => {
+                  setForm(f => ({ ...f, operator: e.target.value }));
+                  setErrors(prev => ({ ...prev, operator: undefined }));
+                }}>
+                  {GUARDRAIL_OPERATORS.map(o => <option key={o}>{o}</option>)}
                 </select>
+                {errors.operator && <div style={errorText}>{errors.operator}</div>}
               </div>
               <div>
                 <label style={{ fontSize: 12, fontWeight: 700, color: "var(--t2)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 6, display: "block" }}>Threshold</label>
-                <input style={inp} type="number" placeholder="e.g. 2.5" value={form.threshold} onChange={e => setForm(f => ({ ...f, threshold: e.target.value }))} />
+                <input style={inp} type="number" placeholder="e.g. 2.5" value={form.threshold} onChange={e => {
+                  setForm(f => ({ ...f, threshold: e.target.value }));
+                  setErrors(prev => ({ ...prev, threshold: undefined }));
+                }} />
+                {errors.threshold && <div style={errorText}>{errors.threshold}</div>}
               </div>
             </div>
 
@@ -288,18 +340,22 @@ export default function GuardrailsPage() {
                 {(["WARNING", "CRITICAL"] as const).map(sv => {
                   const cfg = SEV_CFG[sv];
                   return (
-                    <div key={sv} onClick={() => setForm(f => ({ ...f, severity: sv }))} style={{ padding: "12px 16px", borderRadius: 12, cursor: "pointer", textAlign: "center", border: `2px solid ${form.severity === sv ? cfg.color : "var(--border)"}`, background: form.severity === sv ? cfg.bg : "#fff", color: form.severity === sv ? cfg.color : "var(--t2)", fontWeight: 700, fontSize: 14, transition: "all .15s" }}>
+                    <div key={sv} onClick={() => {
+                      setForm(f => ({ ...f, severity: sv }));
+                      setErrors(prev => ({ ...prev, severity: undefined }));
+                    }} style={{ padding: "12px 16px", borderRadius: 12, cursor: "pointer", textAlign: "center", border: `2px solid ${form.severity === sv ? cfg.color : "var(--border)"}`, background: form.severity === sv ? cfg.bg : "#fff", color: form.severity === sv ? cfg.color : "var(--t2)", fontWeight: 700, fontSize: 14, transition: "all .15s" }}>
                       {sv}
                     </div>
                   );
                 })}
               </div>
+              {errors.severity && <div style={errorText}>{errors.severity}</div>}
             </div>
           </div>
 
           <DialogFooter>
             <button onClick={() => setOpen(false)} className="btn-secondary">Cancel</button>
-            <button onClick={handleSave} disabled={saving || !form.threshold || !form.brandId} style={{ ...btn, background: "#5865f2", color: "#fff", opacity: saving || !form.threshold ? 0.6 : 1 }}>
+            <button onClick={handleSave} disabled={saving} style={{ ...btn, background: "#5865f2", color: "#fff", opacity: saving ? 0.6 : 1 }}>
               {saving ? "Saving..." : editRule ? "Save Changes" : "Create Rule"}
             </button>
           </DialogFooter>
