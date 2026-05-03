@@ -162,7 +162,10 @@ export default function ColumnMappingPage() {
   );
 
   return (
-    <div className="dashboard-page dashboard-page--narrow">
+    <div
+      className="dashboard-page dashboard-page--narrow"
+      style={{ width: "100%", margin: "0 auto" }}
+    >
 
       {error && (
         <div style={{ padding: "12px 16px", borderRadius: "10px", marginBottom: "16px", fontSize: "13px", background: "rgba(248,81,73,0.1)", color: "#f85149", border: "1px solid rgba(248,81,73,0.25)" }}>
