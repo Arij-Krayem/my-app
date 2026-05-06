@@ -35,16 +35,18 @@ interface PythonResult {
   method:    string;
 }
 
+type AnomalyInput = { date: string; metric: string; value: number; campaign: string; platform: string };
+
 // ── Run Python Z-Score + IQR detection ───────────────────────────────────────
-function runPythonDetection(inputData: object[]): Promise<PythonResult> {
+function runPythonProcess(command: string, inputData: AnomalyInput[]): Promise<PythonResult> {
   return new Promise((resolve, reject) => {
     const scriptPath = path.join(process.cwd(), "scripts", "anomaly_detection.py");
-    const child      = spawn("python3", [scriptPath]);
+    const child      = spawn(command, [scriptPath]);
 
     let stdout = "";
     let stderr = "";
 
-    child.stdin.write(JSON.stringify(inputData));
+    child.stdin.write(JSON.stringify({ series: inputData }));
     child.stdin.end();
 
     child.stdout.on("data", (d: Buffer) => { stdout += d.toString(); });
@@ -66,8 +68,31 @@ function runPythonDetection(inputData: object[]): Promise<PythonResult> {
   });
 }
 
+async function runPythonDetection(inputData: AnomalyInput[]): Promise<PythonResult> {
+  const envPython = process.env.PYTHON_BIN?.trim();
+  const commands = [
+    ...(envPython ? [envPython] : []),
+    ...(process.platform === "win32" ? ["python", "python3"] : ["python3", "python"]),
+  ];
+  let lastError: unknown;
+
+  for (const command of commands) {
+    try {
+      return await runPythonProcess(command, inputData);
+    } catch (err) {
+      lastError = err;
+    }
+  }
+
+  throw lastError;
+}
+
+function anomalyScore(zScore: number): number {
+  return Math.min(Math.abs(zScore) / 4, 1);
+}
+
 // ── JS fallback Z-Score (if Python unavailable) ──────────────────────────────
-function runJSDetection(inputData: { date: string; metric: string; value: number; campaign: string; platform: string }[]): PythonResult {
+function runJSDetection(inputData: AnomalyInput[]): PythonResult {
   const grouped: Record<string, number[]> = {};
   for (const row of inputData) {
     const key = `${row.metric}::${row.campaign}`;
@@ -184,9 +209,21 @@ export async function runAnomalyCheck(brandId: string, uploadId: string): Promis
       return;
     }
 
+    const accuracy = await prisma.accuracy.findUnique({
+      where: { brandId },
+      select: { threshold: true },
+    });
+    const alertThreshold = accuracy?.threshold ?? 0.8;
+    const thresholdedAnomalies = result.anomalies.filter(a => anomalyScore(a.z_score) >= alertThreshold);
+
+    if (thresholdedAnomalies.length === 0) {
+      console.log(`[anomaly-engine] ${result.anomalies.length} anomalies found, none met threshold ${(alertThreshold * 100).toFixed(0)}%`);
+      return;
+    }
+
     // ── 4. Save anomalies to DB ───────────────────────────────────────────
     const savedAnomalies = await Promise.all(
-      result.anomalies.map(a =>
+      thresholdedAnomalies.map(a =>
         prisma.anomaly.create({
           data: {
             brandId,
@@ -207,8 +244,22 @@ export async function runAnomalyCheck(brandId: string, uploadId: string): Promis
 
     console.log(`[anomaly-engine] Saved ${savedAnomalies.length} anomalies to DB`);
 
+    await prisma.alert.createMany({
+      data: savedAnomalies.map((saved, index) => {
+        const source = thresholdedAnomalies[index];
+        return {
+          brandId,
+          anomalyId: saved.id,
+          status: "OPEN",
+          message: `${source.severity === "HIGH" ? "CRITICAL" : "WARNING"} anomaly: ${source.metric} score=${(anomalyScore(source.z_score) * 100).toFixed(0)}% z=${source.z_score} campaign=${source.campaign}`,
+        };
+      }),
+    });
+
+    console.log(`[anomaly-engine] Created ${savedAnomalies.length} anomaly alert rows`);
+
     // ── 5. Email — HIGH only, once per day per metric per brand ──────────
-    const highAnomalies = result.anomalies.filter(a => a.severity === "HIGH");
+    const highAnomalies = thresholdedAnomalies.filter(a => a.severity === "HIGH");
 
     if (highAnomalies.length > 0) {
       const brand = await prisma.brand.findUnique({
@@ -228,8 +279,8 @@ export async function runAnomalyCheck(brandId: string, uploadId: string): Promis
       ]);
 
       const allEmails = Array.from(new Set([
-        ...brandMembers.map((m: any) => m.user.email),
-        ...admins.map((a: any) => a.email),
+        ...brandMembers.map(m => m.user.email),
+        ...admins.map(a => a.email),
       ]));
 
       if (allEmails.length > 0) {
@@ -270,7 +321,7 @@ export async function runAnomalyCheck(brandId: string, uploadId: string): Promis
               });
 
               await prisma.notificationRecipient.createMany({
-                data: recipientUsers.map((u: any) => ({
+                data: recipientUsers.map(u => ({
                   notificationId: notification.id,
                   userId:         u.id,
                 })),
@@ -294,12 +345,12 @@ export async function runAnomalyCheck(brandId: string, uploadId: string): Promis
         io.to(`brand:${brandId}`).emit("anomalies:detected", {
           brandId,
           uploadId,
-          total:  result.total,
-          high:   result.high,
-          medium: result.medium,
-          low:    result.low,
+          total:  thresholdedAnomalies.length,
+          high:   thresholdedAnomalies.filter(a => a.severity === "HIGH").length,
+          medium: thresholdedAnomalies.filter(a => a.severity === "MEDIUM").length,
+          low:    thresholdedAnomalies.filter(a => a.severity === "LOW").length,
           method: result.method,
-          topAnomalies: result.anomalies.slice(0, 3).map(a => ({
+          topAnomalies: thresholdedAnomalies.slice(0, 3).map(a => ({
             metric:   a.metric,
             severity: a.severity,
             zScore:   a.z_score,

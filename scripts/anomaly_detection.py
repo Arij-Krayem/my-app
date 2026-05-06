@@ -62,7 +62,7 @@ def get_recommendation(metric, direction):
     return recommendations.get(metric, {}).get(direction, default)
 
 
-def detect_anomalies(series):
+def detect_anomalies_for_group(series):
     """
     Detect anomalies using combined Z-Score + IQR method.
 
@@ -143,6 +143,28 @@ def detect_anomalies(series):
             deduped.append(a)
 
     return deduped[:20]  # max 20
+
+
+def detect_anomalies(series):
+    """
+    Detect anomalies independently for each campaign + metric series.
+
+    The TypeScript fallback uses this same grouping, so the statistical
+    baseline stays scoped to comparable values instead of mixing metrics.
+    """
+    groups = {}
+    for row in series:
+        metric = str(row.get("metric", "unknown")).lower()
+        campaign = row.get("campaign", "Unknown Campaign")
+        key = f"{metric}::{campaign}"
+        groups.setdefault(key, []).append(row)
+
+    anomalies = []
+    for group in groups.values():
+        anomalies.extend(detect_anomalies_for_group(group))
+
+    anomalies.sort(key=lambda x: x["z_score"], reverse=True)
+    return anomalies[:20]
 
 
 # ─────────────────────────────────────────────────────────────────────────────

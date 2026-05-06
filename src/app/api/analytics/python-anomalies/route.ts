@@ -7,7 +7,8 @@ import path from "path";
 async function runPython(inputData: object): Promise<any[]> {
   return new Promise((resolve, reject) => {
     const scriptPath = path.join(process.cwd(), "scripts", "anomaly_detection.py");
-    const py         = spawn("python", [scriptPath]);
+    const pythonBin  = process.env.PYTHON_BIN?.trim() || "python";
+    const py         = spawn(pythonBin, [scriptPath]);
     let output = "";
     let errors = "";
 

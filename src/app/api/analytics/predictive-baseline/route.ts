@@ -46,7 +46,8 @@ function runPrediction(
 ): Promise<PredictResult> {
   return new Promise((resolve, reject) => {
     const scriptPath = path.join(process.cwd(), "scripts", "anomaly_detection.py");
-    const child = spawn("python3", [scriptPath, "--mode", "predict"]);
+    const pythonBin = process.env.PYTHON_BIN?.trim() || "python3";
+    const child = spawn(pythonBin, [scriptPath, "--mode", "predict"]);
 
     let stdout = "";
     let stderr = "";
