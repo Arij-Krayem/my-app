@@ -49,7 +49,6 @@ export default function DetectionPage() {
   const [saving, setSaving] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const [error, setError] = useState("");
-  const [groupAlerts, setGroup] = useState(false);
   const [activeTab, setTab] = useState("");
 
   const token = () => sessionStorage.getItem("access_token") ?? "";
@@ -146,16 +145,6 @@ export default function DetectionPage() {
       </div>
 
       {error && <div className="dashboard-banner-error">{error}</div>}
-
-      <div className="dashboard-card" style={{ padding: "22px 24px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
-          <div>
-            <p style={{ fontSize: "18px", fontWeight: "800", color: "var(--t1)", marginBottom: "4px" }}>Alert fatigue prevention</p>
-            <p style={{ fontSize: "14px", color: "var(--t2)" }}>Group related alerts from the same campaign into a single notification.</p>
-          </div>
-          <button onClick={() => setGroup(g => !g)} className="btn-secondary">{groupAlerts ? "Grouping On" : "Grouping Off"}</button>
-        </div>
-      </div>
 
       <div className="dashboard-card">
         {loading ? (
