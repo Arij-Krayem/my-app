@@ -1,6 +1,5 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
 
 type Status = "OPEN" | "ACK" | "RESOLVED";
 type Severity = "CRITICAL" | "WARNING";
@@ -57,7 +56,6 @@ function getSeverity(alert: Alert): Severity {
 }
 
 export default function AlertsPage() {
-  const router = useRouter();
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -149,9 +147,6 @@ export default function AlertsPage() {
           </div>
           <div className="dashboard-empty-title">No alerts yet</div>
           <div className="dashboard-empty-subtitle">Create guardrail rules to start monitoring metrics and receiving alert notifications.</div>
-          <div className="dashboard-empty-action">
-            <button onClick={() => router.push("/guardrails")} className="btn-primary">Create your first rule</button>
-          </div>
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
