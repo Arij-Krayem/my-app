@@ -1,0 +1,178 @@
+.loadingCard {
+  padding: 80px 20px;
+  text-align: center;
+}
+
+.loader {
+  width: 32px;
+  height: 32px;
+  margin: 0 auto 16px;
+  border: 3px solid var(--border);
+  border-top-color: #5865f2;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.loadingText {
+  color: var(--t2);
+  font-size: 14px;
+}
+
+.alertList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.alertCard {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  border-left: 4px solid var(--severity-color);
+  padding: 20px 22px;
+}
+
+.alertCardUpdating {
+  opacity: 0.6;
+}
+
+.severityCritical {
+  --severity-color: #f85149;
+  --severity-bg: rgba(248,81,73,0.1);
+  --severity-border: rgba(248,81,73,0.25);
+}
+
+.severityWarning {
+  --severity-color: #d29922;
+  --severity-bg: rgba(210,153,34,0.1);
+  --severity-border: rgba(210,153,34,0.25);
+}
+
+.statusOpen {
+  --status-color: #5865f2;
+  --status-bg: rgba(88,101,242,0.1);
+  --status-border: rgba(88,101,242,0.25);
+}
+
+.statusAck {
+  --status-color: #d29922;
+  --status-bg: rgba(210,153,34,0.1);
+  --status-border: rgba(210,153,34,0.25);
+}
+
+.statusResolved {
+  --status-color: #3fb950;
+  --status-bg: rgba(63,185,80,0.1);
+  --status-border: rgba(63,185,80,0.25);
+}
+
+.severityDot {
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--severity-color);
+}
+
+.alertContent {
+  min-width: 0;
+  flex: 1;
+}
+
+.alertMetaRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.metricTitle {
+  color: var(--t1);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.brandBadge,
+.severityBadge,
+.statusBadge {
+  border-radius: 999px;
+  font-size: 11px;
+  padding: 4px 10px;
+}
+
+.brandBadge {
+  background: #eef2ff;
+  color: #5865f2;
+  font-weight: 700;
+}
+
+.severityBadge {
+  border: 1px solid var(--severity-border);
+  background: var(--severity-bg);
+  color: var(--severity-color);
+  font-weight: 800;
+}
+
+.statusBadge {
+  border: 1px solid var(--status-border);
+  background: var(--status-bg);
+  color: var(--status-color);
+  font-weight: 700;
+}
+
+.message {
+  margin: 0 0 10px;
+  color: var(--t2);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.ruleDetails {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.detailLabel {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--t3);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.detailValue {
+  color: var(--t1);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.timestamp {
+  margin-top: 10px;
+  color: var(--t3);
+  font-size: 12px;
+}
+
+.actions {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.actionButton {
+  padding: 9px 14px;
+}
+
+.ackButton {
+  border-color: rgba(210,153,34,0.25);
+  color: #d29922;
+}
+
+.resolveButton {
+  border-color: rgba(22,163,74,0.25);
+  color: #16a34a;
+}

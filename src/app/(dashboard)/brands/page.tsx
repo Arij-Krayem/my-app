@@ -1,13 +1,14 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogFooter } from "@/components/ui/dialog";
+import styles from "./page.module.css";
 
-const HEALTH_CFG: Record<string, { color: string; bg: string; border: string; dot: string }> = {
-  HEALTHY:  { color: "#16a34a", bg: "rgba(22,163,74,.08)",  border: "rgba(22,163,74,.2)",  dot: "#16a34a" },
-  WARNING:  { color: "#d97706", bg: "rgba(217,119,6,.08)",  border: "rgba(217,119,6,.2)",  dot: "#d97706" },
-  CRITICAL: { color: "#dc2626", bg: "rgba(220,38,38,.08)",  border: "rgba(220,38,38,.2)",  dot: "#dc2626" },
+const HEALTH_CLASS: Record<NonNullable<Brand["health"]>, string> = {
+  HEALTHY: styles.healthHealthy,
+  WARNING: styles.healthWarning,
+  CRITICAL: styles.healthCritical,
 };
-const AVATAR_COLORS = ["#5865f2","#16a34a","#dc2626","#d97706","#0ea5e9","#8b5cf6"];
+const AVATAR_CLASSES = [styles.avatarColor0, styles.avatarColor1, styles.avatarColor2, styles.avatarColor3, styles.avatarColor4, styles.avatarColor5];
 
 interface Brand {
   id:        string;
@@ -28,15 +29,6 @@ const BriefcaseIcon = () => (
   </svg>
 );
 
-const inp: React.CSSProperties = {
-  width: "100%", padding: "10px 12px", borderRadius: 12,
-  border: "1px solid var(--border)", background: "#fff",
-  fontSize: 14, color: "var(--t1)", outline: "none", boxSizing: "border-box",
-};
-const btn: React.CSSProperties = {
-  padding: "9px 20px", borderRadius: 12, border: "none",
-  cursor: "pointer", fontWeight: 700, fontSize: 14,
-};
 const BRAND_NAME_PATTERN = /^[\p{L}]+(?:[ '\u2019-][\p{L}]+)*$/u;
 const BRAND_NAME_ERROR = "Brand name should only contain letters.";
 
@@ -47,20 +39,19 @@ function deriveHealth(roas: number, openAlerts: number): "HEALTHY" | "WARNING" |
 }
 
 // ── Brand Avatar: logo image or coloured initial ──────────────────────────────
-function BrandAvatar({ brand, size = 36, colorIndex = 0 }: { brand: Brand; size?: number; colorIndex?: number }) {
-  const color = AVATAR_COLORS[colorIndex % AVATAR_COLORS.length];
+function BrandAvatar({ brand, colorIndex = 0 }: { brand: Brand; size?: number; colorIndex?: number }) {
   if (brand.logoUrl) {
     return (
       <img
         src={brand.logoUrl}
         alt={brand.name}
-        style={{ width: size, height: size, borderRadius: 12, objectFit: "cover", border: "1px solid var(--border)", flexShrink: 0 }}
+        className={styles.brandAvatarImage}
         onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
       />
     );
   }
   return (
-    <div style={{ width: size, height: size, borderRadius: 12, background: color, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: size * 0.36, flexShrink: 0 }}>
+    <div className={`${styles.brandAvatar} ${AVATAR_CLASSES[colorIndex % AVATAR_CLASSES.length]}`}>
       {brand.name[0].toUpperCase()}
     </div>
   );
@@ -135,25 +126,25 @@ function LogoUpload({
 
   return (
     <div>
-      <label style={{ fontSize: 11, fontWeight: 800, color: "var(--t2)", textTransform: "uppercase" as const, letterSpacing: ".12em", marginBottom: 8, display: "block" }}>
-        Brand Logo <span style={{ color: "var(--t3)", fontWeight: 400, fontSize: 10, textTransform: "none" as const }}>(PNG, JPG, SVG, WEBP · max 2 MB)</span>
+      <label className={styles.fieldLabel}>
+        Brand Logo <span className={styles.labelHint}>(PNG, JPG, SVG, WEBP · max 2 MB)</span>
       </label>
 
       {preview ? (
         // ── Preview state ──────────────────────────────────────────────────
-        <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px", border: "1px solid var(--border)", borderRadius: 12, background: "#f8fafc" }}>
-          <img src={preview} alt="Logo preview" style={{ width: 56, height: 56, borderRadius: 10, objectFit: "cover", border: "1px solid var(--border)", flexShrink: 0 }} />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ fontSize: 13, fontWeight: 600, color: "var(--t1)", marginBottom: 4 }}>Logo uploaded</p>
-            <p style={{ fontSize: 11, color: "var(--t3)" }}>Click &quot;Change&quot; to replace</p>
+        <div className={styles.logoPreview}>
+          <img src={preview} alt="Logo preview" className={styles.logoImage} />
+          <div className={styles.logoMeta}>
+            <p className={styles.logoTitle}>Logo uploaded</p>
+            <p className={styles.logoHelp}>Click &quot;Change&quot; to replace</p>
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className={styles.logoActions}>
             <button type="button" onClick={() => fileRef.current?.click()}
-              style={{ fontSize: 12, fontWeight: 700, padding: "6px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "white", cursor: "pointer", color: "var(--t1)" }}>
+              className={styles.miniButton}>
               {uploading ? "Uploading..." : "Change"}
             </button>
             <button type="button" onClick={handleRemove}
-              style={{ fontSize: 12, fontWeight: 700, padding: "6px 12px", borderRadius: 8, border: "1px solid rgba(220,38,38,.2)", background: "rgba(220,38,38,.06)", cursor: "pointer", color: "#dc2626" }}>
+              className={styles.miniDangerButton}>
               Remove
             </button>
           </div>
@@ -164,24 +155,22 @@ function LogoUpload({
           onClick={() => fileRef.current?.click()}
           onDrop={handleDrop}
           onDragOver={e => e.preventDefault()}
-          style={{ border: "2px dashed var(--border)", borderRadius: 12, padding: "28px 20px", textAlign: "center", cursor: uploading ? "not-allowed" : "pointer", background: "#fafafa", transition: "border-color 0.15s", opacity: uploading ? 0.7 : 1 }}
-          onMouseEnter={e => { if (!uploading) (e.currentTarget as HTMLDivElement).style.borderColor = "#5865f2"; }}
-          onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "var(--border)"; }}
+          className={`${styles.dropZone} ${uploading ? styles.dropZoneUploading : ""}`}
         >
-          <div style={{ width: 44, height: 44, borderRadius: 12, background: "rgba(88,101,242,.08)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 10px" }}>
+          <div className={styles.uploadIcon}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5865f2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
             </svg>
           </div>
-          <p style={{ fontSize: 13, fontWeight: 600, color: "var(--t1)", marginBottom: 4 }}>
+          <p className={styles.uploadText}>
             {uploading ? "Uploading..." : "Click or drag to upload logo"}
           </p>
-          <p style={{ fontSize: 11, color: "var(--t3)" }}>PNG, JPG, SVG, WEBP · max 2 MB</p>
+          <p className={styles.uploadHint}>PNG, JPG, SVG, WEBP · max 2 MB</p>
         </div>
       )}
 
       {error && (
-        <p style={{ fontSize: 12, color: "#dc2626", marginTop: 6, display: "flex", alignItems: "center", gap: 4 }}>
+        <p className={styles.errorText}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           {error}
         </p>
@@ -189,7 +178,7 @@ function LogoUpload({
 
       <input
         ref={fileRef} type="file" accept="image/png,image/jpeg,image/jpg,image/svg+xml,image/webp"
-        style={{ display: "none" }}
+        className={styles.hiddenInput}
         onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
       />
     </div>
@@ -353,32 +342,31 @@ export default function BrandsPage() {
       </div>
 
       {/* Stats */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16 }}>
+      <div className={styles.statsGrid}>
         {[
-          { label: "Total",    value: loading ? "-" : enriched.length,                                    color: "#5865f2" },
-          { label: "Healthy",  value: loading ? "-" : enriched.filter(b => b.health === "HEALTHY").length, color: "#16a34a" },
-          { label: "Warning",  value: loading ? "-" : enriched.filter(b => b.health === "WARNING").length, color: "#d97706" },
-          { label: "Critical", value: loading ? "-" : enriched.filter(b => b.health === "CRITICAL").length,color: "#dc2626" },
+          { label: "Total",    value: loading ? "-" : enriched.length,                                    className: styles.statTotal },
+          { label: "Healthy",  value: loading ? "-" : enriched.filter(b => b.health === "HEALTHY").length, className: styles.statHealthy },
+          { label: "Warning",  value: loading ? "-" : enriched.filter(b => b.health === "WARNING").length, className: styles.statWarning },
+          { label: "Critical", value: loading ? "-" : enriched.filter(b => b.health === "CRITICAL").length,className: styles.statCritical },
         ].map(st => (
-          <div key={st.label} className="dashboard-card" style={{ padding: "18px 22px" }}>
-            <div style={{ fontSize: 12, color: "var(--t2)", marginBottom: 8 }}>{st.label}</div>
-            <div style={{ fontSize: 32, fontWeight: 800, color: st.color }}>{st.value}</div>
+          <div key={st.label} className={`dashboard-card ${styles.statCard}`}>
+            <div className={styles.statLabel}>{st.label}</div>
+            <div className={`${styles.statValue} ${st.className}`}>{st.value}</div>
           </div>
         ))}
       </div>
 
       {msg && (
-        <div className={msg.startsWith("Error") ? "dashboard-banner-error" : "dashboard-card"}
-          style={!msg.startsWith("Error") ? { padding: "14px 18px", color: "#16a34a" } : undefined}>
+        <div className={!msg.startsWith("Error") ? `dashboard-card ${styles.successBanner}` : "dashboard-banner-error"}>
           {msg}
         </div>
       )}
 
       {/* Search + filter */}
-      <div className="dashboard-card" style={{ padding: "16px 20px" }}>
-        <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-          <div style={{ flex: 1, minWidth: 220 }}>
-            <input style={inp} placeholder="Search brands..." value={search} onChange={e => setSearch(e.target.value)} />
+      <div className={`dashboard-card ${styles.searchCard}`}>
+        <div className={styles.searchRow}>
+          <div className={styles.searchInputWrap}>
+            <input className={styles.input} placeholder="Search brands..." value={search} onChange={e => setSearch(e.target.value)} />
           </div>
           <div className="dashboard-pill-tabs">
             {["ALL","HEALTHY","WARNING","CRITICAL"].map(f => (
@@ -393,9 +381,9 @@ export default function BrandsPage() {
       {/* Table */}
       <div className="dashboard-table-card">
         {loading ? (
-          <div style={{ textAlign: "center", padding: "56px 0", color: "var(--t3)" }}>
-            <div style={{ width: 24, height: 24, borderRadius: "50%", border: "3px solid var(--border)", borderTopColor: "#5865f2", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
-            <div style={{ fontSize: 13 }}>Loading brands...</div>
+          <div className={styles.loadingState}>
+            <div className={styles.loader} />
+            <div className={styles.loadingText}>Loading brands...</div>
           </div>
         ) : filtered.length === 0 ? (
           <div className="dashboard-empty-state">
@@ -405,61 +393,60 @@ export default function BrandsPage() {
             <div className="dashboard-empty-action"><button onClick={() => setCreateOpen(true)} className="btn-primary">Create a brand</button></div>
           </div>
         ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <table className={styles.table}>
             <thead>
-              <tr style={{ borderBottom: "1px solid var(--border)", background: "#f8fafc" }}>
+              <tr className={styles.tableHeaderRow}>
                 {["Brand","Members","Uploads","Health","Spend","ROAS","Alerts","Actions"].map(h => (
-                  <th key={h} style={{ textAlign: "left", padding: "14px 16px", fontSize: 11, fontWeight: 800, color: "var(--t3)", textTransform: "uppercase", letterSpacing: ".12em" }}>{h}</th>
+                  <th key={h} className={styles.headCell}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {filtered.map((b, i) => {
-                const hc    = HEALTH_CFG[b.health!];
+                const healthClass = HEALTH_CLASS[b.health!];
                 const since = new Date(b.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
                 return (
-                  <tr key={b.id} style={{ borderBottom: i < filtered.length - 1 ? "1px solid var(--border)" : "none" }}>
+                  <tr key={b.id} className={styles.tableRow}>
 
                     {/* Brand column — now shows logo */}
-                    <td style={{ padding: "16px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <td className={styles.cell}>
+                      <div className={styles.brandCell}>
                         <BrandAvatar brand={b} size={36} colorIndex={i} />
                         <div>
-                          <div style={{ fontWeight: 700, fontSize: 14 }}>{b.name}</div>
-                          <div style={{ fontSize: 12, color: "var(--t3)" }}>Created {since}</div>
+                          <div className={styles.brandName}>{b.name}</div>
+                          <div className={styles.createdText}>Created {since}</div>
                         </div>
                       </div>
                     </td>
 
-                    <td style={{ padding: "16px", color: "var(--t2)", fontSize: 14 }}>{b.members}</td>
-                    <td style={{ padding: "16px", color: "var(--t2)", fontSize: 14 }}>{b.uploads}</td>
-                    <td style={{ padding: "16px" }}>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 999, background: hc.bg, color: hc.color, border: `1px solid ${hc.border}`, fontSize: 12, fontWeight: 700 }}>
-                        <span style={{ width: 6, height: 6, borderRadius: "50%", background: hc.dot }} />
+                    <td className={styles.mutedCell}>{b.members}</td>
+                    <td className={styles.mutedCell}>{b.uploads}</td>
+                    <td className={styles.cell}>
+                      <span className={`${styles.healthBadge} ${healthClass}`}>
+                        <span className={styles.healthDot} />
                         {b.health}
                       </span>
                     </td>
-                    <td style={{ padding: "16px", fontWeight: 700, fontSize: 14 }}>
+                    <td className={styles.strongCell}>
                       {b.spend && b.spend > 0 ? `$${b.spend.toLocaleString("en-US", { maximumFractionDigits: 0 })}` : "—"}
                     </td>
-                    <td style={{ padding: "16px", fontWeight: 700, fontSize: 14, color: (b.roas ?? 0) >= 2 ? "#16a34a" : "#dc2626" }}>
+                    <td className={`${styles.strongCell} ${(b.roas ?? 0) >= 2 ? styles.roasGood : styles.roasBad}`}>
                       {b.roas && b.roas > 0 ? `${b.roas.toFixed(1)}x` : "—"}
                     </td>
-                    <td style={{ padding: "16px" }}>
+                    <td className={styles.cell}>
                       {(b.openAlerts ?? 0) > 0 ? (
-                        <span style={{ fontSize: 12, fontWeight: 800, padding: "4px 10px", borderRadius: 999, background: "rgba(248,81,73,0.1)", color: "#f85149", border: "1px solid rgba(248,81,73,0.25)" }}>
+                        <span className={styles.openAlertsBadge}>
                           {b.openAlerts} open
                         </span>
-                      ) : <span style={{ fontSize: 12, color: "var(--t3)" }}>None</span>}
+                      ) : <span className={styles.noneText}>None</span>}
                     </td>
-                    <td style={{ padding: "16px" }}>
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <button onClick={() => openEdit(b)} className="btn-secondary" style={{ padding: "8px 14px" }}>Edit</button>
-                        <button onClick={() => navigator.clipboard.writeText(b.id).then(() => { flash("ID copied"); })} className="btn-secondary" style={{ padding: "8px 14px" }}>Copy ID</button>
+                    <td className={styles.cell}>
+                      <div className={styles.rowActions}>
+                        <button onClick={() => openEdit(b)} className={`btn-secondary ${styles.smallButton}`}>Edit</button>
+                        <button onClick={() => navigator.clipboard.writeText(b.id).then(() => { flash("ID copied"); })} className={`btn-secondary ${styles.smallButton}`}>Copy ID</button>
                         <button
                           onClick={() => setDeleteBrand(b)}
-                          className="btn-secondary"
-                          style={{ padding: "8px 14px", color: "#dc2626", borderColor: "rgba(220,38,38,.2)" }}
+                          className={`btn-secondary ${styles.smallButton} ${styles.deleteButton}`}
                         >
                           Delete
                         </button>
@@ -475,24 +462,24 @@ export default function BrandsPage() {
 
       {/* ── CREATE BRAND DIALOG ─────────────────────────────────────────────── */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent style={{ maxWidth: 460 }}>
+        <DialogContent className={styles.dialogContent}>
           <DialogHeader icon={<BriefcaseIcon />} title="New Brand" description="Create a new client workspace" onClose={() => setCreateOpen(false)} />
-          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <div className={styles.dialogStack}>
             {/* Name */}
             <div>
-              <label style={{ fontSize: 11, fontWeight: 800, color: "var(--t2)", textTransform: "uppercase" as const, letterSpacing: ".12em", marginBottom: 8, display: "block" }}>
+              <label className={styles.fieldLabel}>
                 Brand Name
               </label>
-              <input style={{ ...inp, border: createNameError ? "1px solid #dc2626" : inp.border }} placeholder="e.g. TechCorp" value={createName}
+              <input className={`${styles.input} ${createNameError ? styles.inputError : ""}`} placeholder="e.g. TechCorp" value={createName}
                 onChange={e => setCreateName(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && handleCreate()} autoFocus />
               {createNameError ? (
-                <p style={{ fontSize: 12, color: "#dc2626", margin: "6px 0 0", display: "flex", alignItems: "center", gap: 4 }}>
+                <p className={styles.errorText}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                   {createNameError}
                 </p>
               ) : (
-                <p style={{ fontSize: 12, color: "var(--t3)", margin: "6px 0 0" }}>A new workspace will be created for this brand.</p>
+                <p className={styles.helperText}>A new workspace will be created for this brand.</p>
               )}
             </div>
             {/* Logo upload */}
@@ -505,7 +492,7 @@ export default function BrandsPage() {
           <DialogFooter>
             <button onClick={() => { setCreateOpen(false); setCreateName(""); setCreateLogoUrl(null); }} className="btn-secondary">Cancel</button>
             <button onClick={handleCreate} disabled={saving || !canCreateBrand}
-              style={{ ...btn, background: "#5865f2", color: "#fff", opacity: saving || !canCreateBrand ? 0.6 : 1 }}>
+              className={`${styles.dialogButton} ${saving || !canCreateBrand ? styles.dialogButtonDisabled : ""}`}>
               {saving ? "Creating..." : "Create Brand"}
             </button>
           </DialogFooter>
@@ -514,15 +501,15 @@ export default function BrandsPage() {
 
       {/* ── EDIT BRAND DIALOG ──────────────────────────────────────────────── */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent style={{ maxWidth: 460 }}>
+        <DialogContent className={styles.dialogContent}>
           <DialogHeader icon={<BriefcaseIcon />} title="Edit Brand" description="Update brand name and logo" onClose={() => setEditOpen(false)} />
-          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <div className={styles.dialogStack}>
             {/* Name */}
             <div>
-              <label style={{ fontSize: 11, fontWeight: 800, color: "var(--t2)", textTransform: "uppercase" as const, letterSpacing: ".12em", marginBottom: 8, display: "block" }}>
+              <label className={styles.fieldLabel}>
                 Brand Name
               </label>
-              <input style={inp} value={editName} onChange={e => setEditName(e.target.value)}
+              <input className={styles.input} value={editName} onChange={e => setEditName(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && handleEdit()} autoFocus />
             </div>
             {/* Logo upload */}
@@ -535,7 +522,7 @@ export default function BrandsPage() {
           <DialogFooter>
             <button onClick={() => setEditOpen(false)} className="btn-secondary">Cancel</button>
             <button onClick={handleEdit} disabled={editSaving || !editName.trim()}
-              style={{ ...btn, background: "#5865f2", color: "#fff", opacity: editSaving || !editName.trim() ? 0.6 : 1 }}>
+              className={`${styles.dialogButton} ${editSaving || !editName.trim() ? styles.dialogButtonDisabled : ""}`}>
               {editSaving ? "Saving..." : "Save Changes"}
             </button>
           </DialogFooter>
@@ -543,16 +530,16 @@ export default function BrandsPage() {
       </Dialog>
 
       <Dialog open={deleteBrand !== null} onOpenChange={() => !deleteSaving && setDeleteBrand(null)}>
-        <DialogContent style={{ maxWidth: 400 }}>
+        <DialogContent className={styles.deleteDialog}>
           <DialogHeader
-            icon={<span style={{ fontSize: 18 }}>!</span>}
+            icon={<span className={styles.deleteIcon}>!</span>}
             title="Delete Brand?"
             description={`Are you sure you want to delete this brand${deleteBrand ? `, ${deleteBrand.name}` : ""}? This will remove its related data as well.`}
             onClose={() => !deleteSaving && setDeleteBrand(null)}
           />
           <DialogFooter>
             <button onClick={() => setDeleteBrand(null)} className="btn-secondary" disabled={deleteSaving}>Cancel</button>
-            <button onClick={handleDelete} disabled={deleteSaving} style={{ ...btn, background: "#dc2626", color: "#fff", opacity: deleteSaving ? 0.6 : 1 }}>
+            <button onClick={handleDelete} disabled={deleteSaving} className={`${styles.dangerDialogButton} ${deleteSaving ? styles.dialogButtonDisabled : ""}`}>
               {deleteSaving ? "Deleting..." : "Delete"}
             </button>
           </DialogFooter>

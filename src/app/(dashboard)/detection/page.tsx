@@ -1,11 +1,12 @@
 "use client";
+
 import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import styles from "./page.module.css";
 
 interface Brand {
   id: string;
   name: string;
-  color: string;
+  colorClass: string;
 }
 
 interface AccuracySettings {
@@ -13,36 +14,39 @@ interface AccuracySettings {
   threshold: number;
 }
 
-const AVATAR_COLORS = ["#5865f2", "#16a34a", "#dc2626", "#d97706", "#0ea5e9", "#8b5cf6"];
+const BRAND_CLASSES = [
+  styles.brandPurple,
+  styles.brandGreen,
+  styles.brandRed,
+  styles.brandAmber,
+  styles.brandSky,
+  styles.brandViolet,
+];
 
-function SliderRow({ label, value, onChange, leftLabel, rightLabel, description, color }: {
+function SliderRow({ label, value, onChange, leftLabel, rightLabel, description, colorClass }: {
   label: string; value: number; onChange: (v: number) => void;
-  leftLabel: string; rightLabel: string; description: string; color: string;
+  leftLabel: string; rightLabel: string; description: string; colorClass: string;
 }) {
-  const pct = value * 100;
   return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-        <label style={{ fontSize: "11px", fontWeight: "800", color: "var(--t3)", textTransform: "uppercase", letterSpacing: "0.12em" }}>{label}</label>
-        <span style={{ fontSize: "14px", fontWeight: "800", color, background: `${color}15`, padding: "3px 10px", borderRadius: "999px", border: `1px solid ${color}30` }}>{value.toFixed(1)}</span>
+    <div className={colorClass}>
+      <div className={styles.sliderHeader}>
+        <label className={styles.sliderLabel}>{label}</label>
+        <span className={styles.sliderValue}>{value.toFixed(1)}</span>
       </div>
-      <div style={{ position: "relative", height: "20px", display: "flex", alignItems: "center", marginBottom: "6px" }}>
-        <div style={{ position: "absolute", left: 0, right: 0, height: "6px", borderRadius: "999px", background: "var(--border)" }} />
-        <div style={{ position: "absolute", left: 0, width: `${pct}%`, height: "6px", borderRadius: "999px", background: color, transition: "width 0.1s" }} />
-        <input type="range" min="0" max="1" step="0.1" value={value} onChange={e => onChange(parseFloat(e.target.value))} style={{ position: "absolute", left: 0, right: 0, width: "100%", opacity: 0, height: "20px", cursor: "pointer", margin: 0 }} />
-        <div style={{ position: "absolute", left: `calc(${pct}% - 10px)`, width: "20px", height: "20px", borderRadius: "50%", background: "white", border: `2px solid ${color}`, transition: "left 0.1s", pointerEvents: "none" }} />
+      <div className={styles.sliderTrack}>
+        <progress className={styles.rangeSlider} value={value} max={1} />
+        <input type="range" min="0" max="1" step="0.1" value={value} onChange={e => onChange(parseFloat(e.target.value))} className={styles.rangeInput} />
       </div>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
-        <span style={{ fontSize: "11px", color: "var(--t3)" }}>{leftLabel}</span>
-        <span style={{ fontSize: "11px", color: "var(--t3)" }}>{rightLabel}</span>
+      <div className={styles.rangeLabels}>
+        <span>{leftLabel}</span>
+        <span>{rightLabel}</span>
       </div>
-      <p style={{ fontSize: "12px", color: "var(--t2)", lineHeight: 1.6 }}>{description}</p>
+      <p className={styles.description}>{description}</p>
     </div>
   );
 }
 
 export default function DetectionPage() {
-  const router = useRouter();
   const [brands, setBrands] = useState<Brand[]>([]);
   const [settings, setSettings] = useState<Record<string, AccuracySettings>>({});
   const [loading, setLoading] = useState(true);
@@ -52,9 +56,6 @@ export default function DetectionPage() {
   const [activeTab, setTab] = useState("");
 
   const token = () => sessionStorage.getItem("access_token") ?? "";
-
-  // ── REMOVED: role check that was redirecting marketers to dashboard ────────
-  // Marketers are allowed here — the API filters data to their assigned brands.
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -69,7 +70,7 @@ export default function DetectionPage() {
       const brandList = (brandsData.items ?? []).map((b: { id: string; name: string }, i: number) => ({
         id: b.id,
         name: b.name,
-        color: AVATAR_COLORS[i % AVATAR_COLORS.length],
+        colorClass: BRAND_CLASSES[i % BRAND_CLASSES.length],
       }));
       setBrands(brandList);
       if (brandList.length > 0) setTab(brandList[0].id);
@@ -148,9 +149,9 @@ export default function DetectionPage() {
 
       <div className="dashboard-card">
         {loading ? (
-          <div style={{ textAlign: "center", padding: "60px 0" }}>
-            <div style={{ width: 28, height: 28, borderRadius: "50%", border: "3px solid var(--border)", borderTopColor: "#5865f2", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
-            <p style={{ fontSize: "13px", color: "var(--t2)" }}>Loading brand settings...</p>
+          <div className={styles.loadingState}>
+            <div className={styles.loader} />
+            <p className={styles.loadingText}>Loading brand settings...</p>
           </div>
         ) : brands.length === 0 ? (
           <div className="dashboard-empty-state">
@@ -162,12 +163,12 @@ export default function DetectionPage() {
           </div>
         ) : (
           <>
-            <div style={{ display: "flex", borderBottom: "1px solid var(--border)", background: "#f8fafc", overflowX: "auto" }}>
+            <div className={styles.tabs}>
               {brands.map(b => (
                 <button
                   key={b.id}
                   onClick={() => setTab(b.id)}
-                  style={{ minWidth: "140px", padding: "14px 16px", border: "none", background: "transparent", fontSize: "14px", fontWeight: activeTab === b.id ? "800" : "600", color: activeTab === b.id ? b.color : "var(--t2)", cursor: "pointer", fontFamily: "inherit", borderBottom: `2px solid ${activeTab === b.id ? b.color : "transparent"}` }}
+                  className={`${styles.tabButton} ${b.colorClass} ${activeTab === b.id ? styles.tabButtonActive : ""}`}
                 >
                   {b.name}
                 </button>
@@ -175,26 +176,26 @@ export default function DetectionPage() {
             </div>
 
             {activeBrand && (
-              <div style={{ padding: "28px" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "32px", marginBottom: "28px" }}>
-                  <SliderRow label="Sensitivity" value={s.sensitivity} onChange={v => change(activeTab, "sensitivity", v)} leftLabel="Conservative" rightLabel="Aggressive" description="Higher values detect more anomalies but may increase false positives." color={activeBrand.color} />
-                  <SliderRow label="Threshold" value={s.threshold} onChange={v => change(activeTab, "threshold", v)} leftLabel="Low" rightLabel="High" description="Minimum anomaly score required to trigger an alert." color={activeBrand.color} />
+              <div className={`${styles.content} ${activeBrand.colorClass}`}>
+                <div className={styles.sliderGrid}>
+                  <SliderRow label="Sensitivity" value={s.sensitivity} onChange={v => change(activeTab, "sensitivity", v)} leftLabel="Conservative" rightLabel="Aggressive" description="Higher values detect more anomalies but may increase false positives." colorClass={activeBrand.colorClass} />
+                  <SliderRow label="Threshold" value={s.threshold} onChange={v => change(activeTab, "threshold", v)} leftLabel="Low" rightLabel="High" description="Minimum anomaly score required to trigger an alert." colorClass={activeBrand.colorClass} />
                 </div>
 
-                <div className="dashboard-card" style={{ padding: "16px 20px", background: "#f8fafc", marginBottom: "20px", display: "flex", alignItems: "center", gap: "20px", flexWrap: "wrap" }}>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: "11px", color: "var(--t3)", fontWeight: "800", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: "4px" }}>Detection Mode</p>
-                    <p style={{ fontSize: "14px", fontWeight: "700", color: "var(--t1)" }}>
+                <div className={`dashboard-card ${styles.summaryCard}`}>
+                  <div className={styles.summaryItem}>
+                    <p className={styles.infoLabel}>Detection Mode</p>
+                    <p className={styles.infoText}>
                       {s.sensitivity >= 0.7 ? "Aggressive: catches more deviations with higher noise." : s.sensitivity >= 0.4 ? "Balanced: recommended default for most brands." : "Conservative: fewer, higher-confidence alerts."}
                     </p>
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: "11px", color: "var(--t3)", fontWeight: "800", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: "4px" }}>Alert Threshold</p>
-                    <p style={{ fontSize: "14px", fontWeight: "700", color: "var(--t1)" }}>Only anomalies scoring above <span style={{ color: activeBrand.color }}>{(s.threshold * 100).toFixed(0)}%</span> will trigger alerts.</p>
+                  <div className={styles.summaryItem}>
+                    <p className={styles.infoLabel}>Alert Threshold</p>
+                    <p className={styles.infoText}>Only anomalies scoring above <span className={styles.accentText}>{(s.threshold * 100).toFixed(0)}%</span> will trigger alerts.</p>
                   </div>
                 </div>
 
-                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <div className={styles.actions}>
                   <button onClick={() => save(activeTab)} disabled={saving === activeTab} className="btn-primary">
                     {saving === activeTab ? "Saving..." : saved === activeTab ? "Saved!" : "Save Settings"}
                   </button>
@@ -204,8 +205,6 @@ export default function DetectionPage() {
           </>
         )}
       </div>
-
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

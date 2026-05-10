@@ -1,0 +1,429 @@
+.brandAvatar,
+.brandAvatarImage {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 12px;
+}
+
+.brandAvatarImage {
+  border: 1px solid var(--border);
+  object-fit: cover;
+}
+
+.brandAvatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.avatarColor0 { background: #5865f2; }
+.avatarColor1 { background: #16a34a; }
+.avatarColor2 { background: #dc2626; }
+.avatarColor3 { background: #d97706; }
+.avatarColor4 { background: #0ea5e9; }
+.avatarColor5 { background: #8b5cf6; }
+
+.fieldLabel {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--t2);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.labelHint {
+  color: var(--t3);
+  font-size: 10px;
+  font-weight: 400;
+  text-transform: none;
+}
+
+.logoPreview {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #f8fafc;
+  padding: 12px 16px;
+}
+
+.logoImage {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.logoMeta {
+  min-width: 0;
+  flex: 1;
+}
+
+.logoTitle {
+  margin-bottom: 4px;
+  color: var(--t1);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.logoHelp {
+  color: var(--t3);
+  font-size: 11px;
+}
+
+.logoActions {
+  display: flex;
+  gap: 8px;
+}
+
+.miniButton,
+.miniDangerButton {
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 12px;
+}
+
+.miniButton {
+  border: 1px solid var(--border);
+  background: white;
+  color: var(--t1);
+}
+
+.miniDangerButton {
+  border: 1px solid rgba(220,38,38,0.2);
+  background: rgba(220,38,38,0.06);
+  color: #dc2626;
+}
+
+.dropZone {
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  background: #fafafa;
+  cursor: pointer;
+  padding: 28px 20px;
+  text-align: center;
+  transition: border-color 0.15s, opacity 0.15s;
+}
+
+.dropZone:hover {
+  border-color: #5865f2;
+}
+
+.dropZoneUploading {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.uploadIcon {
+  display: flex;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 10px;
+  border-radius: 12px;
+  background: rgba(88,101,242,0.08);
+}
+
+.uploadText {
+  margin-bottom: 4px;
+  color: var(--t1);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.uploadHint {
+  color: var(--t3);
+  font-size: 11px;
+}
+
+.errorText {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  color: #dc2626;
+  font-size: 12px;
+}
+
+.hiddenInput {
+  display: none;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4,1fr);
+  gap: 16px;
+}
+
+.statCard {
+  padding: 18px 22px;
+}
+
+.statLabel {
+  margin-bottom: 8px;
+  color: var(--t2);
+  font-size: 12px;
+}
+
+.statValue {
+  font-size: 32px;
+  font-weight: 800;
+}
+
+.statTotal { color: #5865f2; }
+.statHealthy { color: #16a34a; }
+.statWarning { color: #d97706; }
+.statCritical { color: #dc2626; }
+
+.successBanner {
+  padding: 14px 18px;
+  color: #16a34a;
+}
+
+.searchCard {
+  padding: 16px 20px;
+}
+
+.searchRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.searchInputWrap {
+  min-width: 220px;
+  flex: 1;
+}
+
+.input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--t1);
+  font-size: 14px;
+  outline: none;
+  padding: 10px 12px;
+}
+
+.inputError {
+  border-color: #dc2626;
+}
+
+.loadingState {
+  padding: 56px 0;
+  color: var(--t3);
+  text-align: center;
+}
+
+.loader {
+  width: 24px;
+  height: 24px;
+  margin: 0 auto 12px;
+  border: 3px solid var(--border);
+  border-top-color: #5865f2;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.loadingText {
+  font-size: 13px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tableHeaderRow {
+  border-bottom: 1px solid var(--border);
+  background: #f8fafc;
+}
+
+.headCell {
+  color: var(--t3);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  padding: 14px 16px;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.tableRow {
+  border-bottom: 1px solid var(--border);
+}
+
+.tableRow:last-child {
+  border-bottom: none;
+}
+
+.cell {
+  padding: 16px;
+}
+
+.mutedCell {
+  padding: 16px;
+  color: var(--t2);
+  font-size: 14px;
+}
+
+.brandCell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brandName {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.createdText {
+  color: var(--t3);
+  font-size: 12px;
+}
+
+.healthBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--health-border);
+  border-radius: 999px;
+  background: var(--health-bg);
+  color: var(--health-color);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+}
+
+.healthDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--health-color);
+}
+
+.healthHealthy {
+  --health-color: #16a34a;
+  --health-bg: rgba(22,163,74,0.08);
+  --health-border: rgba(22,163,74,0.2);
+}
+
+.healthWarning {
+  --health-color: #d97706;
+  --health-bg: rgba(217,119,6,0.08);
+  --health-border: rgba(217,119,6,0.2);
+}
+
+.healthCritical {
+  --health-color: #dc2626;
+  --health-bg: rgba(220,38,38,0.08);
+  --health-border: rgba(220,38,38,0.2);
+}
+
+.strongCell {
+  padding: 16px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.roasGood {
+  color: #16a34a;
+}
+
+.roasBad {
+  color: #dc2626;
+}
+
+.openAlertsBadge {
+  border: 1px solid rgba(248,81,73,0.25);
+  border-radius: 999px;
+  background: rgba(248,81,73,0.1);
+  color: #f85149;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 4px 10px;
+}
+
+.noneText {
+  color: var(--t3);
+  font-size: 12px;
+}
+
+.rowActions {
+  display: flex;
+  gap: 8px;
+}
+
+.smallButton {
+  padding: 8px 14px;
+}
+
+.deleteButton {
+  border-color: rgba(220,38,38,0.2);
+  color: #dc2626;
+}
+
+.dialogContent {
+  max-width: 460px;
+}
+
+.deleteDialog {
+  max-width: 400px;
+}
+
+.dialogStack {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.helperText {
+  margin: 6px 0 0;
+  color: var(--t3);
+  font-size: 12px;
+}
+
+.dialogButton {
+  border: none;
+  border-radius: 12px;
+  background: #5865f2;
+  color: #fff;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 9px 20px;
+}
+
+.dialogButtonDisabled {
+  opacity: 0.6;
+}
+
+.dangerDialogButton {
+  border: none;
+  border-radius: 12px;
+  background: #dc2626;
+  color: #fff;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 9px 20px;
+}
+
+.deleteIcon {
+  font-size: 18px;
+}

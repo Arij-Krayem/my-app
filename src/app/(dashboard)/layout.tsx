@@ -209,7 +209,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   const isAdmin        = user?.role === "AGENCY_ADMIN";
   const shellStateClass = collapsed ? styles.shellCollapsed : styles.shellExpanded;
-  const sevColor = (severity?: string) => severity === "CRITICAL" ? "#f85149" : "#d29922";
+  const severityClass = (severity?: string) => severity === "CRITICAL" ? styles.notificationCritical : styles.notificationWarning;
 
   return (
     <div className={`${styles.shell} ${shellStateClass}`}>
@@ -237,7 +237,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           <div className={styles.sidebarFooter}>
             <div className={styles.userCard}>
               <div className={styles.userAvatar}>
-                <UserAvatar name={user.name} email={user.email} avatarUrl={user.avatarUrl} size={38} borderRadius={999} style={{ width: "100%", height: "100%" }} />
+                <UserAvatar name={user.name} email={user.email} avatarUrl={user.avatarUrl} size={38} borderRadius={999} />
               </div>
               <div className={styles.userMeta}>
                 <div className={styles.userName}>{user.name || user.email}</div>
@@ -297,17 +297,16 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                         <p className={styles.emptyStateText}>No open alerts</p>
                       </div>
                     ) : (
-                      notifications.map((notif, index) => {
+                      notifications.map(notif => {
                         const severity = notif.rule?.severity ?? (notif.message.toLowerCase().includes("critical") ? "CRITICAL" : "WARNING");
-                        const color = sevColor(severity);
+                        const notifSeverityClass = severityClass(severity);
                         return (
                           <Link key={notif.id} href="/alerts" onClick={() => setShowBell(false)} className={styles.notificationLink}>
-                            <div className={styles.notificationItem}
-                              style={{ borderLeftColor: color, borderBottom: index < notifications.length - 1 ? "1px solid var(--border)" : "none" }}>
-                              <div className={styles.notificationDot} style={{ backgroundColor: color, boxShadow: `0 0 6px ${color}` }} />
+                            <div className={`${styles.notificationItem} ${notifSeverityClass}`}>
+                              <div className={styles.notificationDot} />
                               <div className={styles.notificationBody}>
                                 <div className={styles.notificationTopRow}>
-                                  <span className={styles.notificationMetric} style={{ color }}>{notif.rule?.metricKey ?? "Alert"}</span>
+                                  <span className={styles.notificationMetric}>{notif.rule?.metricKey ?? "Alert"}</span>
                                   <span className={styles.notificationTime}>{timeAgo(notif.createdAt)}</span>
                                 </div>
                                 <p className={styles.notificationMessage}>{notif.message}</p>
@@ -335,7 +334,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               <div ref={dropdownRef} className={styles.popoverAnchor}>
                 <button type="button" onClick={() => setShowDropdown(v => !v)}
                   className={styles.avatarButton} aria-label="Toggle user menu">
-                  <UserAvatar name={user.name} email={user.email} avatarUrl={user.avatarUrl} size={40} borderRadius={12} style={{ width: "100%", height: "100%" }} />
+                  <UserAvatar name={user.name} email={user.email} avatarUrl={user.avatarUrl} size={40} borderRadius={12} />
                 </button>
                 {showDropdown && (
                   <div className={`${styles.dropdownPanel} ${styles.userMenuPanel}`}>

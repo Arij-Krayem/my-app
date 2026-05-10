@@ -1,0 +1,626 @@
+.root {
+  margin-top: 32px;
+}
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--card);
+  padding: 22px;
+}
+
+.cardSpaced {
+  margin-bottom: 16px;
+}
+
+.chartLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.chartLegendItem,
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.chartLegendLabel {
+  color: var(--t2);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.sectionDivider {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 36px 0 20px;
+}
+
+.sectionAccent {
+  width: 4px;
+  height: 28px;
+  border-radius: 2px;
+  background: linear-gradient(135deg, #5865f2, #818cf8);
+}
+
+.sectionTitle {
+  margin: 0;
+  color: var(--t1);
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.sectionSubtitle {
+  margin: 2px 0 0;
+  color: var(--t3);
+  font-size: 12px;
+}
+
+.emptyValue {
+  color: var(--t3);
+  font-size: 12px;
+}
+
+.pctBadge,
+.healthBadge,
+.metricBadge {
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+}
+
+.pctPositive,
+.toneGood {
+  border: 1px solid rgba(63, 185, 80, .19);
+  background: rgba(63, 185, 80, .09);
+  color: #3fb950;
+}
+
+.pctNegative,
+.tonePoor {
+  border: 1px solid rgba(248, 81, 73, .19);
+  background: rgba(248, 81, 73, .09);
+  color: #f85149;
+}
+
+.toneWarning {
+  border: 1px solid rgba(210, 153, 34, .19);
+  background: rgba(210, 153, 34, .09);
+  color: #d29922;
+}
+
+.geoRow,
+.geoHeader {
+  display: grid;
+  grid-template-columns: 28px 1fr 90px 70px 70px 60px;
+  gap: 10px;
+}
+
+.geoRow {
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 10px 14px;
+}
+
+.geoRowEven {
+  border-color: var(--border);
+  background: var(--bg);
+}
+
+.geoRank {
+  color: var(--t3);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.geoCountry {
+  margin-bottom: 4px;
+  color: var(--t1);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.geoBar {
+  display: block;
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.geoSpend {
+  color: var(--t1);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: right;
+}
+
+.geoText {
+  color: var(--t2);
+  font-size: 12px;
+  text-align: right;
+}
+
+.geoHealthWrap {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.funnel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.funnelStage {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.stageIcon {
+  display: flex;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+}
+
+.stageImpressions {
+  background: rgba(88, 101, 242, .09);
+  color: #5865f2;
+}
+
+.stageClicks {
+  background: rgba(139, 92, 246, .09);
+  color: #8b5cf6;
+}
+
+.stageConversions {
+  background: rgba(63, 185, 80, .09);
+  color: #3fb950;
+}
+
+.stageBody {
+  min-width: 0;
+  flex: 1;
+}
+
+.stageTop {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 5px;
+}
+
+.stageLabel {
+  color: var(--t1);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.stageMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rateBadge {
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+}
+
+.stageValue {
+  color: var(--t1);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.stageBar {
+  display: block;
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.funnelArrow {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 2px;
+}
+
+.costBox {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  border: 1px solid rgba(88, 101, 242, .15);
+  border-radius: 10px;
+  background: rgba(88, 101, 242, .06);
+  padding: 10px 14px;
+}
+
+.costLabel {
+  color: var(--t2);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.costValue {
+  color: #5865f2;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.spinnerWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 120px;
+}
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid var(--border);
+  border-top-color: #5865f2;
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+
+.comparisonGrid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.kpiLabel {
+  margin-bottom: 8px;
+  color: var(--t3);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .6px;
+  text-transform: uppercase;
+}
+
+.comparisonValue {
+  margin-bottom: 6px;
+  color: var(--t1);
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.compareRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.mutedSmall,
+.previousValue {
+  color: var(--t3);
+  font-size: 11px;
+}
+
+.funnelGrid {
+  display: grid;
+  grid-template-columns: 1.1fr .9fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.campaignGrid {
+  display: grid;
+  grid-template-columns: .9fr 1.1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.twoColumnGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.panelTitle,
+.panelTitleNoMargin {
+  color: var(--t1);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.panelTitle {
+  margin: 0 0 4px;
+}
+
+.panelTitleNoMargin {
+  margin: 0;
+}
+
+.panelTitleSmall,
+.panelTitleNoMarginSmall {
+  color: var(--t1);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.panelTitleSmall {
+  margin: 0 0 4px;
+}
+
+.panelTitleNoMarginSmall {
+  margin: 0;
+}
+
+.panelSubtitle,
+.panelSubtitleTight,
+.panelDescription {
+  color: var(--t3);
+  font-size: 12px;
+}
+
+.panelSubtitle {
+  margin-bottom: 16px;
+}
+
+.panelSubtitleTight {
+  margin-bottom: 4px;
+}
+
+.panelDescription {
+  margin-top: 2px;
+}
+
+.emptyState {
+  padding: 24px 0;
+  color: var(--t3);
+  font-size: 13px;
+  text-align: center;
+}
+
+.platformList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.platformRow,
+.campaignRow {
+  display: flex;
+  align-items: center;
+}
+
+.platformRow {
+  gap: 10px;
+}
+
+.platformDot {
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+}
+
+.platformName {
+  flex: 1;
+  color: var(--t1);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.platformSpend {
+  color: var(--t2);
+  font-size: 12px;
+}
+
+.platformShare {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.platformGoogle {
+  color: #4285F4;
+}
+
+.platformMeta {
+  color: #1877F2;
+}
+
+.platformDefault {
+  color: #5865f2;
+}
+
+.campaignList {
+  display: flex;
+  max-height: 140px;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+  overflow-y: auto;
+}
+
+.campaignRow {
+  gap: 8px;
+}
+
+.campaignDot {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+}
+
+.campaignName {
+  overflow: hidden;
+  flex: 1;
+  color: var(--t2);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.campaignShare {
+  color: var(--t1);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.geoHeader {
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  padding: 6px 14px 10px;
+}
+
+.geoHeadLeft,
+.geoHeadRight {
+  color: var(--t3);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .6px;
+  text-transform: uppercase;
+}
+
+.geoHeadLeft {
+  text-align: left;
+}
+
+.geoHeadRight {
+  text-align: right;
+}
+
+.geoList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.chartHeader,
+.alertHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.chartHeader {
+  margin-bottom: 4px;
+}
+
+.alertHeader {
+  margin-bottom: 14px;
+}
+
+.daysCount {
+  color: var(--t3);
+  font-size: 11px;
+}
+
+.alertStats {
+  display: flex;
+  gap: 8px;
+}
+
+.alertStat {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  padding: 7px 12px;
+  text-align: center;
+}
+
+.alertStatValue {
+  color: var(--t2);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.statOpen {
+  color: #5865f2;
+}
+
+.statResolved {
+  color: #3fb950;
+}
+
+.alertStatLabel {
+  color: var(--t3);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.metricTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.metricTable th {
+  border-bottom: 1px solid var(--border);
+  color: var(--t3);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .6px;
+  padding: 8px 10px;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.metricTable td {
+  padding: 9px 10px;
+}
+
+.metricTable tbody tr {
+  border-bottom: 1px solid var(--border);
+}
+
+.metricTable tbody tr:last-child {
+  border-bottom: none;
+}
+
+.metricTable tbody tr:hover {
+  background: rgba(88, 101, 242, .02);
+}
+
+.dateCell {
+  color: var(--t2);
+  font-weight: 500;
+}
+
+.googleCell {
+  color: #4285F4;
+  font-weight: 600;
+}
+
+.metaCell {
+  color: #1877F2;
+  font-weight: 600;
+}
+
+.spendCell {
+  color: var(--t1);
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

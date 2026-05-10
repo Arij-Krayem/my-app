@@ -1,0 +1,242 @@
+.settingsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: start;
+  gap: 16px;
+}
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  padding: 28px;
+}
+
+.spacedCard {
+  margin-bottom: 16px;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.sectionHeaderCompact {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.title {
+  color: var(--t1);
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.subtitle {
+  margin-top: 2px;
+  color: var(--t2);
+  font-size: 13px;
+}
+
+.fieldLarge {
+  margin-bottom: 16px;
+}
+
+.field {
+  margin-bottom: 14px;
+}
+
+.fieldLast {
+  margin-bottom: 20px;
+}
+
+.label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--t2);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--t1);
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+  padding: 11px 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.input:focus {
+  border-color: #5865f2;
+  box-shadow: 0 0 0 3px rgba(88,101,242,0.12);
+}
+
+.message {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 14px;
+}
+
+.messageSuccess {
+  border: 1px solid rgba(63,185,80,0.25);
+  background: rgba(63,185,80,0.08);
+  color: #3fb950;
+}
+
+.messageError {
+  border: 1px solid rgba(248,81,73,0.25);
+  background: rgba(248,81,73,0.08);
+  color: #f85149;
+}
+
+.buttonLoading {
+  opacity: 0.7;
+}
+
+.iconBox,
+.dangerIconBox {
+  display: flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+}
+
+.iconBox {
+  background: rgba(88,101,242,0.1);
+  color: #5865f2;
+}
+
+.dangerIconBox {
+  background: rgba(248,81,73,0.08);
+  color: #f85149;
+}
+
+.accountTitle {
+  margin-bottom: 20px;
+  color: var(--t1);
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.accountBox {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #f8fafc;
+  padding: 16px;
+}
+
+.userName {
+  color: var(--t1);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.userEmail {
+  margin-top: 2px;
+  color: var(--t2);
+  font-size: 12px;
+}
+
+.roleBadge {
+  display: inline-block;
+  margin-top: 6px;
+  border: 1px solid rgba(88,101,242,0.2);
+  border-radius: 999px;
+  background: rgba(88,101,242,0.1);
+  color: #5865f2;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 4px 10px;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.statCard {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #f8fafc;
+  padding: 12px 14px;
+}
+
+.statLabel {
+  margin-bottom: 4px;
+  color: var(--t3);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.statValue {
+  color: var(--t1);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.signOutButton {
+  width: 100%;
+  border-color: rgba(248,81,73,0.25);
+  background: rgba(248,81,73,0.06);
+  color: #f85149;
+}
+
+.confirmBox {
+  border: 1px solid rgba(248,81,73,0.2);
+  border-radius: 12px;
+  background: rgba(248,81,73,0.05);
+  padding: 16px;
+}
+
+.confirmText {
+  margin-bottom: 14px;
+  color: var(--t2);
+  font-size: 13px;
+  text-align: center;
+}
+
+.confirmActions {
+  display: flex;
+  gap: 10px;
+}
+
+.confirmActions button {
+  flex: 1;
+}
+
+.dangerButton {
+  border: none;
+  border-radius: 12px;
+  background: #f85149;
+  color: white;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 11px;
+}

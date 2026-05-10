@@ -176,6 +176,12 @@
   overflow: hidden;
 }
 
+.userAvatar > *,
+.avatarButton > * {
+  width: 100%;
+  height: 100%;
+}
+
 .userMeta {
   min-width: 0;
   flex: 1;
@@ -410,16 +416,30 @@
 }
 
 .notificationItem {
+  --notification-color: #d29922;
   display: flex;
   gap: 12px;
   align-items: flex-start;
-  border-left: 3px solid transparent;
+  border-left: 3px solid var(--notification-color);
+  border-bottom: 1px solid var(--border);
   padding: 14px 16px;
   transition: background 0.12s ease;
 }
 
+.notificationLink:last-child .notificationItem {
+  border-bottom: none;
+}
+
 .notificationItem:hover {
   background: #f8fafc;
+}
+
+.notificationCritical {
+  --notification-color: #f85149;
+}
+
+.notificationWarning {
+  --notification-color: #d29922;
 }
 
 .notificationDot {
@@ -428,6 +448,8 @@
   height: 8px;
   flex-shrink: 0;
   border-radius: 999px;
+  background: var(--notification-color);
+  box-shadow: 0 0 6px var(--notification-color);
 }
 
 .notificationBody {
@@ -444,6 +466,7 @@
 }
 
 .notificationMetric {
+  color: var(--notification-color);
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.04em;

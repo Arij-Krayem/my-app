@@ -1,8 +1,38 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import styles from "./UserAvatar.module.css";
 
-const FALLBACK_COLORS = ["#5865f2", "#16a34a", "#dc2626", "#d97706", "#0ea5e9", "#8b5cf6"];
+const sizeClass: Record<number, string> = {
+  32: styles.size32,
+  38: styles.size38,
+  40: styles.size40,
+  44: styles.size44,
+  48: styles.size48,
+  56: styles.size56,
+};
+
+const radiusClass: Record<string, string> = {
+  "12": styles.radius12,
+  "14": styles.radius14,
+  "999": styles.radiusRound,
+};
+
+const fontClass: Record<number, string> = {
+  13: styles.font13,
+  14: styles.font14,
+  15: styles.font15,
+  18: styles.font18,
+  20: styles.font20,
+};
+
+const colorClass = [
+  styles.colorIndigo,
+  styles.colorGreen,
+  styles.colorRed,
+  styles.colorAmber,
+  styles.colorSky,
+  styles.colorViolet,
+];
 
 interface UserAvatarProps {
   name?: string | null;
@@ -12,7 +42,7 @@ interface UserAvatarProps {
   borderRadius?: number | string;
   fontSize?: number;
   colorIndex?: number;
-  style?: CSSProperties;
+  className?: string;
 }
 
 function getInitials(name?: string | null, email?: string | null) {
@@ -35,46 +65,35 @@ export default function UserAvatar({
   borderRadius = 12,
   fontSize = Math.max(12, Math.round(size * 0.34)),
   colorIndex = 0,
-  style,
+  className,
 }: UserAvatarProps) {
   const initials = getInitials(name, email);
-  const color = FALLBACK_COLORS[colorIndex % FALLBACK_COLORS.length];
-  const shared: CSSProperties = {
-    width: size,
-    height: size,
-    borderRadius,
-    flexShrink: 0,
-    ...style,
-  };
+  const rootClassName = [
+    styles.avatar,
+    sizeClass[size] ?? styles.size40,
+    radiusClass[String(borderRadius)] ?? styles.radius12,
+    className,
+  ].filter(Boolean).join(" ");
 
   if (avatarUrl) {
     return (
       <img
         src={avatarUrl}
         alt={name ?? email ?? "User avatar"}
-        style={{
-          ...shared,
-          objectFit: "cover",
-          border: "1px solid var(--border)",
-          background: "#fff",
-        }}
+        className={`${rootClassName} ${styles.image}`}
       />
     );
   }
 
+  const fallbackClassName = [
+    rootClassName,
+    styles.fallback,
+    fontClass[fontSize] ?? styles.font14,
+    colorClass[colorIndex % colorClass.length],
+  ].filter(Boolean).join(" ");
+
   return (
-    <div
-      style={{
-        ...shared,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: color,
-        color: "#fff",
-        fontWeight: 800,
-        fontSize,
-      }}
-    >
+    <div className={fallbackClassName}>
       {initials}
     </div>
   );

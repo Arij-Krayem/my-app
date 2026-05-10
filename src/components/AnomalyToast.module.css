@@ -1,0 +1,162 @@
+.toastStack {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 9999;
+  display: flex;
+  max-width: 380px;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.toastCard {
+  border: 1px solid rgba(210, 153, 34, .3);
+  border-left: 4px solid #d29922;
+  border-radius: 12px;
+  background: var(--card, #fff);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .12);
+  padding: 14px 16px;
+  animation: slideInRight .3s ease;
+}
+
+.cardHigh {
+  --toast-accent: #f85149;
+  border-color: rgba(248, 81, 73, .3);
+  border-left-color: #f85149;
+}
+
+.cardWarning {
+  --toast-accent: #d29922;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.titleWrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pulseDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--toast-accent);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.title {
+  color: var(--t1, #111);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.dismissButton {
+  border: none;
+  background: none;
+  color: var(--t3, #888);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 0 0 8px;
+}
+
+.badgeRow {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.badge {
+  border-radius: 5px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.badgeHigh {
+  border: 1px solid rgba(248, 81, 73, .25);
+  background: rgba(248, 81, 73, .12);
+  color: #f85149;
+}
+
+.badgeMedium {
+  border: 1px solid rgba(210, 153, 34, .25);
+  background: rgba(210, 153, 34, .12);
+  color: #d29922;
+}
+
+.badgeLow {
+  border: 1px solid rgba(63, 185, 80, .25);
+  background: rgba(63, 185, 80, .12);
+  color: #3fb950;
+}
+
+.methodBadge {
+  margin-left: auto;
+  border-radius: 4px;
+  background: rgba(88, 101, 242, .08);
+  color: #5865f2;
+  font-size: 10px;
+  padding: 2px 6px;
+}
+
+.anomalyList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.anomalyRow {
+  display: flex;
+  justify-content: space-between;
+  color: var(--t2, #555);
+  font-size: 12px;
+}
+
+.metric {
+  color: var(--t1, #111);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.campaign {
+  color: var(--t3, #888);
+}
+
+.cta {
+  display: block;
+  margin-top: 10px;
+  color: #5865f2;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: .5;
+    transform: scale(1.3);
+  }
+}

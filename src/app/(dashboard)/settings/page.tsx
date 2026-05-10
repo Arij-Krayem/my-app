@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import AvatarUploadField from "@/components/AvatarUploadField";
 import UserAvatar from "@/components/UserAvatar";
 import { readSessionUser, writeSessionUser } from "@/lib/session-user";
+import styles from "./page.module.css";
 
 interface SettingsUser {
   id: string;
@@ -127,17 +128,6 @@ export default function SettingsPage() {
     router.push("/login");
   };
 
-  const inputSt: React.CSSProperties = {
-    width: "100%", padding: "11px 14px",
-    background: "#fff", border: "1px solid var(--border)",
-    borderRadius: "12px", color: "var(--t1)", fontSize: "14px",
-    fontFamily: "inherit", outline: "none", transition: "border-color 0.2s, box-shadow 0.2s",
-  };
-  const labelSt: React.CSSProperties = { display: "block", fontSize: "11px", fontWeight: "700", color: "var(--t2)", marginBottom: "6px", textTransform: "uppercase", letterSpacing: ".12em" };
-  const cardSt = { background: "var(--card)", border: "1px solid var(--border)", borderRadius: "12px", padding: "28px" };
-  const focus = (e: React.FocusEvent<HTMLInputElement>) => { e.target.style.borderColor = "#5865f2"; e.target.style.boxShadow = "0 0 0 3px rgba(88,101,242,0.12)"; };
-  const blur = (e: React.FocusEvent<HTMLInputElement>) => { e.target.style.borderColor = "var(--border)"; e.target.style.boxShadow = "none"; };
-
   const profileIsError = profileMsg.startsWith("error:");
   const profileText = profileMsg.replace("error:", "");
   const pwIsError = passwordMsg.startsWith("error:");
@@ -157,18 +147,18 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", alignItems: "start" }}>
+      <div className={styles.settingsGrid}>
         <div>
-          <div style={{ ...cardSt, marginBottom: "16px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "24px" }}>
+          <div className={`${styles.card} ${styles.spacedCard}`}>
+            <div className={styles.sectionHeader}>
               <UserAvatar name={user?.name} email={user?.email} avatarUrl={avatarUrl} size={48} borderRadius={12} fontSize={20} />
               <div>
-                <h2 style={{ fontSize: "18px", fontWeight: "800", color: "var(--t1)" }}>Profile information</h2>
-                <p style={{ fontSize: "13px", color: "var(--t2)", marginTop: "2px" }}>Update your display name and account email.</p>
+                <h2 className={styles.title}>Profile information</h2>
+                <p className={styles.subtitle}>Update your display name and account email.</p>
               </div>
             </div>
             <form onSubmit={saveProfile}>
-              <div style={{ marginBottom: "16px" }}>
+              <div className={styles.fieldLarge}>
                 <AvatarUploadField
                   currentUrl={avatarUrl}
                   name={name || user?.name}
@@ -177,56 +167,56 @@ export default function SettingsPage() {
                   onRemove={() => setAvatarUrl(null)}
                 />
               </div>
-              <div style={{ marginBottom: "14px" }}>
-                <label style={labelSt}>Full Name</label>
-                <input type="text" value={name} onChange={e => setName(e.target.value)} required style={inputSt} onFocus={focus} onBlur={blur} />
+              <div className={styles.field}>
+                <label className={styles.label}>Full Name</label>
+                <input type="text" value={name} onChange={e => setName(e.target.value)} required className={styles.input} />
               </div>
-              <div style={{ marginBottom: "20px" }}>
-                <label style={labelSt}>Email Address</label>
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)} required style={inputSt} onFocus={focus} onBlur={blur} />
+              <div className={styles.fieldLast}>
+                <label className={styles.label}>Email Address</label>
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} required className={styles.input} />
               </div>
               {profileText && (
-                <div style={{ marginBottom: "14px", padding: "10px 14px", borderRadius: "12px", background: profileIsError ? "rgba(248,81,73,0.08)" : "rgba(63,185,80,0.08)", border: `1px solid ${profileIsError ? "rgba(248,81,73,0.25)" : "rgba(63,185,80,0.25)"}`, color: profileIsError ? "#f85149" : "#3fb950", fontSize: "13px", fontWeight: "600", display: "flex", alignItems: "center", gap: "6px" }}>
+                <div className={`${styles.message} ${profileIsError ? styles.messageError : styles.messageSuccess}`}>
                   {!profileIsError && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
                   {profileIsError ? profileText : "Profile updated successfully"}
                 </div>
               )}
-              <button type="submit" disabled={profileLoading} className="btn-primary" style={{ opacity: profileLoading ? 0.7 : 1 }}>
+              <button type="submit" disabled={profileLoading} className={`btn-primary ${profileLoading ? styles.buttonLoading : ""}`}>
                 {profileLoading ? "Saving..." : "Update Profile"}
               </button>
             </form>
           </div>
 
-          <div style={cardSt}>
-            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "24px" }}>
-              <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "rgba(88,101,242,0.1)", display: "flex", alignItems: "center", justifyContent: "center", color: "#5865f2" }}>
+          <div className={styles.card}>
+            <div className={styles.sectionHeader}>
+              <div className={styles.iconBox}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
               </div>
               <div>
-                <h2 style={{ fontSize: "18px", fontWeight: "800", color: "var(--t1)" }}>Change password</h2>
-                <p style={{ fontSize: "13px", color: "var(--t2)", marginTop: "2px" }}>Keep your account secure with a fresh password.</p>
+                <h2 className={styles.title}>Change password</h2>
+                <p className={styles.subtitle}>Keep your account secure with a fresh password.</p>
               </div>
             </div>
             <form onSubmit={savePassword}>
-              <div style={{ marginBottom: "12px" }}>
-                <label style={labelSt}>Current Password</label>
-                <input type="password" value={currentPw} onChange={e => setCurrentPw(e.target.value)} required style={inputSt} onFocus={focus} onBlur={blur} />
+              <div className={styles.field}>
+                <label className={styles.label}>Current Password</label>
+                <input type="password" value={currentPw} onChange={e => setCurrentPw(e.target.value)} required className={styles.input} />
               </div>
-              <div style={{ marginBottom: "12px" }}>
-                <label style={labelSt}>New Password</label>
-                <input type="password" value={newPw} onChange={e => setNewPw(e.target.value)} required minLength={6} style={inputSt} onFocus={focus} onBlur={blur} />
+              <div className={styles.field}>
+                <label className={styles.label}>New Password</label>
+                <input type="password" value={newPw} onChange={e => setNewPw(e.target.value)} required minLength={6} className={styles.input} />
               </div>
-              <div style={{ marginBottom: "20px" }}>
-                <label style={labelSt}>Confirm New Password</label>
-                <input type="password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} required minLength={6} style={inputSt} onFocus={focus} onBlur={blur} />
+              <div className={styles.fieldLast}>
+                <label className={styles.label}>Confirm New Password</label>
+                <input type="password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} required minLength={6} className={styles.input} />
               </div>
               {pwMsg && (
-                <div style={{ marginBottom: "14px", padding: "10px 14px", borderRadius: "12px", background: pwIsError ? "rgba(248,81,73,0.08)" : "rgba(63,185,80,0.08)", border: `1px solid ${pwIsError ? "rgba(248,81,73,0.25)" : "rgba(63,185,80,0.25)"}`, color: pwIsError ? "#f85149" : "#3fb950", fontSize: "13px", fontWeight: "600", display: "flex", alignItems: "center", gap: "6px" }}>
+                <div className={`${styles.message} ${pwIsError ? styles.messageError : styles.messageSuccess}`}>
                   {!pwIsError && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
                   {pwMsg}
                 </div>
               )}
-              <button type="submit" disabled={passwordLoading} className="btn-primary" style={{ opacity: passwordLoading ? 0.7 : 1 }}>
+              <button type="submit" disabled={passwordLoading} className={`btn-primary ${passwordLoading ? styles.buttonLoading : ""}`}>
                 {passwordLoading ? "Saving..." : "Change Password"}
               </button>
             </form>
@@ -234,29 +224,29 @@ export default function SettingsPage() {
         </div>
 
         <div>
-          <div style={{ ...cardSt, marginBottom: "16px" }}>
-            <h2 style={{ fontSize: "18px", fontWeight: "800", color: "var(--t1)", marginBottom: "20px" }}>Account</h2>
+          <div className={`${styles.card} ${styles.spacedCard}`}>
+            <h2 className={styles.accountTitle}>Account</h2>
             {user && (
               <div>
-                <div style={{ display: "flex", alignItems: "center", gap: "14px", padding: "16px", borderRadius: "12px", background: "#f8fafc", border: "1px solid var(--border)", marginBottom: "16px" }}>
+                <div className={styles.accountBox}>
                   <UserAvatar name={user.name} email={user.email} avatarUrl={user.avatarUrl} size={44} borderRadius={12} fontSize={18} />
                   <div>
-                    <p style={{ fontSize: "15px", fontWeight: "800", color: "var(--t1)" }}>{user.name}</p>
-                    <p style={{ fontSize: "12px", color: "var(--t2)", marginTop: "2px" }}>{user.email}</p>
-                    <span style={{ display: "inline-block", marginTop: "6px", fontSize: "11px", fontWeight: "800", padding: "4px 10px", borderRadius: "999px", background: "rgba(88,101,242,0.1)", color: "#5865f2", border: "1px solid rgba(88,101,242,0.2)" }}>
+                    <p className={styles.userName}>{user.name}</p>
+                    <p className={styles.userEmail}>{user.email}</p>
+                    <span className={styles.roleBadge}>
                       {user.role?.replace("_", " ")}
                     </span>
                   </div>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                <div className={styles.statsGrid}>
                   {[
                     { label: "Member since", value: memberSince },
                     { label: "Last login", value: "Today" },
                   ].map(s => (
-                    <div key={s.label} style={{ padding: "12px 14px", borderRadius: "12px", background: "#f8fafc", border: "1px solid var(--border)" }}>
-                      <p style={{ fontSize: "11px", color: "var(--t3)", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: "700" }}>{s.label}</p>
-                      <p style={{ fontSize: "14px", fontWeight: "700", color: "var(--t1)" }}>{s.value}</p>
+                    <div key={s.label} className={styles.statCard}>
+                      <p className={styles.statLabel}>{s.label}</p>
+                      <p className={styles.statValue}>{s.value}</p>
                     </div>
                   ))}
                 </div>
@@ -264,29 +254,29 @@ export default function SettingsPage() {
             )}
           </div>
 
-          <div style={cardSt}>
-            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
-              <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "rgba(248,81,73,0.08)", display: "flex", alignItems: "center", justifyContent: "center", color: "#f85149" }}>
+          <div className={styles.card}>
+            <div className={styles.sectionHeaderCompact}>
+              <div className={styles.dangerIconBox}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
               </div>
               <div>
-                <h2 style={{ fontSize: "18px", fontWeight: "800", color: "var(--t1)" }}>Sign out</h2>
-                <p style={{ fontSize: "13px", color: "var(--t2)", marginTop: "2px" }}>End your current session safely.</p>
+                <h2 className={styles.title}>Sign out</h2>
+                <p className={styles.subtitle}>End your current session safely.</p>
               </div>
             </div>
 
             {!showLogout ? (
-              <button onClick={() => setShowLogout(true)} className="btn-secondary" style={{ width: "100%", color: "#f85149", borderColor: "rgba(248,81,73,0.25)", background: "rgba(248,81,73,0.06)" }}>
+              <button onClick={() => setShowLogout(true)} className={`btn-secondary ${styles.signOutButton}`}>
                 Sign Out
               </button>
             ) : (
-              <div style={{ padding: "16px", borderRadius: "12px", background: "rgba(248,81,73,0.05)", border: "1px solid rgba(248,81,73,0.2)" }}>
-                <p style={{ fontSize: "13px", color: "var(--t2)", marginBottom: "14px", textAlign: "center" }}>Are you sure you want to sign out?</p>
-                <div style={{ display: "flex", gap: "10px" }}>
-                  <button onClick={() => setShowLogout(false)} className="btn-secondary" style={{ flex: 1 }}>
+              <div className={styles.confirmBox}>
+                <p className={styles.confirmText}>Are you sure you want to sign out?</p>
+                <div className={styles.confirmActions}>
+                  <button onClick={() => setShowLogout(false)} className="btn-secondary">
                     Cancel
                   </button>
-                  <button onClick={logout} style={{ flex: 1, padding: "11px", borderRadius: "12px", border: "none", background: "#f85149", color: "white", fontSize: "14px", fontWeight: "700", cursor: "pointer", fontFamily: "inherit" }}>
+                  <button onClick={logout} className={styles.dangerButton}>
                     Yes, sign out
                   </button>
                 </div>

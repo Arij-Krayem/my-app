@@ -1,5 +1,7 @@
 "use client";
+
 import { useState, useEffect, useCallback } from "react";
+import styles from "./page.module.css";
 
 type Status = "OPEN" | "ACK" | "RESOLVED";
 type Severity = "CRITICAL" | "WARNING";
@@ -29,14 +31,15 @@ const TABS: { key: "ALL" | Status; label: string }[] = [
   { key: "RESOLVED", label: "Resolved" },
 ];
 
-const SEV_CFG: Record<Severity, { color: string; bg: string; border: string }> = {
-  CRITICAL: { color: "#f85149", bg: "rgba(248,81,73,0.1)", border: "rgba(248,81,73,0.25)" },
-  WARNING: { color: "#d29922", bg: "rgba(210,153,34,0.1)", border: "rgba(210,153,34,0.25)" },
+const SEV_CLASS: Record<Severity, string> = {
+  CRITICAL: styles.severityCritical,
+  WARNING: styles.severityWarning,
 };
-const STA_CFG: Record<Status, { color: string; bg: string; border: string }> = {
-  OPEN: { color: "#5865f2", bg: "rgba(88,101,242,0.1)", border: "rgba(88,101,242,0.25)" },
-  ACK: { color: "#d29922", bg: "rgba(210,153,34,0.1)", border: "rgba(210,153,34,0.25)" },
-  RESOLVED: { color: "#3fb950", bg: "rgba(63,185,80,0.1)", border: "rgba(63,185,80,0.25)" },
+
+const STA_CLASS: Record<Status, string> = {
+  OPEN: styles.statusOpen,
+  ACK: styles.statusAck,
+  RESOLVED: styles.statusResolved,
 };
 
 function timeAgo(dateStr: string) {
@@ -136,9 +139,9 @@ export default function AlertsPage() {
       </div>
 
       {loading ? (
-        <div className="dashboard-card" style={{ textAlign: "center", padding: "80px 20px" }}>
-          <div style={{ width: 32, height: 32, borderRadius: "50%", border: "3px solid var(--border)", borderTopColor: "#5865f2", animation: "spin 0.8s linear infinite", margin: "0 auto 16px" }} />
-          <p style={{ fontSize: "14px", color: "var(--t2)" }}>Loading alerts...</p>
+        <div className={`dashboard-card ${styles.loadingCard}`}>
+          <div className={styles.loader} />
+          <p className={styles.loadingText}>Loading alerts...</p>
         </div>
       ) : visible.length === 0 ? (
         <div className="dashboard-card dashboard-empty-state">
@@ -149,54 +152,52 @@ export default function AlertsPage() {
           <div className="dashboard-empty-subtitle">Create guardrail rules to start monitoring metrics and receiving alert notifications.</div>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+        <div className={styles.alertList}>
           {visible.map(a => {
             const severity = getSeverity(a);
-            const sv = SEV_CFG[severity];
-            const st = STA_CFG[a.status];
             const isUpdating = updating === a.id;
 
             return (
-              <div key={a.id} className="dashboard-card" style={{ borderLeft: `4px solid ${sv.color}`, padding: "20px 22px", display: "flex", alignItems: "center", gap: "20px", opacity: isUpdating ? 0.6 : 1 }}>
-                <div style={{ width: "10px", height: "10px", borderRadius: "50%", background: sv.color, flexShrink: 0 }} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px", flexWrap: "wrap" }}>
-                    <span style={{ fontSize: "15px", fontWeight: "800", color: "var(--t1)" }}>{a.rule?.metricKey?.toUpperCase() ?? "Alert"}</span>
+              <div key={a.id} className={`dashboard-card ${styles.alertCard} ${SEV_CLASS[severity]} ${STA_CLASS[a.status]} ${isUpdating ? styles.alertCardUpdating : ""}`}>
+                <div className={styles.severityDot} />
+                <div className={styles.alertContent}>
+                  <div className={styles.alertMetaRow}>
+                    <span className={styles.metricTitle}>{a.rule?.metricKey?.toUpperCase() ?? "Alert"}</span>
                     {a.brand?.name && (
-                      <span style={{ fontSize: "11px", fontWeight: "700", padding: "4px 10px", borderRadius: "999px", background: "#eef2ff", color: "#5865f2" }}>
+                      <span className={styles.brandBadge}>
                         {a.brand.name}
                       </span>
                     )}
-                    <span style={{ fontSize: "11px", fontWeight: "800", padding: "4px 10px", borderRadius: "999px", background: sv.bg, color: sv.color, border: `1px solid ${sv.border}` }}>{severity}</span>
-                    <span style={{ fontSize: "11px", fontWeight: "700", padding: "4px 10px", borderRadius: "999px", background: st.bg, color: st.color, border: `1px solid ${st.border}` }}>{a.status}</span>
+                    <span className={styles.severityBadge}>{severity}</span>
+                    <span className={styles.statusBadge}>{a.status}</span>
                   </div>
 
-                  <p style={{ fontSize: "14px", color: "var(--t2)", margin: "0 0 10px", lineHeight: 1.6 }}>{a.message}</p>
+                  <p className={styles.message}>{a.message}</p>
 
                   {a.rule && (
-                    <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
+                    <div className={styles.ruleDetails}>
                       <div>
-                        <span style={{ fontSize: "11px", color: "var(--t3)", display: "block", marginBottom: "2px", textTransform: "uppercase", fontWeight: "800", letterSpacing: "0.08em" }}>Metric</span>
-                        <span style={{ fontSize: "13px", fontWeight: "700", color: "var(--t1)" }}>{a.rule.metricKey}</span>
+                        <span className={styles.detailLabel}>Metric</span>
+                        <span className={styles.detailValue}>{a.rule.metricKey}</span>
                       </div>
                       <div>
-                        <span style={{ fontSize: "11px", color: "var(--t3)", display: "block", marginBottom: "2px", textTransform: "uppercase", fontWeight: "800", letterSpacing: "0.08em" }}>Condition</span>
-                        <span style={{ fontSize: "13px", fontWeight: "700", color: "var(--t1)" }}>{a.rule.operator} {a.rule.threshold}</span>
+                        <span className={styles.detailLabel}>Condition</span>
+                        <span className={styles.detailValue}>{a.rule.operator} {a.rule.threshold}</span>
                       </div>
                     </div>
                   )}
 
-                  <div style={{ fontSize: "12px", color: "var(--t3)", marginTop: "10px" }}>{timeAgo(a.createdAt)}</div>
+                  <div className={styles.timestamp}>{timeAgo(a.createdAt)}</div>
                 </div>
 
                 {a.status !== "RESOLVED" && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "8px", flexShrink: 0 }}>
+                  <div className={styles.actions}>
                     {a.status === "OPEN" && (
-                      <button onClick={() => updateStatus(a.id, "ACK")} disabled={isUpdating} className="btn-secondary" style={{ padding: "9px 14px", color: "#d29922", borderColor: "rgba(210,153,34,0.25)" }}>
+                      <button onClick={() => updateStatus(a.id, "ACK")} disabled={isUpdating} className={`btn-secondary ${styles.actionButton} ${styles.ackButton}`}>
                         {isUpdating ? "..." : "Acknowledge"}
                       </button>
                     )}
-                    <button onClick={() => updateStatus(a.id, "RESOLVED")} disabled={isUpdating} className="btn-secondary" style={{ padding: "9px 14px", color: "#16a34a", borderColor: "rgba(22,163,74,0.25)" }}>
+                    <button onClick={() => updateStatus(a.id, "RESOLVED")} disabled={isUpdating} className={`btn-secondary ${styles.actionButton} ${styles.resolveButton}`}>
                       {isUpdating ? "..." : "Resolve"}
                     </button>
                   </div>
@@ -206,8 +207,6 @@ export default function AlertsPage() {
           })}
         </div>
       )}
-
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

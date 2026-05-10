@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import UserAvatar from "@/components/UserAvatar";
+import styles from "./AvatarUploadField.module.css";
 
 interface AvatarUploadFieldProps {
   currentUrl?: string | null;
@@ -82,25 +83,25 @@ export default function AvatarUploadField({
 
   return (
     <div>
-      <label style={{ fontSize: 11, fontWeight: 800, color: "var(--t2)", textTransform: "uppercase" as const, letterSpacing: ".12em", marginBottom: 8, display: "block" }}>
-        {label} <span style={{ color: "var(--t3)", fontWeight: 400, fontSize: 10, textTransform: "none" as const }}>(PNG, JPG, SVG, WEBP · max 2 MB)</span>
+      <label className={styles.label}>
+        {label} <span className={styles.labelHint}>(PNG, JPG, SVG, WEBP &middot; max 2 MB)</span>
       </label>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px", border: "1px solid var(--border)", borderRadius: 12, background: "#f8fafc" }}>
+      <div className={styles.uploadBox}>
         <UserAvatar name={name} email={email} avatarUrl={preview} size={56} borderRadius={14} fontSize={18} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ fontSize: 13, fontWeight: 600, color: "var(--t1)", marginBottom: 4 }}>
+        <div className={styles.meta}>
+          <p className={styles.title}>
             {preview ? "Profile picture uploaded" : "No profile picture"}
           </p>
-          <p style={{ fontSize: 11, color: "var(--t3)" }}>
+          <p className={styles.description}>
             {preview ? "Click Change to replace or Remove to use initials." : "Upload an image to replace the default initials avatar."}
           </p>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className={styles.actions}>
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
-            style={{ fontSize: 12, fontWeight: 700, padding: "6px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "#fff", cursor: "pointer", color: "var(--t1)" }}
+            className={styles.secondaryButton}
           >
             {uploading ? "Uploading..." : preview ? "Change" : "Upload"}
           </button>
@@ -108,7 +109,7 @@ export default function AvatarUploadField({
             <button
               type="button"
               onClick={handleRemove}
-              style={{ fontSize: 12, fontWeight: 700, padding: "6px 12px", borderRadius: 8, border: "1px solid rgba(220,38,38,.2)", background: "rgba(220,38,38,.06)", cursor: "pointer", color: "#dc2626" }}
+              className={styles.removeButton}
             >
               Remove
             </button>
@@ -117,7 +118,7 @@ export default function AvatarUploadField({
       </div>
 
       {error && (
-        <p style={{ fontSize: 12, color: "#dc2626", marginTop: 6, display: "flex", alignItems: "center", gap: 4 }}>
+        <p className={styles.error}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
           {error}
         </p>
@@ -127,7 +128,7 @@ export default function AvatarUploadField({
         ref={fileRef}
         type="file"
         accept="image/png,image/jpeg,image/jpg,image/svg+xml,image/webp"
-        style={{ display: "none" }}
+        className={styles.fileInput}
         onChange={e => {
           const file = e.target.files?.[0];
           if (file) handleFile(file);

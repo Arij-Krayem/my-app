@@ -1,0 +1,80 @@
+.loadingSpinner {
+  width: 40px;
+  height: 40px;
+}
+
+.notFound {
+  padding: 48px 0;
+  text-align: center;
+}
+
+.mutedText {
+  color: var(--t2);
+}
+
+.textStrong {
+  color: var(--t1);
+}
+
+.backButton {
+  color: var(--t1);
+}
+
+.kpiCard {
+  border-radius: 8px;
+  background: var(--bg);
+  padding: 16px;
+}
+
+.kpiLabel {
+  margin-bottom: 4px;
+  color: var(--t3);
+  font-size: 14px;
+}
+
+.kpiValue {
+  color: var(--t1);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.tabsBorder {
+  border-bottom: 1px solid var(--border);
+}
+
+.tabButton {
+  border-bottom-color: transparent;
+  color: var(--t2);
+}
+
+.tabButton:hover {
+  color: #4b5563;
+}
+
+.tabButtonActive {
+  border-bottom-color: var(--accent);
+  color: var(--accent);
+}
+
+.sectionTitle {
+  margin-bottom: 16px;
+  color: var(--t1);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.listItem {
+  border-radius: 8px;
+  background: var(--bg);
+  padding: 12px;
+}
+
+.itemTitle {
+  color: var(--t1);
+  font-weight: 500;
+}
+
+.itemMeta {
+  color: var(--t2);
+  font-size: 14px;
+}

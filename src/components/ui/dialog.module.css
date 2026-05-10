@@ -1,0 +1,92 @@
+.root {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(15,18,40,0.35);
+}
+
+.content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  margin: 0 16px;
+  overflow-y: auto;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.14);
+  font-family: "Outfit", sans-serif;
+  padding: 28px 28px 24px;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.headerMain {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.icon {
+  display: flex;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: rgba(88,101,242,0.1);
+  color: #5865f2;
+}
+
+.title {
+  margin: 0;
+  color: #1e293b;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.description {
+  margin: 3px 0 0;
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.closeButton {
+  display: flex;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  margin-left: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 20px;
+}

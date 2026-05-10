@@ -1,18 +1,18 @@
 "use client";
+
 import { useEffect, useState, useCallback, useRef } from "react";
 import {
   ComposedChart, Line, Area, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine,
 } from "recharts";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
+import styles from "./PredictiveBaseline.module.css";
 
 interface ChartPoint {
   date: string;
   actual?: number;
   ma7?: number;
   predicted?: number;
-  band?: [number, number]; // [lower, upper] for area
+  band?: [number, number];
   isPredicted?: boolean;
 }
 
@@ -41,8 +41,6 @@ interface ApiResponse {
   error?: string;
 }
 
-// ─── Props ────────────────────────────────────────────────────────────────────
-
 interface PredictiveBaselineProps {
   brandId: string;
   platform?: string;
@@ -50,25 +48,36 @@ interface PredictiveBaselineProps {
   dateTo?: string;
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
 const METRICS = [
-  { key: "spend", label: "Spend",  prefix: "$", suffix: "",  color: "#5865f2" },
-  { key: "roas",  label: "ROAS",   prefix: "",  suffix: "x", color: "#16a34a" },
-  { key: "ctr",   label: "CTR",    prefix: "",  suffix: "%", color: "#0f766e" },
-  { key: "cpc",   label: "CPC",    prefix: "$", suffix: "",  color: "#b7791f" },
+  { key: "spend", label: "Spend", prefix: "$", suffix: "", color: "#5865f2" },
+  { key: "roas", label: "ROAS", prefix: "", suffix: "x", color: "#16a34a" },
+  { key: "ctr", label: "CTR", prefix: "", suffix: "%", color: "#0f766e" },
+  { key: "cpc", label: "CPC", prefix: "$", suffix: "", color: "#b7791f" },
 ] as const;
 
 const WINDOWS = [7, 14, 28] as const;
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+type MetricKey = typeof METRICS[number]["key"];
+type MetricMeta = typeof METRICS[number];
+interface TooltipPayload {
+  name: string;
+  value?: number;
+  color: string;
+  payload?: { isPredicted?: boolean };
+}
+interface DotProps {
+  key?: string;
+  payload?: ChartPoint;
+  cx?: number;
+  cy?: number;
+}
 
 function fmt(val: number | undefined, prefix = "", suffix = "", decimals = 2): string {
   if (val === undefined || val === null || isNaN(val)) return "—";
   const n = Number(val);
   const formatted =
     n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M`
-    : n >= 1_000  ? `${(n / 1_000).toFixed(1)}k`
+    : n >= 1_000 ? `${(n / 1_000).toFixed(1)}k`
     : n.toFixed(decimals);
   return `${prefix}${formatted}${suffix}`;
 }
@@ -79,37 +88,38 @@ function shortDate(iso: string): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-// ─── Custom tooltip ───────────────────────────────────────────────────────────
+function metricClass(metric: MetricKey) {
+  if (metric === "roas") return styles.metricRoas;
+  if (metric === "ctr") return styles.metricCtr;
+  if (metric === "cpc") return styles.metricCpc;
+  return styles.metricSpend;
+}
 
-function CustomTooltip({ active, payload, label, metricMeta }: any) {
+function CustomTooltip({ active, payload, label, metricMeta }: { active?: boolean; payload?: TooltipPayload[]; label?: string; metricMeta: MetricMeta }) {
   if (!active || !payload?.length) return null;
   const isPredicted = payload[0]?.payload?.isPredicted;
 
-  const tooltipStyle: React.CSSProperties = {
-    background: "var(--card)",
-    border: "1px solid var(--border)",
-    borderRadius: "10px",
-    padding: "10px 14px",
-    fontSize: "12px",
-    minWidth: "160px",
-  };
-
   return (
-    <div style={tooltipStyle}>
-      <div style={{ fontWeight: 700, color: "var(--t1)", marginBottom: "6px", display: "flex", alignItems: "center", gap: "6px" }}>
+    <div className={styles.tooltip}>
+      <div className={styles.tooltipHeader}>
         {shortDate(label)}
         {isPredicted && (
-          <span style={{ fontSize: "10px", padding: "1px 6px", borderRadius: "4px", background: "rgba(88,101,242,0.1)", color: "#5865f2", fontWeight: 600 }}>
+          <span className={styles.predictedBadge}>
             Predicted
           </span>
         )}
       </div>
-      {payload.map((p: any) => {
+      {payload.map((p) => {
         if (p.name === "band" || p.value === undefined) return null;
         return (
-          <div key={p.name} style={{ display: "flex", justifyContent: "space-between", gap: "16px", color: "var(--t2)", marginBottom: "3px" }}>
-            <span style={{ color: p.color }}>{p.name}</span>
-            <span style={{ fontWeight: 600, color: "var(--t1)", fontVariantNumeric: "tabular-nums" }}>
+          <div key={p.name} className={styles.tooltipRow}>
+            <span className={styles.tooltipSeries}>
+              <svg className={styles.tooltipDot} viewBox="0 0 8 8" aria-hidden="true">
+                <circle cx="4" cy="4" r="4" fill={p.color} />
+              </svg>
+              {p.name}
+            </span>
+            <span className={styles.tooltipValue}>
               {fmt(p.value, metricMeta.prefix, metricMeta.suffix)}
             </span>
           </div>
@@ -119,18 +129,16 @@ function CustomTooltip({ active, payload, label, metricMeta }: any) {
   );
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
-
 export default function PredictiveBaseline({
   brandId,
   platform = "",
   dateFrom = "",
-  dateTo   = "",
+  dateTo = "",
 }: PredictiveBaselineProps) {
-  const [data,       setData]       = useState<ApiResponse | null>(null);
-  const [loading,    setLoading]    = useState(true);
-  const [error,      setError]      = useState<string | null>(null);
-  const [metric,     setMetric]     = useState<"spend" | "roas" | "ctr" | "cpc">("spend");
+  const [data, setData] = useState<ApiResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [metric, setMetric] = useState<MetricKey>("spend");
   const [windowSize, setWindowSize] = useState<7 | 14 | 28>(7);
   const requestSeq = useRef(0);
 
@@ -158,7 +166,7 @@ export default function PredictiveBaseline({
     const p = new URLSearchParams({ brandId, metric, window: String(windowSize) });
     if (platform) p.set("platform", platform);
     if (dateFrom) p.set("dateFrom", dateFrom);
-    if (dateTo)   p.set("dateTo",   dateTo);
+    if (dateTo) p.set("dateTo", dateTo);
 
     fetch(`/api/analytics/predictive-baseline?${p}`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -191,110 +199,73 @@ export default function PredictiveBaseline({
     return () => window.clearTimeout(timeout);
   }, [fetchData]);
 
-  // ── Build unified chart data ────────────────────────────────────────────
   const chartData: ChartPoint[] = [];
 
   if (data) {
     for (const h of data.historical) {
       chartData.push({
-        date:   h.date,
+        date: h.date,
         actual: h.actual,
-        ma7:    h.ma7,
-        band:   [h.lower, h.upper],
+        ma7: h.ma7,
+        band: [h.lower, h.upper],
       });
     }
-    // Bridge: last historical point connects to first forecast
     const last = data.historical[data.historical.length - 1];
     if (last && data.forecast.length > 0) {
-      // Add transition point so lines connect
       chartData[chartData.length - 1] = {
         ...chartData[chartData.length - 1],
-        predicted: last.actual, // anchor the predicted line at last actual
+        predicted: last.actual,
       };
     }
     for (const f of data.forecast) {
       chartData.push({
-        date:        f.date,
-        predicted:   f.predicted,
-        band:        [f.lower, f.upper],
+        date: f.date,
+        predicted: f.predicted,
+        band: [f.lower, f.upper],
         isPredicted: true,
       });
     }
   }
 
   const todayStr = chartData.find(p => p.isPredicted)?.date;
-  const summary  = data?.summary;
-
-  // ── Styles ─────────────────────────────────────────────────────────────────
-  const card: React.CSSProperties = {
-    background: "var(--card)",
-    border: "1px solid var(--border)",
-    borderRadius: "16px",
-    padding: "22px",
-    marginBottom: "24px",
-  };
-  const tabBtn = (active: boolean): React.CSSProperties => ({
-    padding: "5px 13px",
-    fontSize: "12px",
-    fontWeight: active ? 700 : 500,
-    fontFamily: "inherit",
-    border: "none",
-    cursor: "pointer",
-    background: active ? metricMeta.color : "transparent",
-    color: active ? "white" : "var(--t2)",
-    borderRadius: "6px",
-    transition: "all 0.15s",
-  });
-  const winBtn = (active: boolean): React.CSSProperties => ({
-    padding: "4px 11px",
-    fontSize: "11px",
-    fontWeight: active ? 700 : 500,
-    fontFamily: "inherit",
-    border: active ? `1px solid ${metricMeta.color}` : "1px solid var(--border)",
-    cursor: "pointer",
-    background: active ? `${metricMeta.color}18` : "transparent",
-    color: active ? metricMeta.color : "var(--t3)",
-    borderRadius: "6px",
-    transition: "all 0.15s",
-  });
-  const kpiCard: React.CSSProperties = {
-    background: "var(--bg)",
-    border: "1px solid var(--border)",
-    borderRadius: "12px",
-    padding: "14px 16px",
-    flex: 1,
-  };
+  const summary = data?.summary;
+  const isPositiveTrend = summary ? (metric === "cpc" ? summary.trend === "down" : summary.trend === "up") : false;
 
   return (
-    <div style={card}>
-      {/* ── Header ────────────────────────────────────────────────────────── */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "18px", flexWrap: "wrap", gap: "12px" }}>
+    <div className={`${styles.card} ${metricClass(metric)}`}>
+      <div className={styles.header}>
         <div>
-          <div style={{ fontSize: "10px", fontWeight: 700, color: "var(--t3)", letterSpacing: "0.8px", textTransform: "uppercase", marginBottom: "4px" }}>
+          <div className={styles.eyebrow}>
             Predictive baseline
           </div>
-          <h2 style={{ fontSize: "16px", fontWeight: 800, color: "var(--t1)", margin: 0 }}>
+          <h2 className={styles.title}>
             Next 7-day performance forecast
           </h2>
-          <p style={{ fontSize: "12px", color: "var(--t3)", marginTop: "4px" }}>
-            Moving average baseline · {windowSize}-day window · shaded band = ±1 std dev
+          <p className={styles.subtitle}>
+            Moving average baseline &middot; {windowSize}-day window &middot; shaded band = &plusmn;1 std dev
           </p>
         </div>
 
-        <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
-          {/* Window selector */}
-          <div style={{ display: "flex", gap: "4px" }}>
+        <div className={styles.controls}>
+          <div className={styles.windowButtons}>
             {WINDOWS.map(w => (
-              <button key={w} onClick={() => setWindowSize(w)} style={winBtn(windowSize === w)}>
+              <button
+                key={w}
+                onClick={() => setWindowSize(w)}
+                className={`${styles.windowButton} ${windowSize === w ? styles.windowButtonActive : ""}`}
+              >
                 {w}d
               </button>
             ))}
           </div>
 
-          {/* Metric tabs */}
-          <div style={{ display: "flex", background: "var(--bg)", border: "1px solid var(--border)", borderRadius: "8px", padding: "3px", gap: "2px" }}>
+          <div className={styles.metricTabs}>
             {METRICS.map(m => (
-              <button key={m.key} onClick={() => setMetric(m.key as typeof metric)} style={tabBtn(metric === m.key)}>
+              <button
+                key={m.key}
+                onClick={() => setMetric(m.key)}
+                className={`${styles.metricTab} ${metric === m.key ? styles.metricTabActive : ""}`}
+              >
                 {m.label}
               </button>
             ))}
@@ -302,73 +273,58 @@ export default function PredictiveBaseline({
         </div>
       </div>
 
-      {/* ── KPI summary cards ────────────────────────────────────────────── */}
       {summary && (
-        <div style={{ display: "flex", gap: "12px", marginBottom: "20px", flexWrap: "wrap" }}>
-          <div style={kpiCard}>
-            <div style={{ fontSize: "11px", color: "var(--t3)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "6px" }}>
-              Last actual
-            </div>
-            <div style={{ fontSize: "22px", fontWeight: 800, color: "var(--t1)", fontVariantNumeric: "tabular-nums" }}>
+        <div className={styles.kpiGrid}>
+          <div className={styles.kpiCard}>
+            <div className={styles.kpiLabel}>Last actual</div>
+            <div className={styles.kpiValue}>
               {fmt(summary.lastActual, metricMeta.prefix, metricMeta.suffix)}
             </div>
-            <div style={{ fontSize: "11px", color: "var(--t3)", marginTop: "4px" }}>Most recent data point</div>
+            <div className={styles.kpiNote}>Most recent data point</div>
           </div>
 
-          <div style={kpiCard}>
-            <div style={{ fontSize: "11px", color: "var(--t3)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "6px" }}>
-              Next week avg
-            </div>
-            <div style={{ fontSize: "22px", fontWeight: 800, color: metricMeta.color, fontVariantNumeric: "tabular-nums" }}>
+          <div className={styles.kpiCard}>
+            <div className={styles.kpiLabel}>Next week avg</div>
+            <div className={`${styles.kpiValue} ${styles.metricText}`}>
               {fmt(summary.nextWeekAvg, metricMeta.prefix, metricMeta.suffix)}
             </div>
-            <div style={{ fontSize: "11px", color: "var(--t3)", marginTop: "4px" }}>7-day MA forecast</div>
+            <div className={styles.kpiNote}>7-day MA forecast</div>
           </div>
 
-          <div style={kpiCard}>
-            <div style={{ fontSize: "11px", color: "var(--t3)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "6px" }}>
-              Trend
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "2px" }}>
-              <div style={{
-                fontSize: "22px", fontWeight: 800,
-                color: summary.trend === "up"
-                  ? (metric === "cpc" ? "#E24B4A" : "#16a34a")
-                  : (metric === "cpc" ? "#16a34a" : "#E24B4A"),
-              }}>
+          <div className={styles.kpiCard}>
+            <div className={styles.kpiLabel}>Trend</div>
+            <div className={styles.trendWrap}>
+              <div className={`${styles.trendValue} ${isPositiveTrend ? styles.trendGood : styles.trendBad}`}>
                 {summary.trend === "up" ? "▲" : "▼"} {summary.trendPct.toFixed(1)}%
               </div>
             </div>
-            <div style={{ fontSize: "11px", color: "var(--t3)", marginTop: "4px" }}>
-              vs last actual · {metric === "cpc" ? (summary.trend === "up" ? "costs rising" : "costs falling") : (summary.trend === "up" ? "improving" : "declining")}
+            <div className={styles.kpiNote}>
+              vs last actual &middot; {metric === "cpc" ? (summary.trend === "up" ? "costs rising" : "costs falling") : (summary.trend === "up" ? "improving" : "declining")}
             </div>
           </div>
 
-          <div style={kpiCard}>
-            <div style={{ fontSize: "11px", color: "var(--t3)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "6px" }}>
-              Data points
-            </div>
-            <div style={{ fontSize: "22px", fontWeight: 800, color: "var(--t1)" }}>
+          <div className={styles.kpiCard}>
+            <div className={styles.kpiLabel}>Data points</div>
+            <div className={styles.kpiValue}>
               {summary.dataPoints}
             </div>
-            <div style={{ fontSize: "11px", color: "var(--t3)", marginTop: "4px" }}>
+            <div className={styles.kpiNote}>
               Historical days used
             </div>
           </div>
         </div>
       )}
 
-      {/* ── Chart ────────────────────────────────────────────────────────── */}
       {loading && (
-        <div style={{ height: 260, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ width: 24, height: 24, borderRadius: "50%", border: "3px solid var(--border)", borderTopColor: metricMeta.color, animation: "spin 0.8s linear infinite" }} />
+        <div className={styles.loadingState}>
+          <div className={styles.spinner} />
         </div>
       )}
 
       {error && !loading && (
-        <div style={{ height: 180, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 8 }}>
-          <div style={{ fontSize: 13, color: "var(--t3)", textAlign: "center" }}>{error}</div>
-          <button onClick={fetchData} style={{ fontSize: 12, padding: "6px 14px", borderRadius: 8, border: "1px solid var(--border)", background: "transparent", color: "var(--t2)", cursor: "pointer", fontFamily: "inherit" }}>
+        <div className={styles.errorState}>
+          <div className={styles.errorText}>{error}</div>
+          <button onClick={fetchData} className={styles.retryButton}>
             Retry
           </button>
         </div>
@@ -376,17 +332,16 @@ export default function PredictiveBaseline({
 
       {!loading && !error && chartData.length > 0 && (
         <>
-          {/* Legend */}
-          <div style={{ display: "flex", gap: "16px", marginBottom: "12px", flexWrap: "wrap" }}>
+          <div className={styles.legend}>
             {[
               { color: metricMeta.color, label: "Actual", dashed: false, dot: true },
               { color: metricMeta.color, label: `MA ${windowSize}d baseline`, dashed: true, dot: false },
               { color: metricMeta.color, label: "Forecast", dashed: false, dot: false, predicted: true },
               { color: metricMeta.color, label: "Confidence band", band: true },
             ].map(({ color, label, dashed, dot, predicted, band }) => (
-              <div key={label} style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+              <div key={label} className={styles.legendItem}>
                 {band ? (
-                  <div style={{ width: 18, height: 10, borderRadius: 2, background: `${color}22`, border: `1px solid ${color}55` }} />
+                  <span className={styles.bandSwatch} />
                 ) : predicted ? (
                   <svg width="18" height="6">
                     <line x1="0" y1="3" x2="18" y2="3" stroke={color} strokeWidth="2.5" />
@@ -394,12 +349,11 @@ export default function PredictiveBaseline({
                   </svg>
                 ) : (
                   <svg width="18" height="6">
-                    <line x1="0" y1="3" x2="18" y2="3" stroke={color} strokeWidth="2"
-                      strokeDasharray={dashed ? "4 3" : undefined} />
+                    <line x1="0" y1="3" x2="18" y2="3" stroke={color} strokeWidth="2" strokeDasharray={dashed ? "4 3" : undefined} />
                     {dot && <circle cx="9" cy="3" r="2" fill={color} />}
                   </svg>
                 )}
-                <span style={{ fontSize: "11px", color: "var(--t2)", fontWeight: 500 }}>{label}</span>
+                <span className={styles.legendLabel}>{label}</span>
               </div>
             ))}
           </div>
@@ -408,7 +362,7 @@ export default function PredictiveBaseline({
             <ComposedChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id={`band-${metric}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor={metricMeta.color} stopOpacity={0.15} />
+                  <stop offset="5%" stopColor={metricMeta.color} stopOpacity={0.15} />
                   <stop offset="95%" stopColor={metricMeta.color} stopOpacity={0.03} />
                 </linearGradient>
               </defs>
@@ -433,7 +387,6 @@ export default function PredictiveBaseline({
 
               <Tooltip content={<CustomTooltip metricMeta={metricMeta} />} />
 
-              {/* Confidence band */}
               <Area
                 dataKey="band"
                 fill={`url(#band-${metric})`}
@@ -444,7 +397,6 @@ export default function PredictiveBaseline({
                 connectNulls
               />
 
-              {/* MA baseline — dashed */}
               <Line
                 dataKey="ma7"
                 name={`MA ${windowSize}d`}
@@ -456,13 +408,12 @@ export default function PredictiveBaseline({
                 opacity={0.6}
               />
 
-              {/* Actual values — solid */}
               <Line
                 dataKey="actual"
                 name="Actual"
                 stroke={metricMeta.color}
                 strokeWidth={2.5}
-                dot={(props: any) => {
+                dot={(props: DotProps) => {
                   if (!props.payload?.actual) return <g key={props.key} />;
                   return (
                     <circle
@@ -479,14 +430,13 @@ export default function PredictiveBaseline({
                 connectNulls
               />
 
-              {/* Predicted line — distinct style */}
               <Line
                 dataKey="predicted"
                 name="Forecast"
                 stroke={metricMeta.color}
                 strokeWidth={2.5}
                 strokeDasharray="2 0"
-                dot={(props: any) => {
+                dot={(props: DotProps) => {
                   if (props.payload?.predicted === undefined) return <g key={props.key} />;
                   return (
                     <circle
@@ -505,7 +455,6 @@ export default function PredictiveBaseline({
                 opacity={0.85}
               />
 
-              {/* Today reference line */}
               {todayStr && (
                 <ReferenceLine
                   x={todayStr}
@@ -513,7 +462,7 @@ export default function PredictiveBaseline({
                   strokeWidth={1}
                   strokeDasharray="4 3"
                   label={{
-                    value: "Today →",
+                    value: "Today ->",
                     position: "insideTopLeft",
                     fontSize: 10,
                     fill: "var(--t3)",
@@ -524,13 +473,12 @@ export default function PredictiveBaseline({
             </ComposedChart>
           </ResponsiveContainer>
 
-          {/* Footer note */}
-          <div style={{ marginTop: "12px", padding: "10px 14px", borderRadius: "10px", background: "var(--bg)", border: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
-            <span style={{ fontSize: "11px", color: "var(--t3)" }}>
-              Method: recursive {windowSize}-day moving average · confidence = ±1 std dev, widening with forecast horizon
+          <div className={styles.footerNote}>
+            <span>
+              Method: recursive {windowSize}-day moving average &middot; confidence = &plusmn;1 std dev, widening with forecast horizon
             </span>
-            <span style={{ fontSize: "11px", color: "var(--t3)" }}>
-              Based on <strong style={{ color: "var(--t2)", fontWeight: 600 }}>{summary?.dataPoints ?? 0}</strong> historical data points
+            <span>
+              Based on <strong className={styles.footerStrong}>{summary?.dataPoints ?? 0}</strong> historical data points
             </span>
           </div>
         </>

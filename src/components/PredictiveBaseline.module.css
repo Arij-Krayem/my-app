@@ -1,0 +1,323 @@
+.card {
+  --metric-color: #5865f2;
+  margin-bottom: 24px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--card);
+  padding: 22px;
+}
+
+.metricSpend {
+  --metric-color: #5865f2;
+}
+
+.metricRoas {
+  --metric-color: #16a34a;
+}
+
+.metricCtr {
+  --metric-color: #0f766e;
+}
+
+.metricCpc {
+  --metric-color: #b7791f;
+}
+
+.tooltip {
+  min-width: 160px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  font-size: 12px;
+  padding: 10px 14px;
+}
+
+.tooltipHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  color: var(--t1);
+  font-weight: 700;
+}
+
+.predictedBadge {
+  border-radius: 4px;
+  background: rgba(88, 101, 242, .1);
+  color: #5865f2;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+}
+
+.tooltipRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 3px;
+  color: var(--t2);
+}
+
+.tooltipSeries {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.tooltipDot {
+  width: 8px;
+  height: 8px;
+}
+
+.tooltipValue {
+  color: var(--t1);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.eyebrow {
+  margin-bottom: 4px;
+  color: var(--t3);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .8px;
+  text-transform: uppercase;
+}
+
+.title {
+  margin: 0;
+  color: var(--t1);
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.subtitle {
+  margin-top: 4px;
+  color: var(--t3);
+  font-size: 12px;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.windowButtons {
+  display: flex;
+  gap: 4px;
+}
+
+.windowButton {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--t3);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 11px;
+  transition: all .15s;
+}
+
+.windowButtonActive {
+  border-color: var(--metric-color);
+  background: color-mix(in srgb, var(--metric-color) 9%, transparent);
+  color: var(--metric-color);
+  font-weight: 700;
+}
+
+.metricTabs {
+  display: flex;
+  gap: 2px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  padding: 3px;
+}
+
+.metricTab {
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--t2);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 13px;
+  transition: all .15s;
+}
+
+.metricTabActive {
+  background: var(--metric-color);
+  color: #fff;
+  font-weight: 700;
+}
+
+.kpiGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.kpiCard {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  padding: 14px 16px;
+}
+
+.kpiLabel {
+  margin-bottom: 6px;
+  color: var(--t3);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+}
+
+.kpiValue {
+  color: var(--t1);
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.metricText {
+  color: var(--metric-color);
+}
+
+.kpiNote {
+  margin-top: 4px;
+  color: var(--t3);
+  font-size: 11px;
+}
+
+.trendWrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.trendValue {
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.trendGood {
+  color: #16a34a;
+}
+
+.trendBad {
+  color: #E24B4A;
+}
+
+.loadingState {
+  display: flex;
+  height: 260px;
+  align-items: center;
+  justify-content: center;
+}
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid var(--border);
+  border-top-color: var(--metric-color);
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+
+.errorState {
+  display: flex;
+  height: 180px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.errorText {
+  color: var(--t3);
+  font-size: 13px;
+  text-align: center;
+}
+
+.retryButton {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--t2);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  padding: 6px 14px;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.bandSwatch {
+  width: 18px;
+  height: 10px;
+  border: 1px solid color-mix(in srgb, var(--metric-color) 33%, transparent);
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--metric-color) 13%, transparent);
+}
+
+.legendLabel {
+  color: var(--t2);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.footerNote {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--t3);
+  font-size: 11px;
+  padding: 10px 14px;
+}
+
+.footerStrong {
+  color: var(--t2);
+  font-weight: 600;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
