@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
+import toast from "react-hot-toast";
 import styles from "./page.module.css";
 
 const TARGET_COLUMNS = [
@@ -147,7 +148,7 @@ export default function ColumnMappingPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        alert(`✅ Successfully ingested ${data.ingested} rows!`);
+        toast.success(`${data.ingested} rows ingested successfully`);
         router.push("/uploads");
       } else {
         setError(data.error || "Ingest failed");
