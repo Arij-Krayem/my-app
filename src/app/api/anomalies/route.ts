@@ -80,6 +80,8 @@ export async function GET(req: NextRequest) {
       };
     });
 
+    const methods = Array.from(new Set(items.map(item => item.method).filter(Boolean)));
+
     return NextResponse.json({
       items,
       totalItems: items.length,
@@ -88,7 +90,7 @@ export async function GET(req: NextRequest) {
         medium: items.filter(a => a.severity === "MEDIUM").length,
         low: items.filter(a => a.severity === "LOW").length,
       },
-      engine: items[0]?.method ?? "Persisted anomalies",
+      engine: methods.length > 1 ? "Mixed methods" : methods[0] ?? "Persisted anomalies",
     });
   } catch (err) {
     if (err instanceof AuthError)

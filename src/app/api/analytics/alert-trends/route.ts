@@ -2,6 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, AuthError } from "@/lib/auth-guard";
 
+interface AlertTrendRow {
+  date: Date | string;
+  total: number | bigint | string;
+  open: number | bigint | string;
+  acknowledged: number | bigint | string;
+  resolved: number | bigint | string;
+  critical: number | bigint | string;
+  warning: number | bigint | string;
+}
+
 export async function GET(req: NextRequest) {
   try {
     const payload = requireAuth(req);
@@ -17,7 +27,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Alert counts per day (last 30 days)
-    const alertsPerDay = await prisma.$queryRawUnsafe(`
+    const alertsPerDay = await prisma.$queryRawUnsafe<AlertTrendRow[]>(`
       SELECT
         "createdAt"::date                                    AS date,
         COUNT(*)::int                                        AS total,
@@ -43,7 +53,7 @@ export async function GET(req: NextRequest) {
         AND "createdAt" >= CURRENT_DATE - INTERVAL '30 days'
       GROUP BY "createdAt"::date
       ORDER BY "createdAt"::date ASC
-    `) as any[];
+    `);
 
     // Summary counts
     const summary = await prisma.alert.groupBy({

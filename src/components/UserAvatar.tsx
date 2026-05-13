@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import styles from "./UserAvatar.module.css";
 
 const sizeClass: Record<number, string> = {
@@ -77,9 +78,12 @@ export default function UserAvatar({
 
   if (avatarUrl) {
     return (
-      <img
+      <Image
         src={avatarUrl}
         alt={name ?? email ?? "User avatar"}
+        width={size}
+        height={size}
+        unoptimized
         className={`${rootClassName} ${styles.image}`}
       />
     );

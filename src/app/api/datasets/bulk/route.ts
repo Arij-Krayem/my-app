@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getBearer, verifyAccessToken } from "@/lib/auth";
+import { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -8,8 +9,8 @@ const Row = z.object({
   platform: z.enum(["GOOGLE", "META", "CSV"]),
   entityType: z.enum(["CAMPAIGN", "ADSET", "AD", "ACCOUNT"]),
   entityId: z.string().min(1),
-  dimensions: z.record(z.string(), z.any()).optional(),
-  metrics: z.record(z.string(), z.any()).optional(),
+  dimensions: z.record(z.string(), z.unknown()).optional(),
+  metrics: z.record(z.string(), z.unknown()).optional(),
 });
 
 
@@ -45,8 +46,8 @@ export async function POST(req: NextRequest) {
       date: new Date(r.date),
       entityType: r.entityType,
       entityId: r.entityId,
-      dimensions: r.dimensions ?? {},
-      metrics: r.metrics ?? {},
+      dimensions: (r.dimensions ?? {}) as Prisma.InputJsonValue,
+      metrics: (r.metrics ?? {}) as Prisma.InputJsonValue,
     })),
   });
 

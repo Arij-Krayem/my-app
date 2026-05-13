@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import styles from "./page.module.css";
 
@@ -44,19 +44,7 @@ export default function BrandDetailPage() {
   const params = useParams();
   const brandId = params.id as string;
 
-  useEffect(() => {
-    const userData = sessionStorage.getItem("user");
-    if (userData) {
-      const user = JSON.parse(userData);
-      if (user.role !== "AGENCY_ADMIN") {
-        router.push("/dashboard");
-        return;
-      }
-    }
-    fetchBrandDetails();
-  }, [brandId, router]);
-
-  const fetchBrandDetails = async () => {
+  const fetchBrandDetails = useCallback(async () => {
     const token = sessionStorage.getItem("access_token");
     if (!token) return;
 
@@ -91,7 +79,19 @@ export default function BrandDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [brandId]);
+
+  useEffect(() => {
+    const userData = sessionStorage.getItem("user");
+    if (userData) {
+      const user = JSON.parse(userData);
+      if (user.role !== "AGENCY_ADMIN") {
+        router.push("/dashboard");
+        return;
+      }
+    }
+    fetchBrandDetails();
+  }, [fetchBrandDetails, router]);
 
   const getHealthBadge = (health: string) => {
     const healthConfig: Record<string, { class: string; text: string }> = {

@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
+import Image from "next/image";
 import { Dialog, DialogContent, DialogHeader, DialogFooter } from "@/components/ui/dialog";
 import styles from "./page.module.css";
 
@@ -39,12 +40,15 @@ function deriveHealth(roas: number, openAlerts: number): "HEALTHY" | "WARNING" |
 }
 
 // ── Brand Avatar: logo image or coloured initial ──────────────────────────────
-function BrandAvatar({ brand, colorIndex = 0 }: { brand: Brand; size?: number; colorIndex?: number }) {
+function BrandAvatar({ brand, size = 40, colorIndex = 0 }: { brand: Brand; size?: number; colorIndex?: number }) {
   if (brand.logoUrl) {
     return (
-      <img
+      <Image
         src={brand.logoUrl}
         alt={brand.name}
+        width={size}
+        height={size}
+        unoptimized
         className={styles.brandAvatarImage}
         onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
       />
@@ -133,7 +137,7 @@ function LogoUpload({
       {preview ? (
         // ── Preview state ──────────────────────────────────────────────────
         <div className={styles.logoPreview}>
-          <img src={preview} alt="Logo preview" className={styles.logoImage} />
+          <Image src={preview} alt="Logo preview" width={56} height={56} unoptimized className={styles.logoImage} />
           <div className={styles.logoMeta}>
             <p className={styles.logoTitle}>Logo uploaded</p>
             <p className={styles.logoHelp}>Click &quot;Change&quot; to replace</p>

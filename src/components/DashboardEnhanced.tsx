@@ -6,6 +6,8 @@ import {
   LineChart, Line, PieChart, Pie, Cell, Sector,
   XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend,
+  type PieSectorShapeProps,
+  type TooltipValueType,
 } from "recharts";
 import styles from "./DashboardEnhanced.module.css";
 
@@ -33,18 +35,9 @@ interface GeoRowData { country: string; spend: number; clicks: number; conversio
 interface ConvTrend { date: string; impressions: number; clicks: number; conversions: number; }
 
 interface Props { brandId: string; platform: string; dateFrom: string; dateTo: string; }
-type DonutEntry = Record<string, string | number>;
-interface PieShapeProps {
-  cx: number;
-  cy: number;
-  innerRadius: number;
-  outerRadius: number;
-  startAngle: number;
-  endAngle: number;
-  fill: string;
-  payload: DonutEntry & { share?: number };
-  index: number;
-}
+type DonutEntry = PlatformDonut | CampaignDonut;
+type DonutKey<T extends DonutEntry> = Extract<keyof T, string>;
+type TooltipName = string | number;
 
 const GOOGLE_COLOR = "#4285F4";
 const META_COLOR = "#1877F2";
@@ -56,8 +49,38 @@ const tooltipStyle = {
   contentStyle: { background: "var(--card)", border: "1px solid var(--border)", borderRadius: "10px", fontSize: "12px" },
 };
 
-const fmtDate = (d: string | number): string =>
-  new Date(`${d}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+const toNumber = (value: unknown): number => {
+  const raw = Array.isArray(value) ? value[0] : value;
+  const number = Number(raw ?? 0);
+  return Number.isFinite(number) ? number : 0;
+};
+
+const tooltipName = (name: TooltipName | undefined): TooltipName => name ?? "";
+
+const fmtDate = (value: unknown): string => {
+  if (typeof value !== "string" && typeof value !== "number") return "";
+  const dateValue = typeof value === "string" ? `${value}T12:00:00` : value;
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+};
+
+const fmtCompactTick = (value: unknown): string => {
+  const number = toNumber(value);
+  return number >= 1000 ? `${(number / 1000).toFixed(0)}k` : String(value ?? "");
+};
+
+const formatCountTooltip = (value: TooltipValueType | undefined, name: TooltipName | undefined): [string, TooltipName] =>
+  [toNumber(value).toLocaleString(), tooltipName(name)];
+
+const formatRoasTooltip = (value: TooltipValueType | undefined, name: TooltipName | undefined): [string, TooltipName] =>
+  [`${toNumber(value).toFixed(2)}x`, tooltipName(name)];
+
+const formatCtrTooltip = (value: TooltipValueType | undefined, name: TooltipName | undefined): [string, TooltipName] =>
+  [`${toNumber(value).toFixed(2)}%`, tooltipName(name)];
+
+const formatCpcTooltip = (value: TooltipValueType | undefined, name: TooltipName | undefined): [string, TooltipName] =>
+  [`$${toNumber(value).toFixed(2)}`, tooltipName(name)];
 
 function toneClass(tone: "good" | "warning" | "poor") {
   if (tone === "good") return styles.toneGood;
@@ -106,7 +129,7 @@ function SectionDivider({ title, subtitle }: { title: string; subtitle?: string 
 }
 
 function PctBadge({ change, inverse = false }: { change: number | null; inverse?: boolean }) {
-  if (change === null) return <span className={styles.emptyValue}>—</span>;
+  if (change === null) return <span className={styles.emptyValue}>&mdash;</span>;
   const positive = inverse ? change < 0 : change > 0;
   return (
     <span className={`${styles.pctBadge} ${positive ? styles.pctPositive : styles.pctNegative}`}>
@@ -115,15 +138,22 @@ function PctBadge({ change, inverse = false }: { change: number | null; inverse?
   );
 }
 
-function DonutChart({ data, valueKey, labelKey, colorKey, formatter }: {
-  data: DonutEntry[]; valueKey: string; labelKey: string; colorKey: string; formatter: (v: number) => string;
+function DonutChart<T extends DonutEntry>({ data, valueKey, labelKey, colorKey, formatter }: {
+  data: T[];
+  valueKey: DonutKey<T>;
+  labelKey: DonutKey<T>;
+  colorKey: DonutKey<T>;
+  formatter: (value: number) => string;
 }) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const renderPieShape = (props: PieShapeProps) => {
-    const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, payload } = props;
+  const renderPieShape = (props: PieSectorShapeProps) => {
+    const { cx, cy, innerRadius, outerRadius, startAngle, endAngle } = props;
+    const payload = props.payload as T | undefined;
+    const fill = props.fill ?? String(payload?.[colorKey] ?? "#5865f2");
     const isActive = props.index === activeIndex;
-    const label = String(payload[labelKey]);
-    const value = Number(payload[valueKey]);
+    const label = String(payload?.[labelKey] ?? "");
+    const value = toNumber(payload?.[valueKey]);
+    const share = typeof payload?.share === "number" ? `${payload.share}%` : "";
     return (
       <g>
         <Sector cx={cx} cy={cy} innerRadius={isActive ? innerRadius - 4 : innerRadius} outerRadius={isActive ? outerRadius + 6 : outerRadius} startAngle={startAngle} endAngle={endAngle} fill={fill} />
@@ -131,10 +161,11 @@ function DonutChart({ data, valueKey, labelKey, colorKey, formatter }: {
           {label.length > 14 ? `${label.slice(0, 14)}...` : label}
         </text>}
         {isActive && <text x={cx} y={cy + 10} textAnchor="middle" fill="var(--t2)" fontSize={12}>{formatter(value)}</text>}
-        {isActive && <text x={cx} y={cy + 26} textAnchor="middle" fill="var(--t3)" fontSize={11}>{payload.share}%</text>}
+        {isActive && share && <text x={cx} y={cy + 26} textAnchor="middle" fill="var(--t3)" fontSize={11}>{share}</text>}
       </g>
     );
   };
+  const formatDonutTooltip = (value: TooltipValueType | undefined): string => formatter(toNumber(value));
   return (
     <ResponsiveContainer width="100%" height={220}>
       <PieChart>
@@ -151,9 +182,9 @@ function DonutChart({ data, valueKey, labelKey, colorKey, formatter }: {
           onMouseLeave={() => setActiveIndex(null)}
           paddingAngle={2}
         >
-          {data.map((entry, i) => <Cell key={i} fill={String(entry[colorKey])} stroke="transparent" />)}
+          {data.map((entry, i) => <Cell key={`${String(entry[labelKey])}-${i}`} fill={String(entry[colorKey])} stroke="transparent" />)}
         </Pie>
-        <Tooltip contentStyle={tooltipStyle.contentStyle} formatter={(v: number | string) => [formatter(Number(v))]} />
+        <Tooltip contentStyle={tooltipStyle.contentStyle} formatter={formatDonutTooltip} />
       </PieChart>
     </ResponsiveContainer>
   );
@@ -413,8 +444,8 @@ export default function DashboardEnhanced({ brandId, platform, dateFrom, dateTo 
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="date" tick={{ fontSize: 10, fill: "var(--t3)" }} tickLine={false} axisLine={false} tickFormatter={fmtDate} />
-                <YAxis tick={{ fontSize: 10, fill: "var(--t3)" }} tickLine={false} axisLine={false} tickFormatter={(v: number | string) => Number(v) >= 1000 ? `${(Number(v) / 1000).toFixed(0)}k` : v} />
-                <Tooltip {...tooltipStyle} formatter={(v: number | string, name: string | number) => [Number(v).toLocaleString(), name]} labelFormatter={fmtDate} />
+                <YAxis tick={{ fontSize: 10, fill: "var(--t3)" }} tickLine={false} axisLine={false} tickFormatter={fmtCompactTick} />
+                <Tooltip {...tooltipStyle} formatter={formatCountTooltip} labelFormatter={fmtDate} />
                 <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "10px" }} />
                 <Area type="monotone" dataKey="impressions" name="Impressions" stroke="#5865f2" strokeWidth={1.5} fill="url(#gImpr)" dot={false} />
                 <Area type="monotone" dataKey="clicks" name="Clicks" stroke="#8b5cf6" strokeWidth={1.5} fill="url(#gClk)" dot={false} />
@@ -463,7 +494,7 @@ export default function DashboardEnhanced({ brandId, platform, dateFrom, dateTo 
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="date" tick={{ fontSize: 11, fill: "var(--t3)" }} tickLine={false} axisLine={false} tickFormatter={fmtDate} />
                 <YAxis tick={{ fontSize: 11, fill: "var(--t3)" }} tickLine={false} axisLine={false} tickFormatter={(v: number | string) => `${v}x`} />
-                <Tooltip {...tooltipStyle} formatter={(v: number | string, name?: string | number) => [`${Number(v).toFixed(2)}x`, name ?? ""]} labelFormatter={fmtDate} />
+                <Tooltip {...tooltipStyle} formatter={formatRoasTooltip} labelFormatter={fmtDate} />
                 {singlePlatform ? (
                   <Line type="monotone" dataKey="roas" name="ROAS" stroke="#5865f2" strokeWidth={2} dot={false} connectNulls />
                 ) : (
@@ -490,7 +521,7 @@ export default function DashboardEnhanced({ brandId, platform, dateFrom, dateTo 
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis dataKey="date" tick={{ fontSize: 10, fill: "var(--t3)" }} tickLine={false} axisLine={false} tickFormatter={fmtDate} />
                   <YAxis tick={{ fontSize: 10, fill: "var(--t3)" }} tickLine={false} axisLine={false} tickFormatter={(v: number | string) => `${v}%`} />
-                  <Tooltip {...tooltipStyle} formatter={(v: number | string, name?: string | number) => [`${Number(v).toFixed(2)}%`, name ?? ""]} labelFormatter={fmtDate} />
+                  <Tooltip {...tooltipStyle} formatter={formatCtrTooltip} labelFormatter={fmtDate} />
                   {singlePlatform ? (
                     <Line type="monotone" dataKey="ctr" name="CTR" stroke={CTR_COLOR} strokeWidth={2} dot={false} connectNulls />
                   ) : (
@@ -516,7 +547,7 @@ export default function DashboardEnhanced({ brandId, platform, dateFrom, dateTo 
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis dataKey="date" tick={{ fontSize: 10, fill: "var(--t3)" }} tickLine={false} axisLine={false} tickFormatter={fmtDate} />
                   <YAxis tick={{ fontSize: 10, fill: "var(--t3)" }} tickLine={false} axisLine={false} tickFormatter={(v: number | string) => `$${v}`} />
-                  <Tooltip {...tooltipStyle} formatter={(v: number | string, name?: string | number) => [`$${Number(v).toFixed(2)}`, name ?? ""]} labelFormatter={fmtDate} />
+                  <Tooltip {...tooltipStyle} formatter={formatCpcTooltip} labelFormatter={fmtDate} />
                   {singlePlatform ? (
                     <Line type="monotone" dataKey="cpc" name="CPC" stroke={CPC_COLOR} strokeWidth={2} dot={false} connectNulls />
                   ) : (
@@ -579,12 +610,12 @@ export default function DashboardEnhanced({ brandId, platform, dateFrom, dateTo 
                     return (
                       <tr key={`${row.date}-${i}`}>
                         <td className={styles.dateCell}>{new Date(row.date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}</td>
-                        <td>{row.roas_google !== null ? <span className={`${styles.metricBadge} ${metricBadgeClass(rg)}`}>{rg.toFixed(2)}x</span> : <span className={styles.emptyValue}>—</span>}</td>
-                        <td>{row.roas_meta !== null ? <span className={`${styles.metricBadge} ${metricBadgeClass(rm)}`}>{rm.toFixed(2)}x</span> : <span className={styles.emptyValue}>—</span>}</td>
-                        <td>{row.ctr_google !== null ? <span className={`${styles.metricBadge} ${ctrBadgeClass(cg)}`}>{cg.toFixed(2)}%</span> : <span className={styles.emptyValue}>—</span>}</td>
-                        <td>{row.ctr_meta !== null ? <span className={`${styles.metricBadge} ${ctrBadgeClass(cm)}`}>{cm.toFixed(2)}%</span> : <span className={styles.emptyValue}>—</span>}</td>
-                        <td className={styles.googleCell}>{row.cpc_google !== null ? `$${row.cpc_google.toFixed(2)}` : "—"}</td>
-                        <td className={styles.metaCell}>{row.cpc_meta !== null ? `$${row.cpc_meta.toFixed(2)}` : "—"}</td>
+                        <td>{row.roas_google !== null ? <span className={`${styles.metricBadge} ${metricBadgeClass(rg)}`}>{rg.toFixed(2)}x</span> : <span className={styles.emptyValue}>&mdash;</span>}</td>
+                        <td>{row.roas_meta !== null ? <span className={`${styles.metricBadge} ${metricBadgeClass(rm)}`}>{rm.toFixed(2)}x</span> : <span className={styles.emptyValue}>&mdash;</span>}</td>
+                        <td>{row.ctr_google !== null ? <span className={`${styles.metricBadge} ${ctrBadgeClass(cg)}`}>{cg.toFixed(2)}%</span> : <span className={styles.emptyValue}>&mdash;</span>}</td>
+                        <td>{row.ctr_meta !== null ? <span className={`${styles.metricBadge} ${ctrBadgeClass(cm)}`}>{cm.toFixed(2)}%</span> : <span className={styles.emptyValue}>&mdash;</span>}</td>
+                        <td className={styles.googleCell}>{row.cpc_google !== null ? `$${row.cpc_google.toFixed(2)}` : "-"}</td>
+                        <td className={styles.metaCell}>{row.cpc_meta !== null ? `$${row.cpc_meta.toFixed(2)}` : "-"}</td>
                         <td className={styles.spendCell}>${row.spend.toLocaleString()}</td>
                       </tr>
                     );

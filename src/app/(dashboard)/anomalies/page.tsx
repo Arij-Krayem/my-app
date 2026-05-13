@@ -134,6 +134,7 @@ export default function AnomaliesPage() {
             const open = expanded === a.id;
             const anomalyKey = [a.id, a.campaign, a.metric, a.dateRange, index].join("-");
             const platformClass = a.platform === "Google" ? styles.platformGoogle : styles.platformMeta;
+            const detectionMethod = a.method ?? engine;
             return (
               <div key={anomalyKey} className={`dashboard-card ${styles.anomalyCard} ${SEV_CLASS[a.severity]} ${platformClass}`}>
                 <div className={styles.cardTop}>
@@ -143,7 +144,7 @@ export default function AnomaliesPage() {
                       <span className={styles.severityBadge}>{a.severity}</span>
                       <span className={styles.platformBadge}>{a.platform}</span>
                       {a.z_score !== undefined && <span className={styles.zScoreBadge}>Z={a.z_score.toFixed(2)}</span>}
-                      {engine && <span className={styles.engineText}>{engine}</span>}
+                      {detectionMethod && <span className={styles.engineText}>{detectionMethod}</span>}
                     </div>
 
                     <div className={styles.metricBlock}>

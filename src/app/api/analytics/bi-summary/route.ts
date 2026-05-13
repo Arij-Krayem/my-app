@@ -4,6 +4,41 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, AuthError }    from "@/lib/auth-guard";
 import { prisma }                    from "@/lib/prisma";
 
+interface FunnelRow {
+  impressions: number | bigint | string;
+  clicks: number | bigint | string;
+  conversions: number | bigint | string;
+  spend: number | bigint | string;
+}
+
+interface PlatformRow extends FunnelRow {
+  platform: string;
+  roas: number | bigint | string;
+}
+
+interface GeoRow {
+  country: string;
+  spend: number | bigint | string;
+  clicks: number | bigint | string;
+  conversions: number | bigint | string;
+  roas: number | bigint | string;
+}
+
+interface CampaignRow {
+  campaign: string;
+  platform: string;
+  spend: number | bigint | string;
+  clicks: number | bigint | string;
+  roas: number | bigint | string;
+}
+
+interface ConversionTrendRow {
+  day: Date | string;
+  impressions: number | bigint | string;
+  clicks: number | bigint | string;
+  conversions: number | bigint | string;
+}
+
 async function canAccessBrand(userId: string, role: string, brandId: string): Promise<boolean> {
   if (role === "AGENCY_ADMIN") return true;
   const member = await prisma.brandMember.findUnique({
@@ -45,7 +80,7 @@ export async function GET(req: NextRequest) {
       await Promise.all([
 
         // E1: Funnel totals
-        prisma.$queryRawUnsafe<any[]>(`
+        prisma.$queryRawUnsafe<FunnelRow[]>(`
           SELECT
             COALESCE(SUM((metrics->>'impressions')::numeric), 0) AS impressions,
             COALESCE(SUM((metrics->>'clicks')::numeric),      0) AS clicks,
@@ -56,7 +91,7 @@ export async function GET(req: NextRequest) {
         `),
 
         // E2: Platform donut
-        prisma.$queryRawUnsafe<any[]>(`
+        prisma.$queryRawUnsafe<PlatformRow[]>(`
           SELECT
             platform,
             COALESCE(SUM((metrics->>'spend')::numeric),       0) AS spend,
@@ -71,7 +106,7 @@ export async function GET(req: NextRequest) {
         `),
 
         // E3: Geo breakdown
-        prisma.$queryRawUnsafe<any[]>(`
+        prisma.$queryRawUnsafe<GeoRow[]>(`
           SELECT
             COALESCE(dimensions->>'country', 'Unknown')          AS country,
             COALESCE(SUM((metrics->>'spend')::numeric),       0) AS spend,
@@ -88,7 +123,7 @@ export async function GET(req: NextRequest) {
         `),
 
         // E4: Campaign donut — checks both 'campaign' and 'campaign_name' keys
-        prisma.$queryRawUnsafe<any[]>(`
+        prisma.$queryRawUnsafe<CampaignRow[]>(`
           SELECT
             COALESCE(
               dimensions->>'campaign',
@@ -107,7 +142,7 @@ export async function GET(req: NextRequest) {
         `),
 
         // E5: Conversion trend over time
-        prisma.$queryRawUnsafe<any[]>(`
+        prisma.$queryRawUnsafe<ConversionTrendRow[]>(`
           SELECT
             date::date                                              AS day,
             COALESCE(SUM((metrics->>'impressions')::numeric), 0)   AS impressions,
@@ -159,9 +194,9 @@ export async function GET(req: NextRequest) {
 
     // T2: Platform donut + share %
     const totalPlatformSpend = platformRows.reduce(
-      (s: number, r: any) => s + Number(r.spend ?? 0), 0
+      (s, r) => s + Number(r.spend ?? 0), 0
     );
-    const platformDonut = platformRows.map((r: any) => ({
+    const platformDonut = platformRows.map((r) => ({
       platform:    r.platform,
       label:       r.platform === "GOOGLE" ? "Google Ads" : "Meta Ads",
       color:       r.platform === "GOOGLE" ? "#4285F4"    : "#1877F2",
@@ -176,9 +211,9 @@ export async function GET(req: NextRequest) {
 
     // T3: Geo + share % + health signal
     const totalGeoSpend = geoRows.reduce(
-      (s: number, r: any) => s + Number(r.spend ?? 0), 0
+      (s, r) => s + Number(r.spend ?? 0), 0
     );
-    const geo = geoRows.map((r: any) => {
+    const geo = geoRows.map((r) => {
       const spend = Number(r.spend ?? 0);
       const roas  = Number(r.roas  ?? 0);
       return {
@@ -199,9 +234,9 @@ export async function GET(req: NextRequest) {
       "#f85149","#06b6d4","#ec4899","#84cc16",
     ];
     const totalCampaignSpend = campaignRows.reduce(
-      (s: number, r: any) => s + Number(r.spend ?? 0), 0
+      (s, r) => s + Number(r.spend ?? 0), 0
     );
-    const campaignDonut = campaignRows.map((r: any, i: number) => ({
+    const campaignDonut = campaignRows.map((r, i) => ({
       campaign: r.campaign,
       platform: r.platform,
       spend:    Number(r.spend  ?? 0),
@@ -213,7 +248,7 @@ export async function GET(req: NextRequest) {
     }));
 
     // T5: Conversion trend
-    const conversionTrend = convTrendRows.map((r: any) => ({
+    const conversionTrend = convTrendRows.map((r) => ({
       date:        r.day instanceof Date
         ? r.day.toISOString().split("T")[0]
         : String(r.day).split("T")[0],

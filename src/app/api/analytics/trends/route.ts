@@ -2,6 +2,28 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, AuthError } from "@/lib/auth-guard";
 
+interface MetricRow {
+  date: Date | string;
+  roas: number | bigint | string;
+  ctr: number | bigint | string;
+  cpc: number | bigint | string;
+  spend: number | bigint | string;
+  clicks: number | bigint | string;
+  conversions: number | bigint | string;
+}
+
+interface PlatformMetricRow extends MetricRow {
+  platform: string;
+}
+
+interface AggregateRow {
+  avgRoas: number | bigint | string;
+  avgCtr: number | bigint | string;
+  avgCpc: number | bigint | string;
+  totalSpend: number | bigint | string;
+  totalConversions: number | bigint | string;
+}
+
 async function canAccessBrand(userId: string, role: string, brandId: string): Promise<boolean> {
   if (role === "AGENCY_ADMIN") return true;
   const member = await prisma.brandMember.findUnique({
@@ -72,7 +94,7 @@ export async function GET(req: NextRequest) {
     ] = await Promise.all([
 
       // ── 1. Overall metrics per day (existing) ──────────────────────────
-      prisma.$queryRawUnsafe(`
+      prisma.$queryRawUnsafe<MetricRow[]>(`
         SELECT
           date::date                                            AS date,
           COALESCE(AVG((metrics->>'roas')::numeric), 0)        AS roas,
@@ -85,12 +107,12 @@ export async function GET(req: NextRequest) {
         WHERE ${where}
         GROUP BY date::date
         ORDER BY date::date ASC
-      `) as Promise<any[]>,
+      `),
 
       // ── 2. NEW: per-platform breakdown per day ──────────────────────────
       //    Returns rows: { date, platform, roas, ctr, cpc, spend, clicks, conversions }
       //    Always uses baseWhere (no platform filter) so both platforms appear
-      prisma.$queryRawUnsafe(`
+      prisma.$queryRawUnsafe<PlatformMetricRow[]>(`
         SELECT
           date::date                                            AS date,
           platform,
@@ -104,10 +126,10 @@ export async function GET(req: NextRequest) {
         WHERE ${baseWhere}
         GROUP BY date::date, platform
         ORDER BY date::date ASC
-      `) as Promise<any[]>,
+      `),
 
       // ── 3. NEW: previous period per day (for overlay ghost line) ────────
-      prisma.$queryRawUnsafe(`
+      prisma.$queryRawUnsafe<MetricRow[]>(`
         SELECT
           date::date                                            AS date,
           COALESCE(AVG((metrics->>'roas')::numeric), 0)        AS roas,
@@ -120,10 +142,10 @@ export async function GET(req: NextRequest) {
         WHERE ${prevWhere}
         GROUP BY date::date
         ORDER BY date::date ASC
-      `) as Promise<any[]>,
+      `),
 
       // ── 4. Current period aggregate (existing) ──────────────────────────
-      prisma.$queryRawUnsafe(`
+      prisma.$queryRawUnsafe<AggregateRow[]>(`
         SELECT
           COALESCE(AVG((metrics->>'roas')::numeric), 0)        AS "avgRoas",
           COALESCE(AVG((metrics->>'ctr')::numeric),  0)        AS "avgCtr",
@@ -132,10 +154,10 @@ export async function GET(req: NextRequest) {
           COALESCE(SUM((metrics->>'conversions')::numeric), 0) AS "totalConversions"
         FROM public."PerformanceFact"
         WHERE ${where}
-      `) as Promise<any[]>,
+      `),
 
       // ── 5. Previous period aggregate (existing) ─────────────────────────
-      prisma.$queryRawUnsafe(`
+      prisma.$queryRawUnsafe<AggregateRow[]>(`
         SELECT
           COALESCE(AVG((metrics->>'roas')::numeric), 0)        AS "avgRoas",
           COALESCE(AVG((metrics->>'ctr')::numeric),  0)        AS "avgCtr",
@@ -144,7 +166,7 @@ export async function GET(req: NextRequest) {
           COALESCE(SUM((metrics->>'conversions')::numeric), 0) AS "totalConversions"
         FROM public."PerformanceFact"
         WHERE ${prevWhere}
-      `) as Promise<any[]>,
+      `),
     ]);
 
     // ════════════════════════════════════════════════════════════════════════
@@ -167,7 +189,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Collect all unique dates from the overall query, merge pivot data
-    const serialisedMetrics = metricsOverTime.map((d: any) => {
+    const serialisedMetrics = metricsOverTime.map((d) => {
       const dateStr = d.date instanceof Date
         ? d.date.toISOString().split("T")[0]
         : String(d.date).split("T")[0];
@@ -200,7 +222,7 @@ export async function GET(req: NextRequest) {
     // ── Previous period series: re-index by position so it overlays ────────
     // We align prev period onto the same x-axis positions as current period,
     // using an index-based offset so dates don't need to match exactly.
-    const serialisedPrev = prevByDay.map((d: any) => ({
+    const serialisedPrev = prevByDay.map((d) => ({
       date:        d.date instanceof Date
                      ? d.date.toISOString().split("T")[0]
                      : String(d.date).split("T")[0],
@@ -224,8 +246,8 @@ export async function GET(req: NextRequest) {
     }));
 
     // ── Comparison aggregates (existing logic, unchanged) ────────────────
-    const cur  = (currentRows  as any[])[0] ?? {};
-    const prev = (previousRows as any[])[0] ?? {};
+    const cur  = currentRows[0];
+    const prev = previousRows[0];
 
     function pctChange(curr: number, previous: number): number | null {
       if (!previous || previous === 0) return null;
@@ -233,11 +255,11 @@ export async function GET(req: NextRequest) {
     }
 
     const comparison = {
-      roas:        { current: Number(Number(cur.avgRoas).toFixed(2)),    previous: Number(Number(prev.avgRoas).toFixed(2)),    change: pctChange(Number(cur.avgRoas),    Number(prev.avgRoas))    },
-      ctr:         { current: Number(Number(cur.avgCtr).toFixed(2)),     previous: Number(Number(prev.avgCtr).toFixed(2)),     change: pctChange(Number(cur.avgCtr),     Number(prev.avgCtr))     },
-      cpc:         { current: Number(Number(cur.avgCpc).toFixed(2)),     previous: Number(Number(prev.avgCpc).toFixed(2)),     change: pctChange(Number(cur.avgCpc),     Number(prev.avgCpc))     },
-      spend:       { current: Number(Number(cur.totalSpend).toFixed(2)), previous: Number(Number(prev.totalSpend).toFixed(2)), change: pctChange(Number(cur.totalSpend), Number(prev.totalSpend)) },
-      conversions: { current: Number(cur.totalConversions),              previous: Number(prev.totalConversions),              change: pctChange(Number(cur.totalConversions), Number(prev.totalConversions)) },
+      roas:        { current: Number(Number(cur?.avgRoas ?? 0).toFixed(2)),    previous: Number(Number(prev?.avgRoas ?? 0).toFixed(2)),    change: pctChange(Number(cur?.avgRoas ?? 0),    Number(prev?.avgRoas ?? 0))    },
+      ctr:         { current: Number(Number(cur?.avgCtr ?? 0).toFixed(2)),     previous: Number(Number(prev?.avgCtr ?? 0).toFixed(2)),     change: pctChange(Number(cur?.avgCtr ?? 0),     Number(prev?.avgCtr ?? 0))     },
+      cpc:         { current: Number(Number(cur?.avgCpc ?? 0).toFixed(2)),     previous: Number(Number(prev?.avgCpc ?? 0).toFixed(2)),     change: pctChange(Number(cur?.avgCpc ?? 0),     Number(prev?.avgCpc ?? 0))     },
+      spend:       { current: Number(Number(cur?.totalSpend ?? 0).toFixed(2)), previous: Number(Number(prev?.totalSpend ?? 0).toFixed(2)), change: pctChange(Number(cur?.totalSpend ?? 0), Number(prev?.totalSpend ?? 0)) },
+      conversions: { current: Number(cur?.totalConversions ?? 0),              previous: Number(prev?.totalConversions ?? 0),              change: pctChange(Number(cur?.totalConversions ?? 0), Number(prev?.totalConversions ?? 0)) },
     };
 
     return NextResponse.json({

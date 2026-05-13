@@ -1,7 +1,18 @@
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth-guard";
+import { requireAuth, AuthError } from "@/lib/auth-guard";
+import { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
+import { z, ZodError } from "zod";
+
+const JsonValue: z.ZodType<Prisma.InputJsonValue> = z.lazy(() =>
+  z.union([
+    z.string(),
+    z.number(),
+    z.boolean(),
+    z.array(JsonValue),
+    z.record(z.string(), JsonValue),
+  ])
+);
 
 const Body = z.object({
   mappings: z
@@ -9,34 +20,37 @@ const Body = z.object({
       z.object({
         sourceColumn: z.string().min(1),
         targetKey: z.string().min(1),
-        transformRule: z.any().optional(),
+        transformRule: JsonValue.optional(),
       })
     )
     .min(1),
 });
 
-export async function POST(req: NextRequest, ctx: { params: { id: string } }) {
-  // ✅ Auth (catch thrown 401 errors cleanly)
-  let auth: { userId: string; role?: string };
+export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  // Auth (catch thrown 401 errors cleanly)
+  let auth: ReturnType<typeof requireAuth>;
 
   try {
-    auth = requireAuth(req) as any;
-  } catch (e: any) {
+    auth = requireAuth(req);
+  } catch (e: unknown) {
+    if (e instanceof AuthError) {
+      return NextResponse.json({ error: e.message }, { status: e.status });
+    }
     return NextResponse.json(
-      { error: e?.message ?? "Unauthorized" },
-      { status: e?.status ?? 401 }
+      { error: "Unauthorized" },
+      { status: 401 }
     );
   }
 
-  const uploadId = ctx.params.id;
+  const { id: uploadId } = await ctx.params;
 
-  // ✅ Validate body
+  //  Validate body
   let data: z.infer<typeof Body>;
   try {
     data = Body.parse(await req.json());
-  } catch (e: any) {
+  } catch (e: unknown) {
     return NextResponse.json(
-      { error: "Invalid body", details: e?.errors ?? undefined },
+      { error: "Invalid body", details: e instanceof ZodError ? e.issues : undefined },
       { status: 400 }
     );
   }
@@ -54,7 +68,7 @@ export async function POST(req: NextRequest, ctx: { params: { id: string } }) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // ✅ Upsert mappings + mark upload as MAPPED
+  //  Upsert mappings + mark upload as MAPPED
   await prisma.$transaction([
     ...data.mappings.map((m) =>
       prisma.columnMapping.upsert({

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import toast from "react-hot-toast";
 import styles from "./page.module.css";
@@ -51,9 +51,7 @@ export default function ColumnMappingPage() {
   const params = useParams();
   const uploadId = params.id as string;
 
-  useEffect(() => { fetchUpload(); }, [uploadId]);
-
-  const fetchUpload = async () => {
+  const fetchUpload = useCallback(async () => {
     const token = sessionStorage.getItem("access_token");
     if (!token) return;
     try {
@@ -79,7 +77,9 @@ export default function ColumnMappingPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [uploadId]);
+
+  useEffect(() => { fetchUpload(); }, [fetchUpload]);
 
   const autoMap = () => {
     if (!upload?.columns) return;

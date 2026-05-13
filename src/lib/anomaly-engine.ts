@@ -2,6 +2,7 @@
 // ─── Runs after CSV ingest: Python detection → DB → email → Socket.io emit ───
 
 import { spawn }              from "child_process";
+import { existsSync, statSync } from "fs";
 import path                   from "path";
 import { prisma }             from "@/lib/prisma";
 import { sendAnomalyEmail }   from "@/lib/notification-mailer";
@@ -36,12 +37,29 @@ interface PythonResult {
 }
 
 type AnomalyInput = { date: string; metric: string; value: number; campaign: string; platform: string };
+type PythonCommand = { command: string; args: string[]; label: string };
+
+function cleanPythonCommand(command: string): string {
+  return command.trim().replace(/^["']|["']$/g, "");
+}
+
+function isWindowsAppExecutionAlias(command: string): boolean {
+  if (process.platform !== "win32") return false;
+
+  try {
+    if (!existsSync(command)) return false;
+    const normalized = path.normalize(command).toLowerCase();
+    return normalized.includes("\\windowsapps\\") && statSync(command).size === 0;
+  } catch {
+    return false;
+  }
+}
 
 // ── Run Python Z-Score + IQR detection ───────────────────────────────────────
-function runPythonProcess(command: string, inputData: AnomalyInput[]): Promise<PythonResult> {
+function runPythonProcess(python: PythonCommand, inputData: AnomalyInput[]): Promise<PythonResult> {
   return new Promise((resolve, reject) => {
     const scriptPath = path.join(process.cwd(), "scripts", "anomaly_detection.py");
-    const child      = spawn(command, [scriptPath]);
+    const child      = spawn(python.command, [...python.args, scriptPath]);
 
     let stdout = "";
     let stderr = "";
@@ -54,37 +72,58 @@ function runPythonProcess(command: string, inputData: AnomalyInput[]): Promise<P
 
     child.on("close", (code) => {
       if (code !== 0) {
-        reject(new Error(`Python exited ${code}: ${stderr}`));
+        reject(new Error(`${python.label} exited ${code}: ${stderr || stdout}`));
         return;
       }
       try {
         resolve(JSON.parse(stdout) as PythonResult);
       } catch {
-        reject(new Error(`Invalid Python output: ${stdout}`));
+        reject(new Error(`${python.label} returned invalid JSON: ${stdout}`));
       }
     });
 
-    child.on("error", reject);
+    child.on("error", err => reject(new Error(`${python.label} failed: ${err.message}`)));
   });
 }
 
 async function runPythonDetection(inputData: AnomalyInput[]): Promise<PythonResult> {
   const envPython = process.env.PYTHON_BIN?.trim();
-  const commands = [
-    ...(envPython ? [envPython] : []),
-    ...(process.platform === "win32" ? ["python", "python3"] : ["python3", "python"]),
-  ];
+  const commands: PythonCommand[] = [];
   let lastError: unknown;
+  const errors: string[] = [];
+
+  if (envPython) {
+    const command = cleanPythonCommand(envPython);
+    if (isWindowsAppExecutionAlias(command)) {
+      errors.push(`PYTHON_BIN points to a Windows app execution alias, not a real Python interpreter: ${command}`);
+    } else {
+      commands.push({ command, args: [], label: `PYTHON_BIN (${command})` });
+    }
+  }
+
+  commands.push(
+    ...(process.platform === "win32"
+      ? [
+          { command: "py", args: ["-3"], label: "py -3" },
+          { command: "python", args: [], label: "python" },
+          { command: "python3", args: [], label: "python3" },
+        ]
+      : [
+          { command: "python3", args: [], label: "python3" },
+          { command: "python", args: [], label: "python" },
+        ])
+  );
 
   for (const command of commands) {
     try {
       return await runPythonProcess(command, inputData);
     } catch (err) {
       lastError = err;
+      errors.push(err instanceof Error ? err.message : String(err));
     }
   }
 
-  throw lastError;
+  throw new Error(errors.length ? `Python detection failed. ${errors.join(" | ")}` : String(lastError));
 }
 
 function anomalyScore(zScore: number): number {

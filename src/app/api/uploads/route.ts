@@ -52,10 +52,6 @@ function inferType(values: string[]): string {
   return "string";
 }
 
-function cleanNumber(val: string): number {
-  return parseFloat(val.replace(/[$,%\s]/g, "")) || 0;
-}
-
 function normalizePlatform(value: string | null): "GOOGLE" | "META" | "CSV" | null {
   if (!value) return null;
 

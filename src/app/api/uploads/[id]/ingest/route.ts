@@ -102,8 +102,8 @@ async function runAlertCheck(brandId: string) {
     ]);
 
     const allEmails = Array.from(new Set([
-      ...brandMembers.map((m: any) => m.user.email),
-      ...admins.map((a: any) => a.email),
+      ...brandMembers.map((m) => m.user.email),
+      ...admins.map((a) => a.email),
     ]));
 
     const todayStart = new Date();
@@ -158,7 +158,7 @@ async function runAlertCheck(brandId: string) {
             });
 
             await prisma.notificationRecipient.createMany({
-              data: recipientUsers.map((u: any) => ({ notificationId: notification.id, userId: u.id })),
+              data: recipientUsers.map((u) => ({ notificationId: notification.id, userId: u.id })),
               skipDuplicates: true,
             });
           } catch (emailErr) {

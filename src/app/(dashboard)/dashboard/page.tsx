@@ -1,6 +1,6 @@
 "use client";
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   BarChart, Bar, Line,
@@ -61,13 +61,30 @@ function SpendLegendPill({ color, label, dashed = false }: { color: string; labe
     </div>
   );
 }
+
+function getPrevBounds(from: string, to: string) {
+  if (from && to) {
+    const f = new Date(from), t = new Date(to);
+    const days = Math.ceil((t.getTime() - f.getTime()) / 86400000) + 1;
+    const pf = new Date(f); pf.setDate(pf.getDate() - days);
+    const pt = new Date(f); pt.setDate(pt.getDate() - 1);
+    return { prevFrom: pf.toISOString().split("T")[0], prevTo: pt.toISOString().split("T")[0] };
+  }
+  const today = new Date();
+  const pf = new Date(today); pf.setDate(pf.getDate() - 60);
+  const pt = new Date(today); pt.setDate(pt.getDate() - 31);
+  return { prevFrom: pf.toISOString().split("T")[0], prevTo: pt.toISOString().split("T")[0] };
+}
 // ══════════════════════════════════════════════════════════════════════════════
 // MAIN PAGE
 // ══════════════════════════════════════════════════════════════════════════════
 
 export default function DashboardPage() {
   const [analytics,   setAnalytics]   = useState<AnalyticsData | null>(null);
-  const [kpiLoading,  setKpiLoading]  = useState(true);
+  const [kpiLoading,  setKpiLoading]  = useState(() => {
+    if (typeof window === "undefined") return true;
+    return Boolean(sessionStorage.getItem("access_token"));
+  });
   const [brands,      setBrands]      = useState<{ id: string; name: string }[]>([]);
   const [activeBrand, setActiveBrand] = useState("");
   const [platform,    setPlatform]    = useState("");
@@ -76,21 +93,7 @@ export default function DashboardPage() {
   const [,            setUserRole]    = useState<string>("");
   const [prevSpend,   setPrevSpend]   = useState<SpendRow[]>([]);
 
-  function getPrevBounds(from: string, to: string) {
-    if (from && to) {
-      const f = new Date(from), t = new Date(to);
-      const days = Math.ceil((t.getTime() - f.getTime()) / 86400000) + 1;
-      const pf = new Date(f); pf.setDate(pf.getDate() - days);
-      const pt = new Date(f); pt.setDate(pt.getDate() - 1);
-      return { prevFrom: pf.toISOString().split("T")[0], prevTo: pt.toISOString().split("T")[0] };
-    }
-    const today = new Date();
-    const pf = new Date(today); pf.setDate(pf.getDate() - 60);
-    const pt = new Date(today); pt.setDate(pt.getDate() - 31);
-    return { prevFrom: pf.toISOString().split("T")[0], prevTo: pt.toISOString().split("T")[0] };
-  }
-
-  const fetchPrevSpend = (brandId: string, plat: string, from: string, to: string) => {
+  const fetchPrevSpend = useCallback((brandId: string, plat: string, from: string, to: string) => {
     const token = sessionStorage.getItem("access_token"); if (!token || !brandId) return;
     const { prevFrom, prevTo } = getPrevBounds(from, to);
     const p = new URLSearchParams({ brandId, dateFrom: prevFrom, dateTo: prevTo });
@@ -110,9 +113,9 @@ export default function DashboardPage() {
         );
         setPrevSpend(rows);
       }).catch(() => {});
-  };
+  }, []);
 
-  const fetchAnalytics = (brandId: string, plat: string, from: string, to: string) => {
+  const fetchAnalytics = useCallback((brandId: string, plat: string, from: string, to: string) => {
     const token = sessionStorage.getItem("access_token"); if (!token || !brandId) return;
     setKpiLoading(true);
     const p = new URLSearchParams({ brandId });
@@ -124,15 +127,12 @@ export default function DashboardPage() {
       .then(d => { if (d?.kpis) setAnalytics(d); })
       .catch(() => {}).finally(() => setKpiLoading(false));
     fetchPrevSpend(brandId, plat, from, to);
-  };
+  }, [fetchPrevSpend]);
 
   // ── Initial load ───────────────────────────────────────────────────────────
   useEffect(() => {
     const token = sessionStorage.getItem("access_token") ?? "";
-    if (!token) {
-      setKpiLoading(false);
-      return;
-    }
+    if (!token) return;
     const headers = { Authorization: `Bearer ${token}` };
     fetch("/api/users/me", { headers, credentials: "include" })
       .then(r => r.ok ? r.json() : null).then(d => { if (d?.role) setUserRole(d.role); }).catch(() => {});
@@ -150,7 +150,7 @@ export default function DashboardPage() {
         setActiveBrand(first);
         fetchAnalytics(first, "", "", "");
       }).catch(() => { setKpiLoading(false); });
-  }, []);
+  }, [fetchAnalytics]);
 
   // ── Listen for brand-change events fired by layout.tsx top-bar dropdown ───
   useEffect(() => {
@@ -163,8 +163,7 @@ export default function DashboardPage() {
     };
     window.addEventListener("brand-change", handler);
     return () => window.removeEventListener("brand-change", handler);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchAnalytics]);
 
   const applyFilters = () => {
     if (!activeBrand) return;

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import {
   ComposedChart, Line, Area, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine,
+  type DotItemDotProps,
 } from "recharts";
 import styles from "./PredictiveBaseline.module.css";
 
@@ -65,15 +66,9 @@ interface TooltipPayload {
   color: string;
   payload?: { isPredicted?: boolean };
 }
-interface DotProps {
-  key?: string;
-  payload?: ChartPoint;
-  cx?: number;
-  cy?: number;
-}
 
 function fmt(val: number | undefined, prefix = "", suffix = "", decimals = 2): string {
-  if (val === undefined || val === null || isNaN(val)) return "—";
+  if (val === undefined || val === null || isNaN(val)) return "\u2014";
   const n = Number(val);
   const formatted =
     n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M`
@@ -82,10 +77,14 @@ function fmt(val: number | undefined, prefix = "", suffix = "", decimals = 2): s
   return `${prefix}${formatted}${suffix}`;
 }
 
-function shortDate(iso: string): string {
-  if (!iso) return "";
-  const d = new Date(iso);
+function shortDate(value: string | number | undefined): string {
+  if (value === undefined || value === "") return "";
+  const d = new Date(value);
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function chartPointFromDot(props: DotItemDotProps): ChartPoint | undefined {
+  return props.payload as ChartPoint | undefined;
 }
 
 function metricClass(metric: MetricKey) {
@@ -295,7 +294,7 @@ export default function PredictiveBaseline({
             <div className={styles.kpiLabel}>Trend</div>
             <div className={styles.trendWrap}>
               <div className={`${styles.trendValue} ${isPositiveTrend ? styles.trendGood : styles.trendBad}`}>
-                {summary.trend === "up" ? "▲" : "▼"} {summary.trendPct.toFixed(1)}%
+                {summary.trend === "up" ? "\u25B2" : "\u25BC"} {summary.trendPct.toFixed(1)}%
               </div>
             </div>
             <div className={styles.kpiNote}>
@@ -413,11 +412,11 @@ export default function PredictiveBaseline({
                 name="Actual"
                 stroke={metricMeta.color}
                 strokeWidth={2.5}
-                dot={(props: DotProps) => {
-                  if (!props.payload?.actual) return <g key={props.key} />;
+                dot={(props: DotItemDotProps) => {
+                  const point = chartPointFromDot(props);
+                  if (point?.actual === undefined || props.cx === undefined || props.cy === undefined) return null;
                   return (
                     <circle
-                      key={props.key}
                       cx={props.cx}
                       cy={props.cy}
                       r={3}
@@ -436,11 +435,11 @@ export default function PredictiveBaseline({
                 stroke={metricMeta.color}
                 strokeWidth={2.5}
                 strokeDasharray="2 0"
-                dot={(props: DotProps) => {
-                  if (props.payload?.predicted === undefined) return <g key={props.key} />;
+                dot={(props: DotItemDotProps) => {
+                  const point = chartPointFromDot(props);
+                  if (point?.predicted === undefined || props.cx === undefined || props.cy === undefined) return null;
                   return (
                     <circle
-                      key={props.key}
                       cx={props.cx}
                       cy={props.cy}
                       r={3.5}

@@ -2,7 +2,7 @@
 
 import { useAuth, Role } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 
 interface RequireRoleProps {
   role: Role | Role[];
@@ -21,14 +21,14 @@ interface RequireRoleProps {
 export function RequireRole({ role, children }: RequireRoleProps) {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const allowed = Array.isArray(role) ? role : [role];
+  const allowed = useMemo(() => Array.isArray(role) ? role : [role], [role]);
 
   useEffect(() => {
     if (loading) return;
     if (!user || !allowed.includes(user.role)) {
       router.replace("/dashboard?unauthorized=1");
     }
-  }, [user, loading]);
+  }, [allowed, loading, router, user]);
 
   if (loading) return null;
   if (!user || !allowed.includes(user.role)) return null;

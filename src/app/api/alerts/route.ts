@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { NotificationStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, AuthError } from "@/lib/auth-guard";
 
@@ -27,9 +28,9 @@ export async function GET(req: NextRequest) {
       ? [brandId]
       : brandIds;
 
-    const where: any = { brandId: { in: filterBrandIds } };
-    if (status && ["OPEN", "ACK", "RESOLVED"].includes(status)) {
-      where.status = status;
+    const where: Prisma.AlertWhereInput = { brandId: { in: filterBrandIds } };
+    if (status && Object.values(NotificationStatus).includes(status as NotificationStatus)) {
+      where.status = status as NotificationStatus;
     }
 
     const alerts = await prisma.alert.findMany({
