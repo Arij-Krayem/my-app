@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { requireAuth, AuthError } from "@/lib/auth-guard";
+import { prisma } from "@/lib/db/prisma";
+import { requireAuth, AuthError } from "@/lib/auth/auth-guard";
 
 interface MetricRow {
   date: Date | string;
@@ -24,6 +24,27 @@ interface AggregateRow {
   totalConversions: number | bigint | string;
 }
 
+interface LatestDateRow {
+  maxDate: Date | string | null;
+}
+
+const VALID_PLATFORMS = ["GOOGLE", "META"] as const;
+
+function toIsoDate(value: Date): string {
+  return value.toISOString().split("T")[0];
+}
+
+function startOfUtcDay(value: Date | string): Date {
+  const date = value instanceof Date ? value : new Date(String(value));
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+
+function shiftUtcDays(value: Date, days: number): Date {
+  const next = new Date(value);
+  next.setUTCDate(next.getUTCDate() + days);
+  return next;
+}
+
 async function canAccessBrand(userId: string, role: string, brandId: string): Promise<boolean> {
   if (role === "AGENCY_ADMIN") return true;
   const member = await prisma.brandMember.findUnique({
@@ -40,29 +61,50 @@ export async function GET(req: NextRequest) {
     const platform = searchParams.get("platform") ?? "";
     const dateFrom = searchParams.get("dateFrom") ?? "";
     const dateTo   = searchParams.get("dateTo")   ?? "";
+    const hasPlatformFilter = VALID_PLATFORMS.includes(platform as (typeof VALID_PLATFORMS)[number]);
 
     const allowed = await canAccessBrand(payload.userId, payload.role, brandId);
     if (!allowed)
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
 
+    let effectiveDateFrom = dateFrom;
+    let effectiveDateTo = dateTo;
+
+    if (!dateFrom && !dateTo) {
+      const latestDateConditions = [`"brandId" = '${brandId}'`];
+      if (hasPlatformFilter)
+        latestDateConditions.push(`platform = '${platform}'::"Platform"`);
+
+      const latestRows = await prisma.$queryRawUnsafe<LatestDateRow[]>(`
+        SELECT MAX(date)::date AS "maxDate"
+        FROM public."PerformanceFact"
+        WHERE ${latestDateConditions.join(" AND ")}
+      `);
+
+      const latestDate = latestRows[0]?.maxDate;
+      if (latestDate) {
+        const latestDay = startOfUtcDay(latestDate);
+        effectiveDateTo = toIsoDate(latestDay);
+        effectiveDateFrom = toIsoDate(shiftUtcDays(latestDay, -29));
+      }
+    }
+
     // ── Base WHERE (current period) ──────────────────────────────────────────
     const conditions: string[] = [`"brandId" = '${brandId}'`];
-    if (platform && ["GOOGLE", "META"].includes(platform))
+    if (hasPlatformFilter)
       conditions.push(`platform = '${platform}'::"Platform"`);
-    if (dateFrom) conditions.push(`date >= '${dateFrom}'::date`);
-    if (dateTo)   conditions.push(`date <= '${dateTo}'::date`);
-    if (!dateFrom && !dateTo)
-      conditions.push(`date >= (CURRENT_DATE - INTERVAL '30 days')`);
+    if (effectiveDateFrom) conditions.push(`date >= '${effectiveDateFrom}'::date`);
+    if (effectiveDateTo)   conditions.push(`date <= '${effectiveDateTo}'::date`);
     const where = conditions.join(" AND ");
 
     // ── Previous period bounds ───────────────────────────────────────────────
     const prevConditions: string[] = [`"brandId" = '${brandId}'`];
-    if (platform && ["GOOGLE", "META"].includes(platform))
+    if (hasPlatformFilter)
       prevConditions.push(`platform = '${platform}'::"Platform"`);
 
-    if (dateFrom && dateTo) {
-      const from  = new Date(dateFrom);
-      const to    = new Date(dateTo);
+    if (effectiveDateFrom && effectiveDateTo) {
+      const from  = new Date(effectiveDateFrom);
+      const to    = new Date(effectiveDateTo);
       const days  = Math.ceil((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24)) + 1;
       const pFrom = new Date(from); pFrom.setDate(pFrom.getDate() - days);
       const pTo   = new Date(from); pTo.setDate(pTo.getDate() - 1);
@@ -76,10 +118,8 @@ export async function GET(req: NextRequest) {
 
     // ── WHERE without platform filter (for platform-split query) ────────────
     const baseConditions: string[] = [`"brandId" = '${brandId}'`];
-    if (dateFrom) baseConditions.push(`date >= '${dateFrom}'::date`);
-    if (dateTo)   baseConditions.push(`date <= '${dateTo}'::date`);
-    if (!dateFrom && !dateTo)
-      baseConditions.push(`date >= (CURRENT_DATE - INTERVAL '30 days')`);
+    if (effectiveDateFrom) baseConditions.push(`date >= '${effectiveDateFrom}'::date`);
+    if (effectiveDateTo)   baseConditions.push(`date <= '${effectiveDateTo}'::date`);
     const baseWhere = baseConditions.join(" AND ");
 
     // ════════════════════════════════════════════════════════════════════════

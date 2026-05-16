@@ -14,7 +14,7 @@ import { createServer }       from "http";
 import { parse }              from "url";
 import next                   from "next";
 import { Server as SocketIO } from "socket.io";
-import { setSocketServer }    from "./src/lib/socket-server";
+import { setSocketServer }    from "./src/lib/realtime/socket-server";
 
 const dev  = process.env.NODE_ENV !== "production";
 const port = parseInt(process.env.PORT ?? "3000", 10);

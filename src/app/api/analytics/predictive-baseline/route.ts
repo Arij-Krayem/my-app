@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { AuthError, requireAuth } from "@/lib/auth-guard";
-import { prisma } from "@/lib/prisma";
+import { AuthError, requireAuth } from "@/lib/auth/auth-guard";
+import { prisma } from "@/lib/db/prisma";
 import { spawn } from "child_process";
 import path from "path";
 

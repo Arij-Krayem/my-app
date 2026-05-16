@@ -1,8 +1,8 @@
 // src/app/api/brands/[id]/route.ts
 // ─── Single brand PATCH (update name + logoUrl) ───────────────────────────────
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, AuthError }    from "@/lib/auth-guard";
-import { prisma }                    from "@/lib/prisma";
+import { requireAuth, AuthError }    from "@/lib/auth/auth-guard";
+import { prisma }                    from "@/lib/db/prisma";
 
 async function canAccessBrand(userId: string, role: string, brandId: string) {
   if (role === "AGENCY_ADMIN") return true;

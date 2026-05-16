@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db/prisma";
 import { z } from "zod";
-import { requireAuth } from "@/lib/auth-guard";
+import { requireAuth } from "@/lib/auth/auth-guard";
 
 const UpdateBody = z.object({
   name: z.string().optional(),

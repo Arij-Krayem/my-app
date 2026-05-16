@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { requireAuth, AuthError } from "@/lib/auth-guard";
+import { prisma } from "@/lib/db/prisma";
+import { requireAuth, AuthError } from "@/lib/auth/auth-guard";
 
 // ─── Helper: verify user can access this brand ───────────────────────────────
 async function canAccessBrand(userId: string, role: string, brandId: string): Promise<boolean> {

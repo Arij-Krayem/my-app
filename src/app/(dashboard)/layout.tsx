@@ -5,9 +5,9 @@ import Link from "next/link";
 import { Tooltip } from "antd";
 import { usePathname, useRouter } from "next/navigation";
 import styles from "./layout.module.css";
-import UserAvatar from "@/components/UserAvatar";
-import { readSessionUser, userSessionEventName, type SessionUser } from "@/lib/session-user";
-import { installSessionFetchInterceptor } from "@/lib/session-fetch";
+import UserAvatar from "@/components/user/UserAvatar";
+import { readSessionUser, userSessionEventName, type SessionUser } from "@/lib/session/session-user";
+import { installSessionFetchInterceptor } from "@/lib/session/session-fetch";
 
 const SVG = {
   dashboard: <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /></svg>,

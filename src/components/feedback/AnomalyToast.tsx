@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getSocket } from "@/lib/socket-client";
+import { getSocket } from "@/lib/realtime/socket-client";
 import styles from "./AnomalyToast.module.css";
 
 interface AnomalyEvent {

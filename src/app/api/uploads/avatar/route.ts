@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, AuthError } from "@/lib/auth-guard";
+import { requireAuth, AuthError } from "@/lib/auth/auth-guard";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 

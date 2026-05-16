@@ -1,8 +1,8 @@
 // src/app/api/brands/route.ts
 // ─── Brands CRUD — updated to support logoUrl ─────────────────────────────────
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, AuthError }    from "@/lib/auth-guard";
-import { prisma }                    from "@/lib/prisma";
+import { requireAuth, AuthError }    from "@/lib/auth/auth-guard";
+import { prisma }                    from "@/lib/db/prisma";
 
 async function canAccessBrand(userId: string, role: string, brandId: string): Promise<boolean> {
   if (role === "AGENCY_ADMIN") return true;

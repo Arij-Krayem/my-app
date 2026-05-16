@@ -1,9 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import AvatarUploadField from "@/components/AvatarUploadField";
-import UserAvatar from "@/components/UserAvatar";
-import { readSessionUser, writeSessionUser } from "@/lib/session-user";
+import AvatarUploadField from "@/components/user/AvatarUploadField";
+import UserAvatar from "@/components/user/UserAvatar";
+import { readSessionUser, writeSessionUser } from "@/lib/session/session-user";
 import styles from "./page.module.css";
 
 interface SettingsUser {

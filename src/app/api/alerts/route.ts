@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { NotificationStatus, Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
-import { requireAuth, AuthError } from "@/lib/auth-guard";
+import { prisma } from "@/lib/db/prisma";
+import { requireAuth, AuthError } from "@/lib/auth/auth-guard";
 
 export async function GET(req: NextRequest) {
   try {

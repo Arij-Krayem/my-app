@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { writeSessionUser } from "@/lib/session-user";
+import { writeSessionUser } from "@/lib/session/session-user";
 import styles from "../auth.module.css";
 
 const loginSchema = z.object({

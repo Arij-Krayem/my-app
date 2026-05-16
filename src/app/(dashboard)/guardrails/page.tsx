@@ -6,7 +6,7 @@ import {
   GUARDRAIL_OPERATORS,
   type GuardrailRuleErrors,
   validateGuardrailRuleInput,
-} from "@/lib/guardrail-rule-validation";
+} from "@/lib/guardrails/guardrail-rule-validation";
 import styles from "./page.module.css";
 
 const SEV_CLASS: Record<Rule["severity"], string> = {

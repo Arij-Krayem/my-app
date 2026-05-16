@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { cookieName, refreshCookie } from "@/lib/cookies";
-import { verifyRefreshToken, signAccessToken, signRefreshToken, hashToken, refreshTokenMaxAgeSeconds } from "@/lib/auth";
+import { prisma } from "@/lib/db/prisma";
+import { cookieName, refreshCookie } from "@/lib/auth/cookies";
+import { verifyRefreshToken, signAccessToken, signRefreshToken, hashToken, refreshTokenMaxAgeSeconds } from "@/lib/auth/auth";
 
 export async function POST(req: NextRequest) {
   const token = req.cookies.get(cookieName())?.value;

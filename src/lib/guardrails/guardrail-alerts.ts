@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/prisma";
-import { sendAlertEmail } from "@/lib/notification-mailer";
+import { prisma } from "@/lib/db/prisma";
+import { sendAlertEmail } from "@/lib/notifications/notification-mailer";
 
 type EvaluationResult = {
   checked: number;

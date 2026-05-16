@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { AuthError, requireAdmin } from "@/lib/auth-guard";
+import { AuthError, requireAdmin } from "@/lib/auth/auth-guard";
 
 export async function GET(req: NextRequest) {
   try {

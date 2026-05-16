@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { requireAuth, AuthError } from "@/lib/auth-guard";
-import { sendAlertEmail } from "@/lib/notification-mailer";
+import { prisma } from "@/lib/db/prisma";
+import { requireAuth, AuthError } from "@/lib/auth/auth-guard";
+import { sendAlertEmail } from "@/lib/notifications/notification-mailer";
 
 function evaluate(value: number, operator: string, threshold: number): boolean {
   switch (operator) {

@@ -4,9 +4,9 @@
 import { spawn }              from "child_process";
 import { existsSync, statSync } from "fs";
 import path                   from "path";
-import { prisma }             from "@/lib/prisma";
-import { sendAnomalyEmail }   from "@/lib/notification-mailer";
-import { getSocketServer }    from "@/lib/socket-server";
+import { prisma }             from "@/lib/db/prisma";
+import { sendAnomalyEmail }   from "@/lib/notifications/notification-mailer";
+import { getSocketServer }    from "@/lib/realtime/socket-server";
 
 interface RawFact {
   date:     Date;

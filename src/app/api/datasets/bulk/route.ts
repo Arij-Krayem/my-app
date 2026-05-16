@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/prisma";
-import { getBearer, verifyAccessToken } from "@/lib/auth";
+import { prisma } from "@/lib/db/prisma";
+import { getBearer, verifyAccessToken } from "@/lib/auth/auth";
 import { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";

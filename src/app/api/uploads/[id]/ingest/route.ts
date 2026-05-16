@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { requireAuth, AuthError } from "@/lib/auth-guard";
+import { prisma } from "@/lib/db/prisma";
+import { requireAuth, AuthError } from "@/lib/auth/auth-guard";
 import { parse } from "csv-parse/sync";
 import { EntityType, Prisma } from "@prisma/client";
-import { sendAlertEmail } from "@/lib/notification-mailer";
-import { runAnomalyCheck } from "@/lib/anomaly-engine"; // ← NEW
+import { sendAlertEmail } from "@/lib/notifications/notification-mailer";
+import { runAnomalyCheck } from "@/lib/anomalies/anomaly-engine"; // ← NEW
 
 function cleanNumber(val: string): number {
   if (!val) return 0;

@@ -6,9 +6,9 @@ import {
   BarChart, Bar, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
-import DashboardEnhanced from "@/components/DashboardEnhanced";
-import GlobalStatusWidget from "@/components/GlobalStatusWidget";
-import PredictiveBaseline from "@/components/PredictiveBaseline";
+import DashboardEnhanced from "@/components/dashboard/enhanced/DashboardEnhanced";
+import GlobalStatusWidget from "@/components/dashboard/widgets/GlobalStatusWidget";
+import PredictiveBaseline from "@/components/dashboard/widgets/PredictiveBaseline";
 import styles from "./page.module.css";
 
 type KpiKey = "totalSpend" | "avgRoas" | "avgCtr" | "avgCpc";

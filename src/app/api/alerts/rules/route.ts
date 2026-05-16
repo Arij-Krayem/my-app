@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { requireAuth, AuthError } from "@/lib/auth-guard";
-import { evaluateGuardrailRulesForBrand } from "@/lib/guardrail-alerts";
-import { validateGuardrailRuleInput } from "@/lib/guardrail-rule-validation";
+import { prisma } from "@/lib/db/prisma";
+import { requireAuth, AuthError } from "@/lib/auth/auth-guard";
+import { evaluateGuardrailRulesForBrand } from "@/lib/guardrails/guardrail-alerts";
+import { validateGuardrailRuleInput } from "@/lib/guardrails/guardrail-rule-validation";
 
 function validationResponse(errors: ReturnType<typeof validateGuardrailRuleInput>["errors"]) {
   return NextResponse.json(

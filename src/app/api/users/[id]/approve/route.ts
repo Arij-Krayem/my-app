@@ -1,9 +1,9 @@
 // src/app/api/users/[id]/approve/route.ts
 // ─── ADMIN ONLY: approve a user account + send approval email ─────────────────
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, AuthError }    from "@/lib/auth-guard";
-import { prisma }                    from "@/lib/prisma";
-import { sendApprovalEmail }         from "@/lib/notification-mailer";
+import { requireAuth, AuthError }    from "@/lib/auth/auth-guard";
+import { prisma }                    from "@/lib/db/prisma";
+import { sendApprovalEmail }         from "@/lib/notifications/notification-mailer";
 
 export async function POST(
   req: NextRequest,

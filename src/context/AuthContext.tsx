@@ -9,7 +9,7 @@ import {
   useRef,
   ReactNode,
 } from "react";
-import { setAccessToken, setUnauthenticatedHandler, apiFetch } from "@/lib/apiFetch";
+import { setAccessToken, setUnauthenticatedHandler, apiFetch } from "@/lib/http/apiFetch";
 
 // ─── Types — mirrors your AccessPayload + prisma select ───────────────────────
 

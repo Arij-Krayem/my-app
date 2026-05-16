@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, type ReactNode } from "react";
+import { useEffect, useRef, useState, useCallback, type ReactNode } from "react";
 import {
   AreaChart, Area, BarChart, Bar,
   LineChart, Line, PieChart, Pie, Cell, Sector,
@@ -308,11 +308,22 @@ export default function DashboardEnhanced({ brandId, platform, dateFrom, dateTo 
   const [convTrend, setConvTrend] = useState<ConvTrend[]>([]);
   const [biLoading, setBiLoading] = useState(true);
   const [trendsLoading, setTrendsLoading] = useState(true);
+  const trendsRequestId = useRef(0);
 
   const singlePlatform = platform !== "";
   const token = () => sessionStorage.getItem("access_token") ?? "";
 
   const fetchTrends = useCallback(async () => {
+    const requestId = ++trendsRequestId.current;
+    if (!brandId) {
+      setTrends([]);
+      setComparison(null);
+      setAlertDays([]);
+      setAlertSummary({});
+      setTrendsLoading(false);
+      return;
+    }
+
     setTrendsLoading(true);
     try {
       const params = new URLSearchParams({ brandId });
@@ -324,10 +335,34 @@ export default function DashboardEnhanced({ brandId, platform, dateFrom, dateTo 
         fetch(`/api/analytics/trends?${params}`, { headers, credentials: "include" }),
         fetch(`/api/analytics/alert-trends?brandId=${brandId}`, { headers, credentials: "include" }),
       ]);
-      if (trendsRes.ok) { const d = await trendsRes.json(); setTrends(d.metricsOverTime ?? []); setComparison(d.comparison ?? null); }
-      if (alertsRes.ok) { const d = await alertsRes.json(); setAlertDays(d.alertsPerDay ?? []); setAlertSummary(d.summary ?? {}); }
-    } catch {}
-    finally { setTrendsLoading(false); }
+      const trendsData = trendsRes.ok ? await trendsRes.json() : null;
+      const alertsData = alertsRes.ok ? await alertsRes.json() : null;
+      if (requestId !== trendsRequestId.current) return;
+      if (trendsData) {
+        setTrends(trendsData.metricsOverTime ?? []);
+        setComparison(trendsData.comparison ?? null);
+      } else {
+        setTrends([]);
+        setComparison(null);
+      }
+      if (alertsData) {
+        setAlertDays(alertsData.alertsPerDay ?? []);
+        setAlertSummary(alertsData.summary ?? {});
+      } else {
+        setAlertDays([]);
+        setAlertSummary({});
+      }
+    } catch {
+      if (requestId === trendsRequestId.current) {
+        setTrends([]);
+        setComparison(null);
+        setAlertDays([]);
+        setAlertSummary({});
+      }
+    }
+    finally {
+      if (requestId === trendsRequestId.current) setTrendsLoading(false);
+    }
   }, [brandId, platform, dateFrom, dateTo]);
 
   const fetchBI = useCallback(async () => {

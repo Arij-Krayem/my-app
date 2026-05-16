@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import UserAvatar from "@/components/UserAvatar";
+import UserAvatar from "./UserAvatar";
 import styles from "./AvatarUploadField.module.css";
 
 interface AvatarUploadFieldProps {
