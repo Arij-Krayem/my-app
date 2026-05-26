@@ -3,6 +3,14 @@ import { prisma } from "@/lib/db/prisma";
 import { requireAuth, AuthError } from "@/lib/auth/auth-guard";
 import { sendAlertEmail } from "@/lib/notifications/notification-mailer";
 
+type EmailRecipient = {
+  email: string;
+};
+
+type BrandMemberEmailRecipient = {
+  user: EmailRecipient;
+};
+
 function evaluate(value: number, operator: string, threshold: number): boolean {
   switch (operator) {
     case ">":  return value > threshold;
@@ -79,7 +87,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Get recipients: brand members + all agency admins
-    const [brandMembers, admins] = await Promise.all([
+    const [brandMembers, admins]: [BrandMemberEmailRecipient[], EmailRecipient[]] = await Promise.all([
       prisma.brandMember.findMany({
         where: { brandId },
         include: { user: { select: { email: true } } },
@@ -91,8 +99,8 @@ export async function POST(req: NextRequest) {
     ]);
 
     const allEmails = Array.from(new Set([
-      ...brandMembers.map(m => m.user.email),
-      ...admins.map(a => a.email),
+      ...brandMembers.map((m) => m.user.email),
+      ...admins.map((a) => a.email),
     ]));
 
     // Once-per-day dedup: check if we already sent for this rule today
@@ -158,13 +166,13 @@ export async function POST(req: NextRequest) {
             });
 
             // Create recipients
-            const recipientUsers = await prisma.user.findMany({
+            const recipientUsers: Array<{ id: string }> = await prisma.user.findMany({
               where: { email: { in: allEmails } },
               select: { id: true },
             });
 
             await prisma.notificationRecipient.createMany({
-              data: recipientUsers.map(u => ({
+              data: recipientUsers.map((u) => ({
                 notificationId: notification.id,
                 userId:         u.id,
               })),
