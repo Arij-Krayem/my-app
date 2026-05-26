@@ -1,5 +1,4 @@
-// src/lib/socket-server.ts
-// ─── Socket.io server singleton — safe to call from any API route ────────────
+// ─── Socket.io server singleton — safe to call from any API route
 
 import { Server as SocketIOServer } from "socket.io";
 

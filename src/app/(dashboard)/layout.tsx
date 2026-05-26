@@ -6,6 +6,7 @@ import { Tooltip } from "antd";
 import { usePathname, useRouter } from "next/navigation";
 import styles from "./layout.module.css";
 import UserAvatar from "@/components/user/UserAvatar";
+import AnomalyToast from "@/components/feedback/AnomalyToast";
 import { readSessionUser, userSessionEventName, type SessionUser } from "@/lib/session/session-user";
 import { installSessionFetchInterceptor } from "@/lib/session/session-fetch";
 
@@ -213,6 +214,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className={`${styles.shell} ${shellStateClass}`}>
+      <AnomalyToast />
       <aside className={styles.sidebar}>
         <div className={styles.sidebarHeader}>
           <div className={styles.logoBlock}>

@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     })),
   });
 
-  await prisma.upload.update({ where: { id: upload.id }, data: { status: "IMPORTED" } });
+  await prisma.upload.update({ where: { id: upload.id }, data: { status: "IMPORTED" } }); // it marks the upload as completed
 
   return NextResponse.json({ inserted: data.rows.length });
 }

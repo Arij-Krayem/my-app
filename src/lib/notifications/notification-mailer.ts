@@ -1,4 +1,14 @@
 import nodemailer from "nodemailer";
+import {
+  EMAIL_STYLES,
+  EMAIL_THEMES,
+  renderAccessItem,
+  renderBorderedMonitorPanel,
+  renderDarkFooter,
+  renderLogoMark,
+  renderMetricValueStyle,
+  renderMonitorHeader,
+} from "./email-template";
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -32,82 +42,50 @@ interface AnomalyEmailData {
   recipients: string[];
 }
 
-const BASE_STYLE = `
-  font-family: 'Segoe UI', Arial, sans-serif;
-  max-width: 560px;
-  margin: 0 auto;
-  padding: 32px;
-  background: #0d0f12;
-  border-radius: 16px;
-  color: #fff;
-`;
-
-const LOGO_MARK = (letter: string, background: string, extraStyle = "") => `
-  <table role="presentation" cellpadding="0" cellspacing="0" align="center" style="border-collapse:collapse;margin:0 auto 14px;">
-    <tr>
-      <td width="48" height="48" align="center" valign="middle" style="width:48px;height:48px;border-radius:12px;background:${background};${extraStyle}">
-        <span style="display:block;width:48px;height:48px;line-height:48px;text-align:center;color:#ffffff;font-size:22px;font-weight:800;font-family:'Segoe UI',Arial,sans-serif;mso-line-height-rule:exactly;">${letter}</span>
-      </td>
-    </tr>
-  </table>
-`;
-
-const HEADER = (letter: string, color: string) => `
-  <div style="text-align:center;margin-bottom:28px;">
-    ${LOGO_MARK(letter, `linear-gradient(135deg,${color})`)}
-  </div>
-`;
-
-const FOOTER = `
-  <hr style="border:none;border-top:1px solid #1f2937;margin:24px 0;" />
-  <p style="color:#4b5563;font-size:11px;text-align:center;margin:0;">&copy; 2026 VisioAd · Full-Service Brand Advertising Agency</p>
-`;
-
 export async function sendAlertEmail(data: AlertEmailData) {
   if (!data.recipients.length) return;
 
   const isCritical = data.severity === "CRITICAL";
-  const color = isCritical ? "#dc2626,#f87171" : "#d97706,#fbbf24";
+  const theme = EMAIL_THEMES.alert[data.severity];
   const label = isCritical ? "CRITICAL ALERT" : "WARNING ALERT";
-  const borderColor = isCritical ? "#dc2626" : "#d97706";
 
   const html = `
-    <div style="${BASE_STYLE}">
-      ${HEADER("V", color)}
-      <h1 style="font-size:20px;font-weight:700;margin:0 0 6px;color:#fff;text-align:center;">${label}</h1>
-      <p style="color:#9ca3af;font-size:14px;text-align:center;margin:0 0 24px;">A performance threshold has been breached for <strong style="color:#fff;">${data.brandName}</strong></p>
+    <div style="${EMAIL_STYLES.monitor.shell}">
+      ${renderMonitorHeader("V", theme.logoColorStops)}
+      <h1 style="${EMAIL_STYLES.monitor.title}">${label}</h1>
+      <p style="${EMAIL_STYLES.monitor.intro}">A performance threshold has been breached for <strong style="${EMAIL_STYLES.monitor.introStrong}">${data.brandName}</strong></p>
 
-      <div style="background:#111827;border:1px solid #1f2937;border-left:4px solid ${borderColor};border-radius:12px;padding:20px;margin-bottom:20px;">
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;text-align:center;">
+      <div style="${renderBorderedMonitorPanel(theme.borderColor, EMAIL_STYLES.monitor.thresholdPanel)}">
+        <div style="${EMAIL_STYLES.monitor.metricGrid}">
           <div>
-            <p style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.08em;margin:0 0 4px;">Metric</p>
-            <p style="font-size:18px;font-weight:700;color:#fff;margin:0;">${data.metricKey.toUpperCase()}</p>
+            <p style="${EMAIL_STYLES.monitor.metricLabel}">Metric</p>
+            <p style="${renderMetricValueStyle("#fff")}">${data.metricKey.toUpperCase()}</p>
           </div>
           <div>
-            <p style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.08em;margin:0 0 4px;">Current Value</p>
-            <p style="font-size:18px;font-weight:700;color:${borderColor};margin:0;">${data.value.toFixed(2)}</p>
+            <p style="${EMAIL_STYLES.monitor.metricLabel}">Current Value</p>
+            <p style="${renderMetricValueStyle(theme.borderColor)}">${data.value.toFixed(2)}</p>
           </div>
           <div>
-            <p style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.08em;margin:0 0 4px;">Threshold</p>
-            <p style="font-size:18px;font-weight:700;color:#9ca3af;margin:0;">${data.operator} ${data.threshold}</p>
+            <p style="${EMAIL_STYLES.monitor.metricLabel}">Threshold</p>
+            <p style="${renderMetricValueStyle("#9ca3af")}">${data.operator} ${data.threshold}</p>
           </div>
         </div>
       </div>
 
-      <div style="background:#111827;border:1px solid #1f2937;border-radius:12px;padding:16px;margin-bottom:20px;">
-        <p style="font-size:12px;color:#6b7280;margin:0 0 6px;text-transform:uppercase;letter-spacing:.05em;">Details</p>
-        <p style="font-size:14px;color:#d1d5db;margin:0;">${data.message}</p>
+      <div style="${EMAIL_STYLES.monitor.panel}${EMAIL_STYLES.monitor.detailsPanel}">
+        <p style="${EMAIL_STYLES.monitor.detailsLabel}">Details</p>
+        <p style="${EMAIL_STYLES.monitor.detailsText}">${data.message}</p>
       </div>
 
       <a href="${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/alerts"
-        style="display:block;text-align:center;padding:14px;background:linear-gradient(135deg,#5865f2,#818cf8);color:#fff;border-radius:10px;text-decoration:none;font-size:15px;font-weight:600;margin-bottom:20px;">
+        style="${EMAIL_STYLES.monitor.action}">
         View Alert in Dashboard ->
       </a>
 
-      <p style="color:#6b7280;font-size:12px;text-align:center;margin:0;">
-        You are receiving this because you are a member of the <strong style="color:#9ca3af;">${data.brandName}</strong> workspace.
+      <p style="${EMAIL_STYLES.monitor.workspaceNote}">
+        You are receiving this because you are a member of the <strong style="${EMAIL_STYLES.monitor.workspaceStrong}">${data.brandName}</strong> workspace.
       </p>
-      ${FOOTER}
+      ${renderDarkFooter()}
     </div>
   `;
 
@@ -127,51 +105,51 @@ export async function sendAnomalyEmail(data: AnomalyEmailData) {
   const highCount = data.anomalies.filter((anomaly) => anomaly.severity === "HIGH").length;
 
   const html = `
-    <div style="${BASE_STYLE}">
-      ${HEADER("V", "#f85149,#fca5a5")}
-      <h1 style="font-size:20px;font-weight:700;margin:0 0 6px;color:#fff;text-align:center;">HIGH ANOMALY DETECTED</h1>
-      <p style="color:#9ca3af;font-size:14px;text-align:center;margin:0 0 24px;">
-        ${summaryLabel} detected in <strong style="color:#fff;">${data.brandName}</strong>
+    <div style="${EMAIL_STYLES.monitor.shell}">
+      ${renderMonitorHeader("V", EMAIL_THEMES.anomaly.logoColorStops)}
+      <h1 style="${EMAIL_STYLES.monitor.title}">HIGH ANOMALY DETECTED</h1>
+      <p style="${EMAIL_STYLES.monitor.intro}">
+        ${summaryLabel} detected in <strong style="${EMAIL_STYLES.monitor.introStrong}">${data.brandName}</strong>
       </p>
 
-      <div style="background:#111827;border:1px solid #1f2937;border-left:4px solid #f85149;border-radius:12px;padding:20px;margin-bottom:20px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div style="${renderBorderedMonitorPanel(EMAIL_THEMES.anomaly.borderColor, EMAIL_STYLES.monitor.thresholdPanel)}">
+        <div style="${EMAIL_STYLES.monitor.anomalySummary}">
           <div>
-            <p style="font-size:16px;font-weight:700;color:#fff;margin:0 0 4px;">${primary.campaign ?? "Unknown campaign"}</p>
-            <p style="font-size:12px;color:#6b7280;margin:0;">${primary.platform ?? "Unknown platform"} · ${primary.metric}</p>
+            <p style="${EMAIL_STYLES.monitor.anomalyTitle}">${primary.campaign ?? "Unknown campaign"}</p>
+            <p style="${EMAIL_STYLES.monitor.anomalyMeta}">${primary.platform ?? "Unknown platform"} · ${primary.metric}</p>
           </div>
-          <div style="text-align:right;">
-            <p style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.08em;margin:0 0 2px;">Highest Z-Score</p>
-            <p style="font-size:28px;font-weight:800;color:#f85149;margin:0;">${primary.z_score.toFixed(2)}</p>
-          </div>
-        </div>
-
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;">
-          <div style="background:#0d0f12;border-radius:8px;padding:12px;">
-            <p style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin:0 0 4px;">Metric</p>
-            <p style="font-size:13px;font-weight:600;color:#d1d5db;margin:0;">${primary.metric.toUpperCase()}</p>
-          </div>
-          <div style="background:#0d0f12;border-radius:8px;padding:12px;">
-            <p style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin:0 0 4px;">Value</p>
-            <p style="font-size:13px;font-weight:600;color:#d1d5db;margin:0;">${primary.value.toFixed(2)}</p>
-          </div>
-          <div style="background:#0d0f12;border-radius:8px;padding:12px;">
-            <p style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin:0 0 4px;">High Severity</p>
-            <p style="font-size:13px;font-weight:600;color:#d1d5db;margin:0;">${highCount}</p>
+          <div style="${EMAIL_STYLES.monitor.anomalyScoreWrap}">
+            <p style="${EMAIL_STYLES.monitor.anomalyScoreLabel}">Highest Z-Score</p>
+            <p style="${EMAIL_STYLES.monitor.anomalyScore}">${primary.z_score.toFixed(2)}</p>
           </div>
         </div>
 
-        <div style="display:flex;flex-direction:column;gap:10px;">
+        <div style="${EMAIL_STYLES.monitor.summaryGrid}">
+          <div style="${EMAIL_STYLES.monitor.summaryItem}">
+            <p style="${EMAIL_STYLES.monitor.summaryLabel}">Metric</p>
+            <p style="${EMAIL_STYLES.monitor.summaryValue}">${primary.metric.toUpperCase()}</p>
+          </div>
+          <div style="${EMAIL_STYLES.monitor.summaryItem}">
+            <p style="${EMAIL_STYLES.monitor.summaryLabel}">Value</p>
+            <p style="${EMAIL_STYLES.monitor.summaryValue}">${primary.value.toFixed(2)}</p>
+          </div>
+          <div style="${EMAIL_STYLES.monitor.summaryItem}">
+            <p style="${EMAIL_STYLES.monitor.summaryLabel}">High Severity</p>
+            <p style="${EMAIL_STYLES.monitor.summaryValue}">${highCount}</p>
+          </div>
+        </div>
+
+        <div style="${EMAIL_STYLES.monitor.anomalyList}">
           ${data.anomalies.slice(0, 5).map((anomaly) => `
-            <div style="background:#0d0f12;border-radius:8px;padding:12px;">
-              <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;">
+            <div style="${EMAIL_STYLES.monitor.anomalyItem}">
+              <div style="${EMAIL_STYLES.monitor.anomalyItemRow}">
                 <div>
-                  <p style="font-size:13px;font-weight:700;color:#fff;margin:0 0 4px;">${anomaly.campaign ?? "Unknown campaign"}</p>
-                  <p style="font-size:12px;color:#9ca3af;margin:0;">${anomaly.platform ?? "Unknown platform"} · ${anomaly.metric}</p>
+                  <p style="${EMAIL_STYLES.monitor.anomalyItemTitle}">${anomaly.campaign ?? "Unknown campaign"}</p>
+                  <p style="${EMAIL_STYLES.monitor.anomalyItemMeta}">${anomaly.platform ?? "Unknown platform"} · ${anomaly.metric}</p>
                 </div>
-                <div style="text-align:right;">
-                  <p style="font-size:12px;font-weight:700;color:#fca5a5;margin:0;">${anomaly.severity}</p>
-                  <p style="font-size:12px;color:#d1d5db;margin:4px 0 0;">z=${anomaly.z_score.toFixed(2)} · ${anomaly.value.toFixed(2)}</p>
+                <div style="${EMAIL_STYLES.monitor.anomalyScoreWrap}">
+                  <p style="${EMAIL_STYLES.monitor.anomalyItemSeverity}">${anomaly.severity}</p>
+                  <p style="${EMAIL_STYLES.monitor.anomalyItemValue}">z=${anomaly.z_score.toFixed(2)} · ${anomaly.value.toFixed(2)}</p>
                 </div>
               </div>
             </div>
@@ -180,14 +158,14 @@ export async function sendAnomalyEmail(data: AnomalyEmailData) {
       </div>
 
       <a href="${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/anomalies"
-        style="display:block;text-align:center;padding:14px;background:linear-gradient(135deg,#5865f2,#818cf8);color:#fff;border-radius:10px;text-decoration:none;font-size:15px;font-weight:600;margin-bottom:20px;">
+        style="${EMAIL_STYLES.monitor.action}">
         Investigate Anomaly ->
       </a>
 
-      <p style="color:#6b7280;font-size:12px;text-align:center;margin:0;">
-        You are receiving this because you are a member of the <strong style="color:#9ca3af;">${data.brandName}</strong> workspace.
+      <p style="${EMAIL_STYLES.monitor.workspaceNote}">
+        You are receiving this because you are a member of the <strong style="${EMAIL_STYLES.monitor.workspaceStrong}">${data.brandName}</strong> workspace.
       </p>
-      ${FOOTER}
+      ${renderDarkFooter()}
     </div>
   `;
 
@@ -220,55 +198,54 @@ export async function sendApprovalEmail({
     <!DOCTYPE html>
     <html>
     <head><meta charset="utf-8"></head>
-    <body style="margin:0;padding:0;background:#f3f4f6;font-family:'Segoe UI',Arial,sans-serif;">
-      <div style="max-width:560px;margin:40px auto;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e5e7eb;">
+    <body style="${EMAIL_STYLES.approval.body}">
+      <div style="${EMAIL_STYLES.approval.shell}">
 
-        <div style="background:linear-gradient(135deg,#5865f2,#818cf8);padding:34px 40px 32px;text-align:center;">
-          ${LOGO_MARK("V", "rgba(255,255,255,0.22)", "box-shadow:0 8px 22px rgba(17,24,39,0.12);")}
-          <h1 style="color:white;margin:0;font-size:22px;font-weight:700;">Account Approved!</h1>
-          <p style="color:rgba(255,255,255,0.86);margin:8px 0 0;font-size:14px;">VisioAd Ads Monitor</p>
+        <div style="${EMAIL_STYLES.approval.hero}">
+          ${renderLogoMark({
+            letter: "V",
+            background: EMAIL_STYLES.approval.logoBackground,
+            extraStyle: EMAIL_STYLES.approval.logoShadow,
+          })}
+          <h1 style="${EMAIL_STYLES.approval.heroTitle}">Account Approved!</h1>
+          <p style="${EMAIL_STYLES.approval.heroSubtitle}">VisioAd Ads Monitor</p>
         </div>
 
-        <div style="padding:40px;">
-          <p style="font-size:16px;color:#111827;margin:0 0 8px;font-weight:600;">Hello ${recipientName},</p>
-          <p style="font-size:14px;color:#6b7280;line-height:1.7;margin:0 0 24px;">
-            Great news! Your VisioAd account has been reviewed and <strong style="color:#16a34a;">approved</strong> by an administrator.
+        <div style="${EMAIL_STYLES.approval.content}">
+          <p style="${EMAIL_STYLES.approval.greeting}">Hello ${recipientName},</p>
+          <p style="${EMAIL_STYLES.approval.bodyText}">
+            Great news! Your VisioAd account has been reviewed and <strong style="${EMAIL_STYLES.approval.approvedStrong}">approved</strong> by an administrator.
             You can now log in and access the platform.
           </p>
 
-          <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px 18px;margin-bottom:28px;display:flex;align-items:center;gap:10px;">
-            <div style="width:10px;height:10px;background:#16a34a;border-radius:50%;flex-shrink:0;"></div>
-            <span style="font-size:13px;color:#15803d;font-weight:600;">Your account is now active and ready to use</span>
+          <div style="${EMAIL_STYLES.approval.statusBox}">
+            <div style="${EMAIL_STYLES.approval.statusDot}"></div>
+            <span style="${EMAIL_STYLES.approval.statusText}">Your account is now active and ready to use</span>
           </div>
 
-          <div style="text-align:center;margin-bottom:28px;">
-            <a href="${loginUrl}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#5865f2,#818cf8);color:white;text-decoration:none;border-radius:12px;font-weight:700;font-size:15px;letter-spacing:0.01em;">
+          <div style="${EMAIL_STYLES.approval.actionWrap}">
+            <a href="${loginUrl}" style="${EMAIL_STYLES.approval.action}">
               Log In to VisioAd ->
             </a>
           </div>
 
-          <div style="background:#f8fafc;border-radius:10px;padding:18px;margin-bottom:24px;">
-            <p style="font-size:12px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.1em;margin:0 0 12px;">What you can access</p>
+          <div style="${EMAIL_STYLES.approval.accessBox}">
+            <p style="${EMAIL_STYLES.approval.accessTitle}">What you can access</p>
             ${[
               "Performance dashboards for your assigned brands",
               "Upload and manage Google Ads & Meta Ads CSV data",
               "View alerts and anomaly detection results",
               "Monitor campaign metrics in real time",
-            ].map(item => `
-              <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-                <div style="width:6px;height:6px;background:#5865f2;border-radius:50%;flex-shrink:0;"></div>
-                <span style="font-size:13px;color:#374151;">${item}</span>
-              </div>
-            `).join("")}
+            ].map((item) => renderAccessItem(item)).join("")}
           </div>
 
-          <p style="font-size:12px;color:#9ca3af;text-align:center;margin:0;">
+          <p style="${EMAIL_STYLES.approval.note}">
             If you did not create an account on VisioAd, please ignore this email.
           </p>
         </div>
 
-        <div style="border-top:1px solid #e5e7eb;padding:20px 40px;text-align:center;">
-          <p style="font-size:12px;color:#9ca3af;margin:0;">© 2026 VisioAd · Full-Service Brand Advertising Agency</p>
+        <div style="${EMAIL_STYLES.approval.footer}">
+          <p style="${EMAIL_STYLES.approval.footerText}">&copy; 2026 VisioAd &middot; Full-Service Brand Advertising Agency</p>
         </div>
       </div>
     </body>

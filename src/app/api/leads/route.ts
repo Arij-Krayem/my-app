@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { requireAuth, AuthError } from "@/lib/auth/auth-guard";
 import { z } from "zod";
 
-// ─── Validation schema with custom messages ───────────────────────────────────
+// Validation schema with custom messages 
 const CreateBody = z.object({
   name: z
     .string()
@@ -19,7 +19,7 @@ const CreateBody = z.object({
   source: z.string().optional(),
   notes:  z.string().optional(),
 });
-
+// Formatting Validation Errors
 function formatZodErrors(err: z.ZodError) {
   const fields: Record<string, string> = {};
   for (const issue of err.issues) {
@@ -29,7 +29,7 @@ function formatZodErrors(err: z.ZodError) {
   return fields;
 }
 
-// ─── GET /api/leads — flat pagination like { totalItems, totalPages, ... } ────
+// GET /api/leads — flat pagination like { totalItems, totalPages, ... }
 export async function GET(req: NextRequest) {
   try {
     requireAuth(req);
@@ -87,7 +87,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// ─── POST /api/leads — custom validation error messages ───────────────────────
+// POST /api/leads — custom validation error messages 
 export async function POST(req: NextRequest) {
   try {
     requireAuth(req);

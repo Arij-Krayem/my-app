@@ -1,5 +1,4 @@
-// src/app/api/brands/[id]/route.ts
-// ─── Single brand PATCH (update name + logoUrl) ───────────────────────────────
+// Single brand PATCH (update name + logoUrl)
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, AuthError }    from "@/lib/auth/auth-guard";
 import { prisma }                    from "@/lib/db/prisma";

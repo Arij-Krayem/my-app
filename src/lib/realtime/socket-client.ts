@@ -1,6 +1,4 @@
-// src/lib/socket-client.ts
-// ─── Client-side Socket.io singleton ─────────────────────────────────────────
-
+// ─── Client-side Socket.io singleton
 import { io, Socket } from "socket.io-client";
 
 let socket: Socket | null = null;

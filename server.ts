@@ -27,7 +27,7 @@ app.prepare().then(() => {
     handle(req, res, parsedUrl);
   });
 
-  // ── Attach Socket.io to the same HTTP server ──────────────────────────
+  // ── Attach Socket.io to the same HTTP server 
   const io = new SocketIO(httpServer, {
     cors: {
       origin:  process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",

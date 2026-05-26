@@ -75,9 +75,8 @@ function getPrevBounds(from: string, to: string) {
   const pt = new Date(today); pt.setDate(pt.getDate() - 31);
   return { prevFrom: pf.toISOString().split("T")[0], prevTo: pt.toISOString().split("T")[0] };
 }
-// ══════════════════════════════════════════════════════════════════════════════
+
 // MAIN PAGE
-// ══════════════════════════════════════════════════════════════════════════════
 
 export default function DashboardPage() {
   const [analytics,   setAnalytics]   = useState<AnalyticsData | null>(null);

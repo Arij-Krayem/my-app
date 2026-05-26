@@ -226,7 +226,7 @@ model AlertRule {
   brand  Brand   @relation(fields: [brandId], references: [id], onDelete: Cascade)
   alerts Alert[]
 
-  @@index([brandId, isActive])
+  @@index([brandId, isActive]) // Indexes active rules by brand.
 }
 
 model Alert {
@@ -299,11 +299,11 @@ model Lead {
   @@index([createdAt])
 }
 
-enum LeadStatus {
-  NEW
-  CONTACTED
-  QUALIFIED
-  LOST
+enum LeadStatus {   //Stores CRM-style
+  NEW        // just submitted their info
+  CONTACTED  // agency reached out to them
+  QUALIFIED  // they're a serious potential client
+  LOST       // they didn't convert
 }
 
 model PasswordResetToken {

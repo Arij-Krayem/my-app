@@ -1,6 +1,4 @@
-// src/lib/anomaly-engine.ts
-// ─── Runs after CSV ingest: Python detection → DB → email → Socket.io emit ───
-
+// Runs after CSV ingest: Python detection → DB → email → Socket.io emit
 import { spawn }              from "child_process";
 import { existsSync, statSync } from "fs";
 import path                   from "path";
@@ -376,7 +374,7 @@ export async function runAnomalyCheck(brandId: string, uploadId: string): Promis
       }
     }
 
-    // ── 6. Emit Socket.io event → browser notification ────────────────────
+    // ── 6. Emit Socket.io event → browser notification 
     try {
       const io = getSocketServer();
       if (io) {

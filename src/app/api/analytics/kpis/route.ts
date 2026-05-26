@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { requireAuth, AuthError } from "@/lib/auth/auth-guard";
 
-// ─── Helper: verify user can access this brand ───────────────────────────────
+// verify user can access this brand 
 async function canAccessBrand(userId: string, role: string, brandId: string): Promise<boolean> {
   if (role === "AGENCY_ADMIN") return true;
   const member = await prisma.brandMember.findUnique({

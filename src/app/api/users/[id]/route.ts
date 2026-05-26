@@ -81,7 +81,7 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Optional: prevent deleting yourself
+    // Optional: prevent deleting my self
     if (me.userId === id) {
       return NextResponse.json({ error: "You cannot delete your own account" }, { status: 400 });
     }

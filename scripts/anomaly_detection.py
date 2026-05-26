@@ -78,7 +78,8 @@ def detect_anomalies_for_group(series):
     low_iqr, high_iqr = iqr_bounds(values)
 
     anomalies = []
-
+    # loop through each row
+    # d is the row. v is the metric value.
     for i, d in enumerate(series):
         v = d["value"]
 
@@ -152,6 +153,7 @@ def detect_anomalies(series):
     The TypeScript fallback uses this same grouping, so the statistical
     baseline stays scoped to comparable values instead of mixing metrics.
     """
+    # This prevents mixing unrelated values. CTR for Campaign A is compared only with CTR for Campaign A, not spend or another campaign.
     groups = {}
     for row in series:
         metric = str(row.get("metric", "unknown")).lower()
@@ -159,6 +161,7 @@ def detect_anomalies(series):
         key = f"{metric}::{campaign}"
         groups.setdefault(key, []).append(row)
 
+    # Runs detection for every group and combines the results.
     anomalies = []
     for group in groups.values():
         anomalies.extend(detect_anomalies_for_group(group))
@@ -338,6 +341,7 @@ if __name__ == "__main__":
             print(json.dumps(output))
             sys.exit(0)
 
+    # catch any error, print it as JSON, and exit with status 1.
     except Exception as e:
         error = {"error": str(e), "anomalies": [], "total": 0}
         print(json.dumps(error))

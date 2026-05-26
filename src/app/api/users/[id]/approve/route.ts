@@ -1,5 +1,4 @@
-// src/app/api/users/[id]/approve/route.ts
-// ─── ADMIN ONLY: approve a user account + send approval email ─────────────────
+// ADMIN ONLY: approve a user account + send approval email
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, AuthError }    from "@/lib/auth/auth-guard";
 import { prisma }                    from "@/lib/db/prisma";

@@ -122,9 +122,7 @@ export async function GET(req: NextRequest) {
     if (effectiveDateTo)   baseConditions.push(`date <= '${effectiveDateTo}'::date`);
     const baseWhere = baseConditions.join(" AND ");
 
-    // ════════════════════════════════════════════════════════════════════════
     // Run all queries in parallel
-    // ════════════════════════════════════════════════════════════════════════
     const [
       metricsOverTime,
       platformByDay,       // ← NEW: per-platform per-day rows
