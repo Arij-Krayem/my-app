@@ -9,6 +9,10 @@ export async function GET(req: NextRequest) {
     const { searchParams } = req.nextUrl;
     const brandId = searchParams.get("brandId");
     const status  = searchParams.get("status");
+    const pageSizeParam = Number(searchParams.get("pageSize") ?? 50);
+    const take = Number.isFinite(pageSizeParam)
+      ? Math.min(Math.max(Math.floor(pageSizeParam), 1), 50)
+      : 50;
 
     // Resolve accessible brands
     let brandIds: string[] = [];
@@ -33,19 +37,27 @@ export async function GET(req: NextRequest) {
       where.status = status as NotificationStatus;
     }
 
-    const alerts = await prisma.alert.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      take: 50,
-      include: {
-        rule: {
-          select: { metricKey: true, operator: true, threshold: true, severity: true },
+    const [alerts, totalItems] = await Promise.all([
+      prisma.alert.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        take,
+        include: {
+          rule: {
+            select: { metricKey: true, operator: true, threshold: true, severity: true },
+          },
+          brand: { select: { name: true } },
         },
-        brand: { select: { name: true } },
-      },
-    });
+      }),
+      prisma.alert.count({ where }),
+    ]);
 
-    return NextResponse.json({ items: alerts, totalItems: alerts.length });
+    return NextResponse.json({
+      items: alerts,
+      latestAlerts: alerts,
+      totalItems,
+      ...(status === "OPEN" ? { totalOpenAlerts: totalItems } : {}),
+    });
   } catch (err) {
     if (err instanceof AuthError)
       return NextResponse.json({ error: err.message }, { status: err.status });

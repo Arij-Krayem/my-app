@@ -4,7 +4,7 @@ import { requireAuth, AuthError } from "@/lib/auth/auth-guard";
 
 type Params = { params: Promise<{ id: string }> };
 
-// ─── GET /api/uploads/[id] ────────────────────────────────────────────────────
+// GET /api/uploads/[id] 
 export async function GET(req: NextRequest, { params }: Params) {
   try {
     const payload  = requireAuth(req);
@@ -66,7 +66,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   }
 }
 
-// ─── PATCH /api/uploads/[id] — update column mappings ────────────────────────
+// PATCH /api/uploads/[id] — update column mappings
 export async function PATCH(req: NextRequest, { params }: Params) {
   try {
     const payload = requireAuth(req);
@@ -112,7 +112,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   }
 }
 
-// ─── DELETE /api/uploads/[id] ─────────────────────────────────────────────────
+// DELETE /api/uploads/[id]
 export async function DELETE(req: NextRequest, { params }: Params) {
   try {
     const payload = requireAuth(req);

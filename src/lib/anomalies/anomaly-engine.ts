@@ -1,5 +1,5 @@
 // Runs after CSV ingest: Python detection → DB → email → Socket.io emit
-import { spawn }              from "child_process";
+import { spawn }              from "child_process"; // used to run the Python anomaly detection script from Node.js.
 import { existsSync, statSync } from "fs";
 import path                   from "path";
 import { prisma }             from "@/lib/db/prisma";
@@ -53,7 +53,7 @@ function isWindowsAppExecutionAlias(command: string): boolean {
   }
 }
 
-// ── Run Python Z-Score + IQR detection ───────────────────────────────────────
+// Run Python Z-Score + IQR detection 
 function runPythonProcess(python: PythonCommand, inputData: AnomalyInput[]): Promise<PythonResult> {
   return new Promise((resolve, reject) => {
     const scriptPath = path.join(process.cwd(), "scripts", "anomaly_detection.py");
@@ -128,7 +128,7 @@ function anomalyScore(zScore: number): number {
   return Math.min(Math.abs(zScore) / 4, 1);
 }
 
-// ── JS fallback Z-Score (if Python unavailable) ──────────────────────────────
+// JS fallback Z-Score (if Python unavailable)
 function runJSDetection(inputData: AnomalyInput[]): PythonResult {
   const grouped: Record<string, number[]> = {};
   for (const row of inputData) {
@@ -184,14 +184,13 @@ function runJSDetection(inputData: AnomalyInput[]): PythonResult {
   };
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 // MAIN EXPORT — call this from ingest route (non-blocking)
-// ═══════════════════════════════════════════════════════════════════════════
+
 export async function runAnomalyCheck(brandId: string, uploadId: string): Promise<void> {
   try {
     console.log(`[anomaly-engine] Starting for brand=${brandId} upload=${uploadId}`);
 
-    // ── 1. Load recent facts (last 60 days) ──────────────────────────────
+    // 1. Load recent facts (last 60 days) 
     const since = new Date();
     since.setDate(since.getDate() - 60);
 
@@ -205,7 +204,7 @@ export async function runAnomalyCheck(brandId: string, uploadId: string): Promis
       return;
     }
 
-    // ── 2. Build input array for Python ──────────────────────────────────
+    // 2. Build input array for Python 
     const METRICS = ["roas", "ctr", "cpc", "spend", "clicks", "conversions"];
     const inputData: { date: string; metric: string; value: number; campaign: string; platform: string }[] = [];
 
@@ -230,7 +229,7 @@ export async function runAnomalyCheck(brandId: string, uploadId: string): Promis
       return;
     }
 
-    // ── 3. Run detection (Python with JS fallback) ────────────────────────
+    // 3. Run detection (Python with JS fallback)
     let result: PythonResult;
     try {
       result = await runPythonDetection(inputData);
@@ -258,7 +257,7 @@ export async function runAnomalyCheck(brandId: string, uploadId: string): Promis
       return;
     }
 
-    // ── 4. Save anomalies to DB ───────────────────────────────────────────
+    // 4. Save anomalies to DB 
     const savedAnomalies = await Promise.all(
       thresholdedAnomalies.map(a =>
         prisma.anomaly.create({
@@ -295,7 +294,7 @@ export async function runAnomalyCheck(brandId: string, uploadId: string): Promis
 
     console.log(`[anomaly-engine] Created ${savedAnomalies.length} anomaly alert rows`);
 
-    // ── 5. Email — HIGH only, once per day per metric per brand ──────────
+    // 5. Email — HIGH only, once per day per metric per brand
     const highAnomalies = thresholdedAnomalies.filter(a => a.severity === "HIGH");
 
     if (highAnomalies.length > 0) {
@@ -374,7 +373,7 @@ export async function runAnomalyCheck(brandId: string, uploadId: string): Promis
       }
     }
 
-    // ── 6. Emit Socket.io event → browser notification 
+    // 6. Emit Socket.io event → browser notification 
     try {
       const io = getSocketServer();
       if (io) {

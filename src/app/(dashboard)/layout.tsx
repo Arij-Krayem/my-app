@@ -101,14 +101,14 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     const token = sessionStorage.getItem("access_token");
     if (!token) return;
     try {
-      const res = await fetch("/api/alerts?status=OPEN", {
+      const res = await fetch("/api/alerts?status=OPEN&pageSize=5", {
         headers: { Authorization: `Bearer ${token}` }, credentials: "include",
       });
       if (!res.ok) return;
       const data = await res.json();
-      const items: AlertNotif[] = data.items ?? [];
+      const items: AlertNotif[] = data.latestAlerts ?? data.items ?? [];
       setNotifications(items.slice(0, 5));
-      setNotifCount(items.length);
+      setNotifCount(Number(data.totalOpenAlerts ?? data.totalItems ?? items.length));
     } catch {}
   }, []);
 
@@ -281,7 +281,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                 {SVG.bell}
               </button>
               {notifCount > 0 && (
-                <span className={styles.notificationBadge}>{notifCount > 99 ? "99+" : notifCount}</span>
+                <span className={styles.notificationBadge}>{notifCount}</span>
               )}
               {showBell && (
                 <div className={`${styles.dropdownPanel} ${styles.notificationsPanel}`}>
