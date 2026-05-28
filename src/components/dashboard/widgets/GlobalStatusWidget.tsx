@@ -108,25 +108,41 @@ export default function GlobalStatusWidget() {
   useEffect(() => {
     const tok = sessionStorage.getItem("access_token");
     if (!tok) return;
-    fetch("/api/analytics/global-status", {
+
+    const controller = new AbortController();
+
+    fetch(`/api/analytics/global-status?range=${timeFilter}`, {
       headers: { Authorization: `Bearer ${tok}` },
       credentials: "include",
+      signal: controller.signal,
     })
       .then(r => {
-        if (r.status === 403) { setForbidden(true); return null; }
+        if (r.status === 403) {
+          setForbidden(true);
+          setData(null);
+          return null;
+        }
+        if (r.ok) setForbidden(false);
         return r.ok ? r.json() : null;
       })
       .then(d => { if (d) setData(d); })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+      .catch((err: unknown) => {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setData(null);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [timeFilter]);
 
   if (loading) return (
     <div className={`${styles.card} ${styles.loadingCard}`}>
       <div className={styles.spinner} />
     </div>
   );
-  if (forbidden || !data || data.totals.total === 0) return null;
+  if (forbidden || !data) return null;
 
   const { totals, byBrand, meta } = data;
   const resRate = totals.total > 0 ? Math.round((totals.resolved / totals.total) * 100) : 0;
@@ -152,7 +168,10 @@ export default function GlobalStatusWidget() {
             {(["week", "month", "all"] as TimeFilter[]).map(t => (
               <button
                 key={t}
-                onClick={() => setTimeFilter(t)}
+                onClick={() => {
+                  setTimeFilter(t);
+                  setActiveIdx(null);
+                }}
                 className={`${styles.tabButton} ${timeFilter === t ? styles.tabButtonActive : ""}`}
               >
                 {t === "week" ? "7 days" : t === "month" ? "30 days" : "All time"}
@@ -227,7 +246,7 @@ export default function GlobalStatusWidget() {
             {[
               { label: "Resolution rate", value: `${resRate}%`, tone: "green" },
               { label: "Critical alerts", value: critCount.toLocaleString(), tone: "red" },
-              { label: "Brands", value: String(meta.brands), tone: "default" },
+              { label: "Brands", value: byBrand.length.toLocaleString(), tone: "default" },
               { label: "Uploads", value: String(meta.uploads), tone: "default" },
             ].map(s => (
               <div key={s.label} className={styles.statTile}>
@@ -239,7 +258,9 @@ export default function GlobalStatusWidget() {
 
           <div className={styles.brandPanel}>
             <div className={styles.panelLabel}>Brand breakdown</div>
-            {byBrand.map((b) => {
+            {byBrand.length === 0 ? (
+              <div className={styles.emptyState}>No alerts in this range</div>
+            ) : byBrand.map((b) => {
               const total = Math.max(b.total, 1);
               const resPct = Math.round((b.resolved / total) * 100);
               const critR = Math.round(((b.critical ?? 0) / Math.max((b.critical ?? 0) + (b.warning ?? 0), 1)) * 100);

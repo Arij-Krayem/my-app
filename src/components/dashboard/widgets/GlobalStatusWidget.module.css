@@ -248,6 +248,13 @@
   margin-bottom: 12px;
 }
 
+.emptyState {
+  color: var(--t3);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 12px 0 4px;
+}
+
 .brandRow {
   margin-bottom: 12px;
 }

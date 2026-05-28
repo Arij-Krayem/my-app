@@ -1,8 +1,23 @@
-// src/app/api/analytics/global-status/route.ts
 // ADMIN ONLY — multidimensional: status × severity × brand
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma }                    from "@prisma/client";
 import { requireAuth, AuthError }    from "@/lib/auth/auth-guard";
 import { prisma }                    from "@/lib/db/prisma";
+
+type TimeRange = "week" | "month" | "all";
+
+function parseRange(value: string | null): TimeRange {
+  return value === "week" || value === "month" || value === "all" ? value : "all";
+}
+
+function rangeStartDate(range: TimeRange): Date | null {
+  const days = range === "week" ? 7 : range === "month" ? 30 : null;
+  if (!days) return null;
+
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  return date;
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -10,13 +25,21 @@ export async function GET(req: NextRequest) {
     if (payload.role !== "AGENCY_ADMIN")
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
 
-    // ── Dim 1 × Dim 2 × Dim 3: brand × status × severity ─────────────────
-    const rows = await prisma.$queryRawUnsafe<{
+    //Dim 1 × Dim 2 × Dim 3: brand × status × severity
+    const range = parseRange(req.nextUrl.searchParams.get("range"));
+    const rangeStart = rangeStartDate(range);
+    const alertDateFilter = range === "week"
+      ? Prisma.sql`a."createdAt" >= NOW() - INTERVAL '7 days'`
+      : range === "month"
+        ? Prisma.sql`a."createdAt" >= NOW() - INTERVAL '30 days'`
+        : Prisma.sql`TRUE`;
+
+    const rows = await prisma.$queryRaw<{
       brand_name: string;
       status:     string;
       severity:   string | null;
       count:      string;
-    }[]>(`
+    }[]>`
       SELECT
         b.name                                    AS brand_name,
         a.status,
@@ -25,17 +48,18 @@ export async function GET(req: NextRequest) {
       FROM "Alert" a
       JOIN "Brand" b  ON b.id = a."brandId"
       LEFT JOIN "AlertRule" ar ON ar.id = a."ruleId"
+      WHERE ${alertDateFilter}
       GROUP BY b.name, a.status, ar.severity
       ORDER BY b.name, a.status
-    `);
+    `;
 
-    // ── Global totals (for donut) ─────────────────────────────────────────
+    // Global totals (for donut)
     const totals: Record<string, number> = {};
     for (const r of rows) {
       totals[r.status] = (totals[r.status] ?? 0) + Number(r.count);
     }
 
-    // ── Per-brand pivot: { brandName, open, resolved, unresolved, critical, warning } ──
+    // Per-brand pivot: { brandName, open, resolved, unresolved, critical, warning }
     const brandMap: Record<string, {
       brand: string;
       open: number; resolved: number; unresolved: number;
@@ -63,7 +87,9 @@ export async function GET(req: NextRequest) {
     const [brandCount, userCount, uploadCount] = await Promise.all([
       prisma.brand.count(),
       prisma.user.count(),
-      prisma.upload.count(),
+      prisma.upload.count({
+        where: rangeStart ? { createdAt: { gte: rangeStart } } : undefined,
+      }),
     ]);
 
     return NextResponse.json({

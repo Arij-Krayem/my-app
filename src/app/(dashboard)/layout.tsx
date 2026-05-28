@@ -188,7 +188,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // ── Brand switcher handler — fires custom event consumed by dashboard ──────
+  // Brand switcher handler — fires custom event consumed by dashboard 
   const handleBrandChange = (brandId: string) => {
     setSelectedBrand(brandId);
     window.dispatchEvent(new CustomEvent("brand-change", { detail: { brandId } }));
