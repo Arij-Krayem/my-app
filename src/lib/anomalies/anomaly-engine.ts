@@ -1,6 +1,6 @@
 // Runs after CSV ingest: Python detection → DB → email → Socket.io emit
 import { spawn }              from "child_process"; // used to run the Python anomaly detection script from Node.js.
-import { existsSync, statSync } from "fs";
+import { existsSync, statSync } from "fs"; //	Imports file utilities to check whether a Python path exists and whether it is valid.
 import path                   from "path";
 import { prisma }             from "@/lib/db/prisma";
 import { sendAnomalyEmail }   from "@/lib/notifications/notification-mailer";
@@ -41,6 +41,7 @@ function cleanPythonCommand(command: string): string {
   return command.trim().replace(/^["']|["']$/g, "");
 }
 
+// Detects a Windows “app execution alias,” which can look like Python but is not a real interpreter. This prevents a common Windows Python error.
 function isWindowsAppExecutionAlias(command: string): boolean {
   if (process.platform !== "win32") return false;
 
@@ -55,7 +56,7 @@ function isWindowsAppExecutionAlias(command: string): boolean {
 
 // Run Python Z-Score + IQR detection 
 function runPythonProcess(python: PythonCommand, inputData: AnomalyInput[]): Promise<PythonResult> {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve, reject) => {  // Builds the path to scripts/anomaly_detection.py.
     const scriptPath = path.join(process.cwd(), "scripts", "anomaly_detection.py");
     const child      = spawn(python.command, [...python.args, scriptPath]);
 
@@ -98,7 +99,7 @@ async function runPythonDetection(inputData: AnomalyInput[]): Promise<PythonResu
       commands.push({ command, args: [], label: `PYTHON_BIN (${command})` });
     }
   }
-
+  // On Windows, it tries py -3, python, then python3; on other systems, it tries python3, then python.
   commands.push(
     ...(process.platform === "win32"
       ? [
@@ -111,7 +112,7 @@ async function runPythonDetection(inputData: AnomalyInput[]): Promise<PythonResu
           { command: "python", args: [], label: "python" },
         ])
   );
-
+  // Attempts each Python command until one succeeds.
   for (const command of commands) {
     try {
       return await runPythonProcess(command, inputData);
@@ -123,12 +124,12 @@ async function runPythonDetection(inputData: AnomalyInput[]): Promise<PythonResu
 
   throw new Error(errors.length ? `Python detection failed. ${errors.join(" | ")}` : String(lastError));
 }
-
+// Converts a z-score into a normalized anomaly score between 0 and 1. A z-score of 4 or higher becomes 1
 function anomalyScore(zScore: number): number {
   return Math.min(Math.abs(zScore) / 4, 1);
 }
 
-// JS fallback Z-Score (if Python unavailable)
+// JavaScript fallback detector, used if Python fails.
 function runJSDetection(inputData: AnomalyInput[]): PythonResult {
   const grouped: Record<string, number[]> = {};
   for (const row of inputData) {
@@ -147,10 +148,10 @@ function runJSDetection(inputData: AnomalyInput[]): PythonResult {
     const mean   = values.reduce((a, b) => a + b, 0) / values.length;
     const stdDev = Math.sqrt(values.map(v => Math.pow(v - mean, 2)).reduce((a, b) => a + b, 0) / values.length);
     if (stdDev === 0) continue;
-
+    // Z-score measures how far a value is from the average in standard deviation units. 
     const zScore   = Math.abs((row.value - mean) / stdDev);
     const severity = zScore >= 2.5 ? "HIGH" : zScore >= 1.5 ? "MEDIUM" : "LOW";
-
+    // Only values with z-score at least 1.5 are treated as anomalies.
     if (zScore >= 1.5) {
       anomalies.push({
         ...row,
@@ -162,7 +163,7 @@ function runJSDetection(inputData: AnomalyInput[]): PythonResult {
     }
   }
 
-  // Dedup: keep top anomaly per campaign+metric
+  // Deduplicates results: keep top anomaly per campaign+metric
   const seen = new Set<string>();
   const deduped = anomalies
     .sort((a, b) => b.z_score - a.z_score)
@@ -173,7 +174,7 @@ function runJSDetection(inputData: AnomalyInput[]): PythonResult {
       return true;
     })
     .slice(0, 20);
-
+  // Returns anomaly counts and marks the method as js-fallback.
   return {
     anomalies: deduped,
     total:     deduped.length,
@@ -184,7 +185,7 @@ function runJSDetection(inputData: AnomalyInput[]): PythonResult {
   };
 }
 
-// MAIN EXPORT — call this from ingest route (non-blocking)
+// Exports the main function, This is what the ingest route calls.
 
 export async function runAnomalyCheck(brandId: string, uploadId: string): Promise<void> {
   try {
@@ -207,7 +208,7 @@ export async function runAnomalyCheck(brandId: string, uploadId: string): Promis
     // 2. Build input array for Python 
     const METRICS = ["roas", "ctr", "cpc", "spend", "clicks", "conversions"];
     const inputData: { date: string; metric: string; value: number; campaign: string; platform: string }[] = [];
-
+    // Converts database facts into a flat list of metric records for the detector.
     for (const fact of facts) {
       const metrics    = fact.metrics    as Record<string, number>;
       const dimensions = fact.dimensions as Record<string, string>;
@@ -229,7 +230,7 @@ export async function runAnomalyCheck(brandId: string, uploadId: string): Promis
       return;
     }
 
-    // 3. Run detection (Python with JS fallback)
+    // 3. Run detection (Runs Python anomaly detection first. If Python fails, it uses the JavaScript fallback.)
     let result: PythonResult;
     try {
       result = await runPythonDetection(inputData);
@@ -279,7 +280,7 @@ export async function runAnomalyCheck(brandId: string, uploadId: string): Promis
     );
 
     console.log(`[anomaly-engine] Saved ${savedAnomalies.length} anomalies to DB`);
-
+   // Creates alert rows for the saved anomalies, with a readable alert message.
     await prisma.alert.createMany({
       data: savedAnomalies.map((saved, index) => {
         const source = thresholdedAnomalies[index];
@@ -313,7 +314,7 @@ export async function runAnomalyCheck(brandId: string, uploadId: string): Promis
           select: { email: true },
         }),
       ]);
-
+      // Combines all recipient emails and removes duplicates.
       const allEmails = Array.from(new Set([
         ...brandMembers.map(m => m.user.email),
         ...admins.map(a => a.email),
@@ -333,7 +334,7 @@ export async function runAnomalyCheck(brandId: string, uploadId: string): Promis
               message:   { contains: anomaly.metric },
             },
           });
-
+        // Sends anomaly email, creates a notification record, links it to recipient users, and catches email errors safely.
           if (!alreadySent) {
             try {
               await sendAnomalyEmail({

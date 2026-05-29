@@ -12,13 +12,26 @@ export default function ForgotPasswordPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail) {
+      setError("Email is required");
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setError("Please enter a valid email address");
+      return;
+    }
+
+    setEmail(trimmedEmail);
     setError("");
     setLoading(true);
-    try {
+    try { 
       const res = await fetch("/api/auth/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: trimmedEmail }), // Sends the email to our backend API
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Something went wrong");
@@ -61,7 +74,7 @@ export default function ForgotPasswordPage() {
                   ⚠ {error}
                 </div>
               )}
-              <form onSubmit={handleSubmit}>
+              <form onSubmit={handleSubmit} noValidate>
                 <div className={styles.formGroupXL}>
                   <label className={`${styles.label} ${styles.labelWide}`}>Email Address</label>
                   <div className={styles.inputWrap}>
